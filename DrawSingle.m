@@ -49,7 +49,7 @@ classdef DrawSingle < Draw
     end
     
     methods
-        function obj = DrawSin(in, varargin)
+        function obj = DrawSingle(in, varargin)
             % CONSTRUCTOR
             obj@Draw(in, varargin{:})
             
@@ -393,6 +393,8 @@ classdef DrawSingle < Draw
             if ismember(true, obj.isComplex) && isempty(obj.img2)
                 set(obj.hBtnCmplx, 'Visible', 'on');
             else
+                % when hBtnCmplx are hidden, complexMode must be 3
+                obj.complexMode = 3;
                 set(obj.hBtnCmplx, 'Visible', 'off');
             end
             

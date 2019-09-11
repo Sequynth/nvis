@@ -96,13 +96,22 @@ classdef (Abstract) Draw < handle
             obj.S           = size(in);
             obj.nDims       = ndims(in);
             obj.activeDim   = 1;
-            obj.isComplex = ~isreal(in);
+            obj.isComplex   = ~isreal(in);
             % necessary for view orientation, already needed when saving image or video
             obj.azimuthAng   = 0;
             obj.elevationAng = 90;
             
             % check varargin for a sencond input matrix
             obj.secondImageCheck(varargin{:})
+            
+            % set the correct default value for complexMode
+            if any(obj.isComplex)
+                obj.complexMode = 1;
+            else
+                % if neither input is complex, display the real part of the
+                % data
+                obj.complexMode = 3;
+            end
             
             % find min and max values in the input data
             obj.findMinMax()
@@ -170,7 +179,7 @@ classdef (Abstract) Draw < handle
             % add parameters to the input parser
             addParameter(obj.p, 'Colormap',     gray(256),                      @(x) obj.isColormap(x));
             addParameter(obj.p, 'Contrast',     'green-magenta',                @(x) obj.isContrast(x, obj.nImages));
-            addParameter(obj.p, 'ComplexMode',  1,                              @(x) isnumeric(x) && x <= 4);
+            addParameter(obj.p, 'ComplexMode',  obj.complexMode,                @(x) isnumeric(x) && x <= 4);
             addParameter(obj.p, 'AspectRatio',  'square',                       @(x) any(strcmp({'image', 'square'}, x)));
             addParameter(obj.p, 'Resize',       1,                              @isnumeric);
             addParameter(obj.p, 'Title',        obj.standardTitle,              @ischar);
@@ -322,11 +331,16 @@ classdef (Abstract) Draw < handle
             end
             
             if any(~cellfun(@isreal, obj.img))
+                % at least one of the slices has complex values
                 set(obj.hBtnCmplx, 'Visible', 'on');
                 obj.img = cellfun(@single, ...
                 cellfun(@obj.complexPart, obj.img, 'UniformOutput', false), ...
                 'UniformOutput', false);
             else
+                % none of the slices has complex data
+                % when hBtnCmplx are hidden, complexMode must be 3
+                obj.complexMode = 3;
+                set(obj.hBtnCmplx, 'Visible', 'off');
                 obj.img = cellfun(@single, obj.img, 'UniformOutput', false);
             end
         end
