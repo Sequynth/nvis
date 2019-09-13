@@ -195,8 +195,8 @@ classdef DrawSingle < Draw
             
             if obj.nImages == 1
                 obj.division    = 0.40 * obj.controlWidth;
-                centerString    = 'Center: ';
-                widthString     = 'Width: ';
+                centerString    = 'Center:';
+                widthString     = 'Width:';
                 signalString    = 'Signal ROI';
                 noiseString     = 'Noise ROI';
                 textFont        = 0.6;
@@ -376,8 +376,10 @@ classdef DrawSingle < Draw
                 'Parent',               obj.pControls, ...
                 'Units',                'pixel', ...
                 'String',               '', ...
+                'HorizontalAlignment',  'right', ...
                 'FontUnits',            'normalized', ...
-                'FontSize',             0.4);
+                'FontSize',             textFont, ...
+                'FontName',             'FixedWidth');
             
             set(obj.hTextSNR, ...
                 'Parent',               obj.pControls, ...
@@ -409,6 +411,20 @@ classdef DrawSingle < Draw
                 'Parent',               obj.pControls, ...
                 'FontUnits',            'normalized', ...
                 'FontSize',             0.6);
+            
+            set(obj.hBtnDelRois, ...
+                'Parent',               obj.pControls, ...
+                'Units',                'pixel', ...
+                'String',               'Delete ROIs', ...
+                'FontUnits',            'normalized', ...
+                'FontSize',             0.45);
+            
+            set(obj.hBtnSaveRois, ...
+                'Parent',               obj.pControls, ...
+                'Units',                'pixel', ...
+                'String',               'Save ROIs', ...
+                'FontUnits',            'normalized', ...
+                'FontSize',             0.45);
             
             set(obj.hBtnFFT, ...
                 'Parent',               obj.pControls, ...
@@ -444,7 +460,7 @@ classdef DrawSingle < Draw
                 'FontUnits',            'normalized', ...
                 'FontSize',             0.45);
             
-            if ismember(true, obj.isComplex) && isempty(obj.img2)
+            if ismember(true, obj.isComplex) && isempty(obj.img{2})
                 set(obj.hBtnCmplx, 'Visible', 'on');
             else
                 % when hBtnCmplx are hidden, complexMode must be 3
@@ -636,7 +652,7 @@ classdef DrawSingle < Draw
         
         function initializeSliders(obj)
             % get the size, dimensionNo, and labels only for the sliders
-            s = size(obj.img1);
+            s = size(obj.img{1});
             labels = obj.dimensionLabel;
             s(     obj.showDims) = [];
             labels(obj.showDims) = [];
@@ -668,6 +684,7 @@ classdef DrawSingle < Draw
         function setPanelPos(obj)
             % create a 3x4 array that stores the 'Position' information for
             % the three panels pImage, pSlider, pControl
+            
             obj.figurePos = get(obj.f, 'Position');
             
             if obj.figurePos(3) < obj.controlWidth
@@ -701,7 +718,7 @@ classdef DrawSingle < Draw
             obj.showDims = [1 2];
             obj.dimMap   = 3:obj.nDims;
             % create slice selector for dimensions 3 and higher
-            obj.sel        = repmat({':'}, 1, ndims(obj.img1));
+            obj.sel        = repmat({':'}, 1, ndims(obj.img{1}));
             obj.sel(ismember(1:obj.nDims, obj.dimMap)) = num2cell(obj.p.Results.InitSlice);
         end
         
@@ -765,13 +782,13 @@ classdef DrawSingle < Draw
         function locVal(obj, point)
             if ~isempty(point)
                 if obj.nImages == 1
-                    val = obj.complexPart(obj.img{1}(point{:}));
+                    val = obj.complexPart(obj.slice{1}(point{:}));
                     set(obj.locAndVals, 'String', obj.locValString(...
                         obj.dimensionLabel{obj.showDims(1)}, point{1}, ...
                         obj.dimensionLabel{obj.showDims(2)}, point{2}, val));
                 else
-                    val1 = obj.complexPart(obj.img{1}(point{:}));
-                    val2 = obj.complexPart(obj.img{2}(point{:}));
+                    val1 = obj.complexPart(obj.slice{1}(point{:}));
+                    val2 = obj.complexPart(obj.slice{2}(point{:}));
                     set(obj.locAndVals, 'String', obj.locValString(...
                         obj.dimensionLabel{obj.showDims(1)}, point{1}, ...
                         obj.dimensionLabel{obj.showDims(2)}, point{2}, val1, val2));
@@ -971,12 +988,14 @@ classdef DrawSingle < Draw
             % closeRqst is called, when the user closes the figure (by 'x' or
             % 'close'). It stops and deletes the timer, frees up memory taken
             % by img and closes the figure.
-            try
-                stop(obj.t);
-                delete(obj.t);
-            catch
-            end
+%             try
+%                 stop(obj.t);
+%                 delete(obj.t);
+%             catch
+%             end
+%             delete(obj.f);
             delete(obj.f);
+            obj.delete
         end
         
         

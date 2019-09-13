@@ -9,11 +9,10 @@ classdef (Abstract) Draw < handle
     properties (Access = protected)
         % INPUT PROPERTIES
         nImages         % number of images (1 or 2)
+        img             % cell array in which the input matrices are stored
         nDims           % number of image dimensions
         isComplex       % is one of the inputs complex
         layerHider      % which of the images is currently shown?
-        img1            % first input image
-        img2            % second input image
         S               % size of the image(s)
         p               % input parser
         standardTitle   % name of the figure, default depends on inputnames
@@ -44,8 +43,8 @@ classdef (Abstract) Draw < handle
         resize
         azimuthAng
         elevationAng
-        % cell array containing the current image information
-        img
+        % cell array containing the current slice image information
+        slice
         
         COLOR_m
         cmap
@@ -80,6 +79,10 @@ classdef (Abstract) Draw < handle
         hBtnDelRois
         hBtnSaveRois
         
+        % array with ROIs
+        rois
+        signal
+        noise
         
         % GUI ELEMENT PROPERTIES
         SliderHeight
@@ -90,9 +93,11 @@ classdef (Abstract) Draw < handle
     
     properties (Constant = true, Hidden = true)
         % color scheme of the GUI
-        COLOR_BG = [0.2 0.2 0.2];
-        COLOR_B  = [0.1 0.1 0.1];
-        COLOR_F  = [0.9 0.9 0.9];
+        COLOR_BG  = [0.2 0.2 0.2];
+        COLOR_B   = [0.1 0.1 0.1];
+        COLOR_F   = [0.9 0.9 0.9];
+        COLOR_roi = [1.0 0.0 0.0;
+                    0.0 0.0 1.0];
         
     end
     
@@ -101,7 +106,7 @@ classdef (Abstract) Draw < handle
         function obj = Draw(in, varargin)
             % CONSTRUCTOR
             
-            obj.img1        = in;
+            obj.img{1}      = in;
             obj.S           = size(in);
             obj.nDims       = ndims(in);
             obj.activeDim   = 1;
@@ -109,9 +114,16 @@ classdef (Abstract) Draw < handle
             % necessary for view orientation, already needed when saving image or video
             obj.azimuthAng   = 0;
             obj.elevationAng = 90;
+                        
             
             % check varargin for a sencond input matrix
             obj.secondImageCheck(varargin{:})
+            
+            
+            % prepare roi parameters
+            obj.rois         = {[], []};
+            obj.signal       = NaN(1, obj.nImages);
+            obj.noise        = NaN(1, obj.nImages);
             
             % set the correct default value for complexMode
             if any(obj.isComplex)
@@ -134,28 +146,33 @@ classdef (Abstract) Draw < handle
         end
         
         
+        function delete(obj)
+            delete(obj)
+        end
+        
+        
         function findMinMax(obj)
             % Calculates the minimal and maximal value in the upto two
             % input matrices. If there are +-Inf values in the data, a
             % slower, less memory efficient calculation is performed.
-            obj.Max = [max(obj.img1, [], 'all', 'omitnan'), max(obj.img2, [], 'all', 'omitnan')];
+            obj.Max = [max(obj.img{1}, [], 'all', 'omitnan'), max(obj.img{2}, [], 'all', 'omitnan')];
             hasInf = obj.Max == Inf;
             if hasInf(1)
                 warning('+Inf values present in input 1. For large input matrices this can cause memory overflow and long startup time.')
-                obj.Max(1)           = max(obj.img1(~isinf(obj.img1)), [], 'omitnan');
+                obj.Max(1)           = max(obj.img{1}(~isinf(obj.img{1})), [], 'omitnan');
             elseif obj.nImages == 2 && hasInf(2)
                 warning('-Inf values present in input 2. For large input matrices this can cause memory overflow and long startup time.')
-                obj.Max(2)           = max(obj.img2(~isinf(obj.img2)), [], 'omitnan');
+                obj.Max(2)           = max(obj.img{2}(~isinf(obj.img{2})), [], 'omitnan');
             end
             
-            obj.Min = [min(obj.img1, [], 'all', 'omitnan'), min(obj.img2, [], 'all', 'omitnan')];
+            obj.Min = [min(obj.img{1}, [], 'all', 'omitnan'), min(obj.img{2}, [], 'all', 'omitnan')];
             hasInf = obj.Min == -Inf;
             if hasInf(1)
                 warning('+Inf values present in input 1. For large input matrices this can cause memory overflow and long startup time.')
-                obj.Min(1)           = [min(obj.img1(~isinf(obj.img1)), [], 'omitnan'), 0];
+                obj.Min(1)           = [min(obj.img{1}(~isinf(obj.img{1})), [], 'omitnan'), 0];
             elseif obj.nImages == 2 && hasInf(2)
                 warning('-Inf values present in input 2. For large input matrices this can cause memory overflow and long startup time.')
-                obj.Min(2)           = [min(obj.img2(~isinf(obj.img2)), [], 'omitnan'), 0];
+                obj.Min(2)           = [min(obj.img{2}(~isinf(obj.img{2})), [], 'omitnan'), 0];
             end
             
             if obj.nImages == 1
@@ -170,14 +187,14 @@ classdef (Abstract) Draw < handle
         
         function secondImageCheck(obj, varargin)
             % check varargin to see if a second matrix was provided
-            if ~isempty(varargin) && ( isnumeric(varargin{1}) || islogical(varargin{1}{1}) )
+            if ~isempty(varargin) && ( isnumeric(varargin{1}) || islogical(varargin{1}) )
                 obj.nImages = 2;
-                obj.img2    = varargin{1};
-                obj.layerHider = [1, 1];
-                obj.isComplex(2) = ~isreal(obj.img2);
+                obj.img{2}  = varargin{1};
+                obj.layerHider   = [1, 1];
+                obj.isComplex(2) = ~isreal(obj.img{2});
             else
                 obj.nImages = 1;
-                obj.img2    = [];
+                obj.img{2}  = [];
             end
         end
         
@@ -370,38 +387,33 @@ classdef (Abstract) Draw < handle
                 'Callback',             {@obj.toggleComplex},...
                 'BackgroundColor',      obj.COLOR_BG, ...
                 'ForegroundColor',      obj.COLOR_F);
-            
         end
         
         
         function prepareSliceData(obj)
             % obtain image information form 
-            if obj.nImages == 1
-                obj.img{1} = squeeze(obj.img1(obj.sel{1, :}));
-            else
-                obj.img{1} = squeeze(obj.img1(obj.sel{1, :}));
-                obj.img{2} = squeeze(obj.img2(obj.sel{1, :}));
-            end
-            
-            if obj.fftStatus == 1
-                for iImg = 1:obj.nImages
-                    obj.img{iImg} = fftshift(fftn(fftshift(obj.img{iImg})));
+            for iImg = 1:obj.nImages
+                obj.slice{iImg} = squeeze(obj.img{iImg}(obj.sel{1, :}));
+                if obj.fftStatus == 1
+                    obj.slice{iImg} = fftshift(fftn(fftshift(obj.slice{iImg})));
                 end
             end
             
-            if any(~cellfun(@isreal, obj.img))
+            if any(~cellfun(@isreal, obj.slice))
                 % at least one of the slices has complex values
                 set(obj.hBtnCmplx, 'Visible', 'on');
-                obj.img = cellfun(@single, ...
-                cellfun(@obj.complexPart, obj.img, 'UniformOutput', false), ...
+                obj.slice = cellfun(@single, ...
+                cellfun(@obj.complexPart, obj.slice, 'UniformOutput', false), ...
                 'UniformOutput', false);
             else
                 % none of the slices has complex data
                 % when hBtnCmplx are hidden, complexMode must be 3
                 obj.complexMode = 3;
                 set(obj.hBtnCmplx, 'Visible', 'off');
-                obj.img = cellfun(@single, obj.img, 'UniformOutput', false);
+                obj.slice = cellfun(@single, obj.slice, 'UniformOutput', false);
             end
+            
+            obj.calcROI
         end
         
         
@@ -412,25 +424,25 @@ classdef (Abstract) Draw < handle
             % run before calling the slice mixer.
             if obj.nImages == 1                
                 lowerl  = single(obj.center(1) - obj.width(1)/2);
-                imshift = (obj.img{1} - lowerl)/single(obj.width(1)) * size(obj.cmap{1}, 1);
+                imshift = (obj.slice{1} - lowerl)/single(obj.width(1)) * size(obj.cmap{1}, 1);
                 if obj.resize ~= 1
                     imshift = imresize(imshift, obj.resize);
                 end
                 cImage = ind2rgb(round(imshift), obj.cmap{1});
             else
-                cImage  = zeros([size(obj.img{1} ), 3]);
+                cImage  = zeros([size(obj.slice{1} ), 3]);
                 for idd = 1:obj.nImages
                     % convert images to range [0, cmapResolution]
                     lowerl  = single(obj.center(idd) - obj.width(idd)/2);
-                    imshift = (obj.img{idd} - lowerl)/single(obj.width(idd)) * size(obj.cmap{idd}, 1);
+                    imshift = (obj.slice{idd} - lowerl)/single(obj.width(idd)) * size(obj.cmap{idd}, 1);
                     if obj.resize ~= 1
                         imshift = imresize(imshift, obj.resize);
                     end
                     imgRGB  = ind2rgb(round(imshift), obj.cmap{idd}) * obj.layerHider(idd);
-                    imgRGB(repmat(isnan(obj.img{idd}), [1 1 3])) = 0;
+                    imgRGB(repmat(isnan(obj.slice{idd}), [1 1 3])) = 0;
                     cImage  = cImage + imgRGB;
                 end
-                cImage(isnan(obj.img{1}) & isnan(obj.img{2})) = NaN;
+                cImage(isnan(obj.slice{1}) & isnan(obj.slice{2})) = NaN;
             end
             
             % make sure no channel has values above 1
@@ -513,7 +525,7 @@ classdef (Abstract) Draw < handle
             obj.nrmFac = [obj.S(find(obj.showDims, 1, 'first')) obj.S(find(obj.showDims, 1, 'last'))]*obj.resize;
             switch get(gcbf, 'SelectionType')
                 case 'normal'
-                    if ~isempty(obj.img2) && obj.layerHider(2)
+                    if ~isempty(obj.img{2}) && obj.layerHider(2)
                         sCenter = obj.center;
                         sWidth  = obj.width;
                         cStep   = [0, obj.centerStep(2)];
@@ -521,7 +533,7 @@ classdef (Abstract) Draw < handle
                         obj.f.WindowButtonMotionFcn = {@obj.draggingFcn, callingAx, Pt, sCenter, sWidth, cStep, wStep};
                     end
                 case 'extend'
-                    if isempty(obj.img2) || (~isempty(obj.img2) && obj.layerHider(1))
+                    if isempty(obj.img{2}) || (~isempty(obj.img{2}) && obj.layerHider(1))
                         sCenter = obj.center;
                         sWidth  = obj.width;
                         cStep   = [obj.centerStep(1), 0];
@@ -560,7 +572,6 @@ classdef (Abstract) Draw < handle
             
             for ida = 1:numel(obj.ax)
                 set(obj.hImage(ida), 'CData', obj.sliceMixer);
-                caxis(obj.ax(ida), [0, 1]);
             end
             
             for idi = 1:obj.nImages
@@ -620,6 +631,10 @@ classdef (Abstract) Draw < handle
             if obj.fftStatus == 1
                 obj.fftStatus = 0;
                 set(obj.hBtnFFT, 'String', 'FFT')
+                % when leaving fft mode, also reset CW values to initial
+                % values
+                obj.prepareColors
+                obj.cw                
             else
                 obj.fftStatus = 1;
                 set(obj.hBtnFFT, 'String', '<HTML>FFT<SUP>-1</SUP>')
@@ -733,18 +748,93 @@ classdef (Abstract) Draw < handle
         end
         
         
-        function delRois(obj, ~, ~)
-            disp('Functionality not yet implemented')
+        function drawRoi(obj, src, ~)
+            % check for signal or noise ROI
+            roiNo = find(obj.hBtnRoi == src);
+            % if there is currently a roi connected to the handle, delete
+            % graphics element
+            if ~isempty(obj.rois{roiNo})
+                obj.deleteRoi(roiNo)
+            end
+            
+            % instantiate new roi depending on choice
+            switch(get(obj.hPopRoiType, 'Value'))
+                case 1
+                    obj.rois{roiNo} = images.roi.Polygon('Parent', obj.ax, 'Color', obj.COLOR_roi(roiNo, :));
+                case 2
+                    obj.rois{roiNo} = images.roi.Ellipse('Parent', obj.ax, 'Color', obj.COLOR_roi(roiNo, :));
+                case 3
+                    obj.rois{roiNo} = images.roi.Freehand('Parent', obj.ax, 'Color', obj.COLOR_roi(roiNo, :));
+            end
+            
+            addlistener(obj.rois{roiNo}, 'MovingROI', @obj.calcROI);
+            draw(obj.rois{roiNo})
+            
+            obj.calcROI();
         end
+        
+        
+        function calcROI(obj, ~, ~)
+            % calculate masks, mean/std and display values and SNR
+            
+            % get current image
+            for ii = 1:obj.nImages
+                if ~isempty(obj.rois{1})
+                    % This use does not work with resize ~= 1 !
+                    Mask = obj.slice{ii}(obj.rois{1}.createMask);
+                    obj.signal(ii) = mean(Mask(:));
+                    set(obj.hTextRoi(1, ii), 'String', num2sci(obj.signal(ii), 'padding', 'right'));
+                end
+                if ~isempty(obj.rois{2})
+                    % This use does not work with resize ~= 1 !
+                    Mask = obj.slice{ii}(obj.rois{2}.createMask);
+                    % input to std must ne floating point
+                    obj.noise(ii) = std(single(Mask(:)));
+                    set(obj.hTextRoi(2, ii), 'String', num2sci(obj.noise(ii), 'padding', 'right'));
+                end
+                set(obj.hTextSNRvals(ii), 'String', num2sci(obj.signal(ii)./obj.noise(ii), 'padding', 'right'));
+            end
+        end        
+        
+        
+        function deleteRoi(obj, roiNo)
+            % remove roi shape from axes
+            delete(obj.rois{roiNo})
+            % make roi handle empty
+            obj.rois{roiNo} = [];
+            set(obj.hTextRoi(roiNo, :), 'String', '');           
+            set(obj.hTextSNRvals(:),    'String', '');
+            if roiNo == 1
+                obj.signal = [NaN NaN];
+            else
+                obj.noise = [NaN NaN];
+            end
+        end
+        
+        
+        function delRois(obj, ~, ~)
+            obj.deleteRoi(1)
+            obj.deleteRoi(2)
+        end
+        
         
         function saveRois(obj, ~, ~)
-            disp('Functionality not yet implemented')
+            % function is called by the 'Save ROIs' button and saves the
+            % vertices of the current ROIs to the base workspace.
+            if ~isempty(obj.rois{1})
+                assignin('base', 'ROI_Signal', obj.rois{1}.Position);
+                fprintf('ROI_Signal saved to workspace\n');
+            else
+                fprintf('ROI_Signal not found\n');
+            end
+            if ~isempty(obj.rois{2})
+                assignin('base', 'ROI_Noise', obj.rois{2}.Position);
+                fprintf('ROI_Noise saved to workspace\n');
+            else
+                fprintf('ROI_Noise not found\n');
+            end
         end
-        
-        function drawRoi(obj, ~, ~)
-            disp('Functionality not yet implemented')
-        end
-        
+                
         
         function removeListener(obj, src, ~)
             set(obj.f, 'WindowKeyPress', '');
