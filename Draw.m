@@ -2,6 +2,10 @@ classdef (Abstract) Draw < handle
     %Draw Baseclass for Draw.. GUIs
     %   Detailed explanation goes here
     
+    % TODO:
+    % - implement functionality of ShiftDim buttons
+    % - RadioGroup Buttons for animated sliders
+    
     properties
         f
     end
@@ -46,6 +50,7 @@ classdef (Abstract) Draw < handle
         % cell array containing the current slice image information
         slice
         
+        contrast
         COLOR_m
         cmap
         
@@ -65,6 +70,7 @@ classdef (Abstract) Draw < handle
         hEditW        
         hBtnHide
         hBtnToggle
+        hPopContrast
         % buttons array for complex data display
         hBtnCmplx
         % FFT button
@@ -98,6 +104,7 @@ classdef (Abstract) Draw < handle
         COLOR_F   = [0.9 0.9 0.9];
         COLOR_roi = [1.0 0.0 0.0;
                     0.0 0.0 1.0];
+        contrastList = {'green-magenta', 'PET', 'heat'};
         
     end
     
@@ -294,6 +301,13 @@ classdef (Abstract) Draw < handle
                         'Callback',             {@obj.hidelayer});
                 end
             end
+            
+            obj.hPopContrast = uicontrol( ...
+                'Style',                'popup', ...
+                'String',               {'green-magenta', 'PET', 'heat'}, ...
+                'BackgroundColor',      obj.COLOR_BG, ...
+                'ForegroundColor',      obj.COLOR_F, ...
+                'Callback',             {@obj.changeContrast});
             
             if obj.nImages == 2
                 obj.hBtnToggle = uicontrol( ...
@@ -666,6 +680,7 @@ classdef (Abstract) Draw < handle
             obj.refreshUI();
         end
         
+        % Think about combining setSlider, newSlice and scrollSlider
         
         function scrollSlider(obj, ~, evtData)
             % scroll slider is a callback of the mouse wheel and handles the
@@ -868,6 +883,13 @@ classdef (Abstract) Draw < handle
         end
         
         
+        function changeContrast(obj, ~, ~)
+            obj.contrast = obj.contrastList{get(obj.hPopContrast, 'Value')};
+            obj.prepareColors
+            obj.refreshUI
+        end
+        
+        
         function isMap = isColormap(~, inputMap)
             colorMaps = {'parula', 'jet', 'hsv', 'hot', 'cool', 'spring', 'summer', 'autumn', 'winter', 'gray', 'bone', 'copper', 'pink', 'lines', 'colorcube', 'prism', 'flag', 'white'};
             switch class(inputMap)
@@ -902,13 +924,13 @@ classdef (Abstract) Draw < handle
             % and stored in cm, as well as the colors for the text in the control
             % panel (c1, c2)
             cmapResolution = 256;
-            if iscell(obj.p.Results.Contrast)
-                cm1 = obj.p.Results.Contrast{1};
-                cm2 = obj.p.Results.Contrast{2};
+            if iscell(obj.contrast)
+                cm1 = obj.contrast{1};
+                cm2 = obj.contrast{2};
                 c1  = cm1(end,:);
                 c2  = cm2(end,:);
             else
-                switch obj.p.Results.Contrast
+                switch obj.contrast
                     case 'green-magenta'
                         cm1 = [linspace(0,1,cmapResolution)' zeros(cmapResolution,1) linspace(0,1,cmapResolution)'];
                         cm2 = [zeros(cmapResolution,1) linspace(0,1,cmapResolution)' zeros(cmapResolution,1)];

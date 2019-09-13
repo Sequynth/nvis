@@ -96,6 +96,7 @@ classdef DrawSingle < Draw
             obj.fps                 = obj.p.Results.FPS;
             obj.complexMode         = obj.p.Results.ComplexMode;
             obj.resize              = obj.p.Results.Resize;
+            obj.contrast            = obj.p.Results.Contrast;
                         
             obj.prepareColors()
             
@@ -139,7 +140,16 @@ classdef DrawSingle < Draw
                 clear obj
             end
         end
-                
+        
+        
+        function delete(obj)
+            try
+                stop(obj.t);
+                delete(obj.t);
+            catch
+            end
+        end
+        
         
         function prepareGUI(obj)
             
@@ -274,6 +284,13 @@ classdef DrawSingle < Draw
                     'FontSize',             0.4);
             end
             
+            set(obj.hPopContrast, ...
+                'Parent',               obj.pControls, ...
+                'FontUnits',            'normalized', ...
+                'FontSize',             0.6);
+            if obj.nImages == 1
+                set(obj.hPopContrast, 'visible', 'off')
+            end
             
             obj.hBtnShiftL = uicontrol( ...
                 'Parent',               obj.pControls, ...
@@ -550,9 +567,9 @@ classdef DrawSingle < Draw
                     'Style',            'text', ...
                     'Units',            'normalized', ...
                     'Position',         [TextWidth0 ...
-                    sliderHeight0 ...
-                    TextWidth ...
-                    sliderHeight], ...
+                                        sliderHeight0 ...
+                                        TextWidth ...
+                                        sliderHeight], ...
                     'FontUnits',        'normalized', ...
                     'FontSize',         0.8, ...
                     'BackgroundColor',  obj.COLOR_BG, ...
@@ -611,6 +628,7 @@ classdef DrawSingle < Draw
             
             if ~sum(ismember(obj.p.UsingDefaults, 'FPS')) && length(obj.S) > 2
                 obj.fps = obj.p.Results.FPS;
+                set(obj.hBtnRun, 'String', 'Stop')
                 obj.setAndStartTimer
             end
             
@@ -1044,6 +1062,10 @@ classdef DrawSingle < Draw
                 set(obj.hBtnToggle,   'Position', position(2, :));
                 set(obj.hBtnHide(2),  'Position', position(3, :));
             end
+            
+            n = n + 1;
+            position = obj.positionN(n, 1);
+            set(obj.hPopContrast, 'Position', position(1, :));
             
             n = n + 1;
             position = obj.divPosition(n);
