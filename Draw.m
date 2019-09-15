@@ -55,9 +55,8 @@ classdef (Abstract) Draw < handle
         cmap
         
         % GUI ELEMENTS
-        % array of axis that display different slices of the data
-        ax
-        % array of images displayed in 'ax'
+        % array of images displayed in 'ax', the handle to the respective axis can always be obtained via
+		% get(obj.hImage(...), 'Parent')
         hImage
         % array of slider handles to navigate through the slices
         hTextSlider
@@ -534,7 +533,7 @@ classdef (Abstract) Draw < handle
             % when middle mouse button is pressed, save current point and start
             % tracking of mouse movements
             callingAx = src.Parent;
-            Pt = get(obj.ax(callingAx == obj.ax), 'CurrentPoint');
+            Pt = get(callingAx, 'CurrentPoint');
             % normalization factor
             obj.nrmFac = [obj.S(find(obj.showDims, 1, 'first')) obj.S(find(obj.showDims, 1, 'last'))]*obj.resize;
             switch get(gcbf, 'SelectionType')
@@ -584,7 +583,7 @@ classdef (Abstract) Draw < handle
             % adjust windowing values depending on values for center and width
             obj.width(obj.width <= obj.widthMin) = obj.widthMin(obj.width <= obj.widthMin);
             
-            for ida = 1:numel(obj.ax)
+            for ida = 1:numel(obj.hImage)
                 set(obj.hImage(ida), 'CData', obj.sliceMixer);
             end
             
@@ -741,9 +740,10 @@ classdef (Abstract) Draw < handle
         
         
         function mouseMovement(obj, ~, ~)        % display location and value
-            for ida = 1:numel(obj.ax)
-                pAx = round(get(obj.ax(ida), 'CurrentPoint')/obj.resize);
-                if obj.inAxis(obj.ax(ida), pAx(1, 1), pAx(1, 2))
+            for ida = 1:numel(obj.hImage)
+				iteratingAx = get(obj.hImage(ida); 'Parent');
+                pAx = round(get(iteratingAx, 'CurrentPoint')/obj.resize);
+                if obj.inAxis(iteratingAx, pAx(1, 1), pAx(1, 2))
                     obj.locVal({pAx(1, 2) pAx(1, 1)});
                     return
                 end
@@ -775,11 +775,11 @@ classdef (Abstract) Draw < handle
             % instantiate new roi depending on choice
             switch(get(obj.hPopRoiType, 'Value'))
                 case 1
-                    obj.rois{roiNo} = images.roi.Polygon('Parent', obj.ax, 'Color', obj.COLOR_roi(roiNo, :));
+                    obj.rois{roiNo} = images.roi.Polygon('Parent', get(obj.hImage(activeDim), 'Parent'), 'Color', obj.COLOR_roi(roiNo, :));
                 case 2
-                    obj.rois{roiNo} = images.roi.Ellipse('Parent', obj.ax, 'Color', obj.COLOR_roi(roiNo, :));
+                    obj.rois{roiNo} = images.roi.Ellipse('Parent', get(obj.hImage(activeDim), 'Color', obj.COLOR_roi(roiNo, :));
                 case 3
-                    obj.rois{roiNo} = images.roi.Freehand('Parent', obj.ax, 'Color', obj.COLOR_roi(roiNo, :));
+                    obj.rois{roiNo} = images.roi.Freehand('Parent', get(obj.hImage(activeDim), 'Color', obj.COLOR_roi(roiNo, :));
             end
             
             addlistener(obj.rois{roiNo}, 'MovingROI', @obj.calcROI);

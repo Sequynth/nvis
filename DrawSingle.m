@@ -652,17 +652,17 @@ classdef DrawSingle < Draw
             obj.sel(1, ~obj.showDims) = num2cell(round(obj.S(~obj.showDims)/2));
              
             obj.prepareSliceData;
-            obj.ax      = axes('Parent', obj.pImage, 'Units', 'normal', 'Position', [0 0 1 1]);            
-            obj.hImage  = imagesc(obj.sliceMixer(), 'Parent', obj.ax);  % plot image
+            ax      = axes('Parent', obj.pImage, 'Units', 'normal', 'Position', [0 0 1 1]);            
+            obj.hImage  = imagesc(obj.sliceMixer(), 'Parent', ax);  % plot image
             hold on
             eval(['axis ', obj.p.Results.AspectRatio]);
-            set(obj.ax, ...
+            set(ax, ...
                 'XTickLabel',   '', ...
                 'YTickLabel',   '', ...
                 'XTick',        [], ...
                 'YTick',        []);
             set(obj.hImage, 'ButtonDownFcn', @obj.startDragFcn)
-            colormap(obj.ax, obj.cmap{1});
+            colormap(ax, obj.cmap{1});
             
             view([obj.azimuthAng obj.elevationAng])
         end
