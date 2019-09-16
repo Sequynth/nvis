@@ -43,6 +43,7 @@ classdef (Abstract) Draw < handle
         showDims
         sel
         activeDim
+        activeAx
         % complex representation
         complexMode
         resize
@@ -85,16 +86,13 @@ classdef (Abstract) Draw < handle
         hBtnDelRois
         hBtnSaveRois
         
+        % GUI ELEMENT PROPERTIES
+        nSlider
+        
         % array with ROIs
         rois
         signal
         noise
-        
-        % GUI ELEMENT PROPERTIES
-        SliderHeight
-        Control
-        
-        activeAx
     end
     
     properties (Constant = true, Hidden = true)
@@ -447,7 +445,7 @@ classdef (Abstract) Draw < handle
                 end
                 cImage = ind2rgb(round(imshift), obj.cmap{1});
             else
-                cImage  = zeros([size(obj.slice{1} ), 3]);
+                cImage  = zeros([size(obj.slice{axNo, 1} ), 3]);
                 for idd = 1:obj.nImages
                     % convert images to range [0, cmapResolution]
                     lowerl  = single(obj.center(idd) - obj.width(idd)/2);
@@ -538,8 +536,12 @@ classdef (Abstract) Draw < handle
             % tracking of mouse movements
             callingAx = src.Parent;
             Pt = get(callingAx, 'CurrentPoint');
+            imgIdx = find(obj.hImage == src);
+            if obj.nAxes > 1
+                obj.activateAx(imgIdx)
+            end
             % normalization factor
-            obj.nrmFac = [obj.S(find(obj.showDims, 1, 'first')) obj.S(find(obj.showDims, 1, 'last'))]*obj.resize;
+            obj.nrmFac = [obj.S(find(obj.showDims(imgIdx, :), 1, 'first')) obj.S(find(obj.showDims(imgIdx, :), 1, 'last'))]*obj.resize;
             switch get(gcbf, 'SelectionType')
                 case 'normal'
                     if ~isempty(obj.img{2}) && obj.layerHider(2)
@@ -661,12 +663,12 @@ classdef (Abstract) Draw < handle
         
         
         function setSlider(obj, src, ~)
-            % function is called when an index next to a slider is changed and
-            % sets the image to the new coordinate.
+            % function is called when an index next to a slider is changed
+            % and sets the selector and the image to the new coordinate.
             sliceID = obj.dimMap(obj.hEditSlider == src);            
             inSlice = str2double(get(src, 'String'));
-            
-            obj.sel{sliceID} = inSlice;
+                        
+            obj.sel{obj.hEditSlider == src, sliceID} = inSlice;
             obj.activateSlider(sliceID)
             
             obj.refreshUI();
@@ -699,9 +701,9 @@ classdef (Abstract) Draw < handle
         
         function incDecActiveDim(obj, incDec)
             % change the active dimension by incDec
-            obj.sel{1, obj.activeDim} = obj.sel{1, obj.activeDim} + incDec;
+            obj.sel{obj.activeAx, obj.activeDim} = obj.sel{obj.activeAx, obj.activeDim} + incDec;
             % check whether the value is too large and take the modulus
-            obj.sel{1, obj.activeDim} = mod(obj.sel{1, obj.activeDim}-1, obj.S(obj.activeDim))+1;
+            obj.sel{obj.activeAx, obj.activeDim} = mod(obj.sel{obj.activeAx, obj.activeDim}-1, obj.S(obj.activeDim))+1;
             obj.refreshUI();
         end
         
@@ -745,7 +747,7 @@ classdef (Abstract) Draw < handle
         
         function mouseMovement(obj, ~, ~)        % display location and value
             for ida = 1:numel(obj.hImage)
-				iteratingAx = get(obj.hImage(ida); 'Parent');
+				iteratingAx = get(obj.hImage(ida), 'Parent');
                 pAx = round(get(iteratingAx, 'CurrentPoint')/obj.resize);
                 if obj.inAxis(iteratingAx, pAx(1, 1), pAx(1, 2))
                     obj.locVal({pAx(1, 2) pAx(1, 1)});
@@ -779,11 +781,11 @@ classdef (Abstract) Draw < handle
             % instantiate new roi depending on choice
             switch(get(obj.hPopRoiType, 'Value'))
                 case 1
-                    obj.rois{roiNo} = images.roi.Polygon('Parent', get(obj.hImage(activeDim), 'Parent'), 'Color', obj.COLOR_roi(roiNo, :));
+                    obj.rois{roiNo} = images.roi.Polygon('Parent', get(obj.hImage(obj.activeDim), 'Parent'), 'Color', obj.COLOR_roi(roiNo, :));
                 case 2
-                    obj.rois{roiNo} = images.roi.Ellipse('Parent', get(obj.hImage(activeDim), 'Color', obj.COLOR_roi(roiNo, :));
+                    obj.rois{roiNo} = images.roi.Ellipse('Parent', get(obj.hImage(obj.activeDim), 'Parent'), 'Color', obj.COLOR_roi(roiNo, :));
                 case 3
-                    obj.rois{roiNo} = images.roi.Freehand('Parent', get(obj.hImage(activeDim), 'Color', obj.COLOR_roi(roiNo, :));
+                    obj.rois{roiNo} = images.roi.Freehand('Parent', get(obj.hImage(obj.activeDim), 'Parent'), 'Color', obj.COLOR_roi(roiNo, :));
             end
             
             addlistener(obj.rois{roiNo}, 'MovingROI', @obj.calcROI);
@@ -894,6 +896,7 @@ classdef (Abstract) Draw < handle
         function changeContrast(obj, ~, ~)
             obj.contrast = obj.contrastList{get(obj.hPopContrast, 'Value')};
             obj.prepareColors
+            % TODO: change color of c/w edit fields
             obj.refreshUI
         end
         

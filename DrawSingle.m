@@ -30,7 +30,7 @@ classdef DrawSingle < Draw
         hRadioBtnSlider
         
         % UI properties
-        nSlider
+        
         pSliderHeight
         division
         margin 
@@ -54,14 +54,10 @@ classdef DrawSingle < Draw
             obj@Draw(in, varargin{:})
             
             % only one Axis in DrawSingle
-            obj.nAxes = 1;
+            obj.nAxes    = 1;
+            obj.activeAx = 1;
             
             obj.nSlider = numel(obj.S) - 2;
-            %check whether img is 2D or 3D
-%             if length(obj.S) == 2
-%                 obj.sel{1, 3} = 1;
-%                 obj.S(3)      = 1;
-%             end
             
             obj.standardTitle = inputname(1);
             
@@ -696,7 +692,8 @@ classdef DrawSingle < Draw
                     'Value',            obj.sel{obj.dimMap(iSlider)}, ...
                     'SliderStep',       steps);
                 if s(iSlider) == 1
-                    obj.hSlider(iSlider).Enable = 'off';
+                    set(obj.hSlider(iSlider), ...
+                        'Enable',       'off');
                 end
                 
                 set(obj.hEditSlider(iSlider), 'String', num2str(obj.sel{obj.dimMap(iSlider)}));
