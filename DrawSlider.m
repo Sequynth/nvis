@@ -8,6 +8,7 @@ classdef DrawSlider < Draw
         valNames
         
         % UI Elements
+        pColorbar
         pImage
         pSlider
         pControls
@@ -30,26 +31,38 @@ classdef DrawSlider < Draw
         % UI PROPERTIES
         % default figure position and size
         defaultPosition = [ 300, 200, 1000, 800];
-        % absolute width of Control panel in pixel
-        controlWidth = 275; % px
+        axLabels = 'XYZ';  % displayed planes (names)
+        axColors = 'rgb';
     end
     
     
     methods
         function obj = DrawSlider(in, varargin)
-            obj@Draw(in, varargin(:))
+            % CONSTRUCTOR
+            obj@Draw(in, varargin{:})
             
             % Three axes are shown in DrawSlider
             obj.nAxes = 3;
+            % one of the following two should be thrown away
+            obj.activeAx  = 1;
+            obj.activeDim = 1;
+            
+            if obj.nDims < 4
+                % TODO: if obj.nDims == 2: open DrawSingle instead
+                obj.nSlider = 3;
+            elseif obj.nDims == 4
+                obj.nSlider = 4;
+            else
+                error('Input-size not supported')
+            end
             
             obj.standardTitle = inputname(1);
             
-            obj.prepareParser()
+            obj.prepareParser
             
             % definer additional Prameters
             addParameter(obj.p, 'Position',     obj.defaultPosition,    @(x) isnumeric(x) && numel(x) == 4);
-            addParameter(obj.p, 'InitSlice',    round(obj.S(1:3)/2),  @isnumeric);
-            
+            addParameter(obj.p, 'InitSlice',    round(obj.S(1:3)/2),  @isnumeric);            
             
             if obj.nImages == 1
                 parse(obj.p, varargin{:});
@@ -57,11 +70,14 @@ classdef DrawSlider < Draw
                 parse(obj.p, varargin{2:end});
             end
             
+            obj.cmap{1}             = obj.p.Results.Colormap;
+            obj.complexMode         = obj.p.Results.ComplexMode;
+            obj.resize              = obj.p.Results.Resize;
+            obj.contrast            = obj.p.Results.Contrast;
+            
             obj.prepareColors
             
-            obj.createSelector         
-            
-            obj.activeDim = 3;
+            obj.createSelector      
             
             % get names of input variables
             obj.inputNames{1} = inputname(1);
@@ -108,36 +124,97 @@ classdef DrawSlider < Draw
                     'BackgroundColor',  obj.COLOR_BG, ...
                     'HighLightColor',   obj.COLOR_BG, ...
                     'ShadowColor',      obj.COLOR_B);
+                
+                obj.pSlider(iim) = uipanel( ...
+                    'Units',            'pixels', ...
+                    'Position',         obj.panelPos(iim+3, :), ...
+                    'BackgroundColor',  obj.COLOR_BG, ...
+                    'HighLightColor',   obj.COLOR_BG, ...
+                    'ShadowColor',      obj.COLOR_B);
             end
             
-            obj.pSlider = uipanel( ...
+            obj.pColorbar = uipanel( ...
                 'Units',            'pixels', ...
-                'Position',         obj.panelPos(2, :), ...
+                'Position',         obj.panelPos(7, :), ...
                 'BackgroundColor',  obj.COLOR_BG, ...
                 'HighLightColor',   obj.COLOR_BG, ...
                 'ShadowColor',      obj.COLOR_B);
-            
+                        
             obj.pControls  = uipanel( ...
                 'Units',            'pixels', ...
-                'Position',         obj.panelPos(3, :), ...
+                'Position',         obj.panelPos(8, :), ...
                 'BackgroundColor',  obj.COLOR_BG, ...
                 'HighLightColor',   obj.COLOR_BG, ...
                 'ShadowColor',      obj.COLOR_B);
             
-            % set UI elements
+            %% set UI elements
             
             % populate image panels
-            for iim = 1:3
+            ax = gobjects(3, 1);
+            for iim = 1:obj.nAxes
                 ax(iim) = axes('Parent', obj.pImage(iim), 'Units', 'normal', 'Position', [0 0 1 1]);
-                obj.hImage(iim)  = imagesc(obj.sliceMixer(), 'Parent', ax(iim));  % plot image
+                obj.hImage(iim)  = imagesc(obj.sliceMixer(iim), 'Parent', ax(iim));  % plot image
                 hold on
                 eval(['axis ', obj.p.Results.AspectRatio]);
                 
                 set(obj.hImage(iim), 'ButtonDownFcn', @obj.startDragFcn)
-                colormap(ax, obj.cmap{1});
+                colormap(ax(iim), obj.cmap{1});
             end
             
             % populate slider panels
+            for iSlider = 1:obj.nSlider
+                % if dimension is singleton, set slider steps to 0
+                if obj.S(iSlider) == 1
+                    steps = [0 0];
+                else
+                    steps = [1/(obj.S(iSlider)-1) 10/(obj.S(iSlider)-1)];
+                end
+                
+                obj.hTextSlider(iSlider) = uicontrol( ...
+                    'Parent',           obj.pSlider(iSlider), ...
+                    'Style',            'text', ...
+                    'Units',            'normalized', ...
+                    'Position',         [0.01 1/8 0.04 6/8], ...
+                    'String',           [obj.axLabels(iSlider) ':'], ...
+                    'FontUnits',        'normalized', ...
+                    'FontSize',         0.8, ...
+                    'BackgroundColor',  obj.COLOR_BG, ...
+                    'ForegroundColor',  obj.COLOR_F);
+                
+                obj.hSlider(iSlider) = uicontrol( ...
+                    'Parent',           obj.pSlider(iSlider), ...
+                    'Style',            'slider', ...
+                    'Units',            'normalized', ...
+                    'Position',         [0.17 1/8 0.6 6/8], ...
+                    'Min',              1, ...
+                    'Max',              obj.S(iSlider), ...
+                    'Value',            obj.sel{obj.dimMap(iSlider), obj.dimMap(iSlider)}, ...
+                    'SliderStep',       steps, ...
+                    'Callback',         @(src, eventdata) obj.newSlice(src, eventdata), ...
+                    'BackgroundColor',  obj.COLOR_BG, ...
+                    'ForegroundColor',  obj.COLOR_BG);
+                
+                addlistener(obj.hSlider(iSlider), ...
+                    'ContinuousValueChange', ...
+                    @(src, eventdata) obj.newSlice(src, eventdata));
+                
+                obj.hEditSlider(iSlider) = uicontrol( ...
+                    'Parent',           obj.pSlider(iSlider), ...
+                    'Style',            'edit', ...
+                    'Units',            'normalized', ...
+                    'Position',         [0.07 1/8 0.1 6/8], ...
+                    'String',           num2str(obj.sel{iSlider, iSlider}), ...
+                    'FontUnits',        'normalized', ...
+                    'FontSize',         0.8, ...
+                    'Enable',           'Inactive', ...
+                    'Value',            iSlider, ...
+                    'ButtonDownFcn',    @obj.removeListener, ...
+                    'BackgroundColor',  obj.COLOR_BG, ...
+                    'ForegroundColor',  obj.COLOR_F);
+                
+                set(obj.hEditSlider(iSlider), 'Callback', @obj.setSlider);
+                
+            end
             
             % populate control panel
             
@@ -153,21 +230,29 @@ classdef DrawSlider < Draw
         function setPanelPos(obj)
             pos = get(obj.f, 'Position');
             
-            controlHeight = 200; % px
-            slidersHeight = 100; % px
-            % pImage(..), pSliders, pControl
+            colorbarHeight = 80; % px
+            slidersHeight  = 30;   % px
+            controlHeight  = 100;  % px
+            % pImage(..), pColorbar, pSliders, pControl            
             for iim = 1:3
                 obj.panelPos(iim, :) = [(iim-1)*1/3*pos(3) ...
                     controlHeight+slidersHeight ...
                     1/3*pos(3) ...
-                    pos(4)-controlHeight-slidersHeight];
+                    pos(4)-controlHeight-slidersHeight-colorbarHeight];
+                
+                obj.panelPos(iim+3, :) = [(iim-1)*1/3*pos(3) ...
+                    controlHeight ...
+                    1/3*pos(3) ...
+                    slidersHeight];
             end
-            % pSliders
-            obj.panelPos(4, :) = [0 ...
-                controlHeight ...
+            % pColorbar
+            obj.panelPos(7, :) = [0 ...
+                pos(4)-colorbarHeight ...
                 pos(3) ...
-                slidersHeight];
-            obj.panelPos(5, :) = [0 ...
+                colorbarHeight];
+            
+            % pControls
+            obj.panelPos(8, :) = [0 ...
                 0 ...
                 pos(3) ...
                 controlHeight];
@@ -189,13 +274,13 @@ classdef DrawSlider < Draw
         function refreshUI(obj)
             obj.prepareSliceData;
             
-            for iim = 1:3
+            for iim = 1:obj.nAxes
                 set(obj.hImage(iim), 'CData', obj.sliceMixer(iim));
             end
             
             for iSlider = 1:obj.nSlider
-                set(obj.hEditSlider(iSlider), 'String', num2str(obj.sel{obj.dimMap(iSlider)}));
-                set(obj.hSlider(iSlider), 'Value', obj.sel{obj.dimMap(iSlider)});
+                set(obj.hEditSlider(iSlider), 'String', num2str(obj.sel{obj.dimMap(iSlider), obj.dimMap(iSlider)}));
+                set(obj.hSlider(iSlider), 'Value', obj.sel{obj.dimMap(iSlider), obj.dimMap(iSlider)});
             end
             % update 'val' when changing slice
             obj.mouseMovement();
@@ -205,6 +290,28 @@ classdef DrawSlider < Draw
             %                 % only calculate SNR, when there are ROIs to calculate
             %                 calcROI();
             %             end
+        end
+        
+        
+        function activateAx(obj, axNo)
+            if obj.activeAx ~= axNo
+                obj.activeAx  = axNo;
+                obj.activeDim = axNo;
+                for iax = 1:obj.nAxes
+                    set(get(obj.hImage(iax), 'Parent'), 'XColor', [0 0 0]);
+                    set(get(obj.hImage(iax), 'Parent'), 'YColor', [0 0 0]);
+                end
+                % TODO: implement 4th slider first
+                % set(pSlider(4),'ShadowColor',color_B)
+                if axNo < 4
+                    axes(get(obj.hImage(axNo), 'Parent'))
+                    set(get(obj.hImage(axNo), 'Parent'), ...
+                        'XColor',   obj.axColors(obj.activeAx), ...
+                        'YColor',   obj.axColors(obj.activeAx));
+                else
+                    % set(pSlider(4),'ShadowColor', color_F)
+                end
+            end
         end
         
         
@@ -234,7 +341,7 @@ classdef DrawSlider < Draw
         end
         
         
-        function locVal(obj)
+        function locVal(obj, point)
             
         end
         
@@ -252,11 +359,12 @@ classdef DrawSlider < Draw
         function guiResize(obj, varargin)
             obj.setPanelPos()
             
-            for iim = 1:3
-                set(obj.pImage(iim),     'Position', obj.panelPos(iim, :));
+            for iim = 1:obj.nAxes
+                set(obj.pImage(iim),  'Position', obj.panelPos(iim, :));
+                set(obj.pSlider(iim), 'Position', obj.panelPos(iim+obj.nAxes, :));
             end
-            set(obj.pSlider,    'Position', obj.panelPos(4, :));
-            set(obj.pControls,  'Position', obj.panelPos(5, :));
+            set(obj.pColorbar, 'Position', obj.panelPos(7, :));
+            set(obj.pControls, 'Position', obj.panelPos(8, :));
         end
     end
 end
