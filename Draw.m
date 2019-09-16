@@ -13,6 +13,7 @@ classdef (Abstract) Draw < handle
     properties (Access = protected)
         % INPUT PROPERTIES
         nImages         % number of images (1 or 2)
+        nAxes           % number of displayed image Axes (DrawSingle: 1, DrawSlider: 3)
         img             % cell array in which the input matrices are stored
         nDims           % number of image dimensions
         isComplex       % is one of the inputs complex
@@ -407,9 +408,11 @@ classdef (Abstract) Draw < handle
         function prepareSliceData(obj)
             % obtain image information form 
             for iImg = 1:obj.nImages
-                obj.slice{iImg} = squeeze(obj.img{iImg}(obj.sel{1, :}));
-                if obj.fftStatus == 1
-                    obj.slice{iImg} = fftshift(fftn(fftshift(obj.slice{iImg})));
+                for iax = 1:obj.nAxes
+                    obj.slice{iax, iImg} = squeeze(obj.img{iImg}(obj.sel{iax, :}));
+                    if obj.fftStatus == 1
+                        obj.slice{iax, iImg} = fftshift(fftn(fftshift(obj.slice{iax, iImg})));
+                    end
                 end
             end
             
@@ -431,14 +434,15 @@ classdef (Abstract) Draw < handle
         end
         
         
-        function cImage = sliceMixer(obj)
+        function cImage = sliceMixer(obj, axNo)
             % calculates an RGB image depending on the windowing values,
             % the used colormaps and the current slice position. when the
             % slice position was changed, obj.prepareSliceData should be
             % run before calling the slice mixer.
+            % axNo defines the axis for which the image is prepared.
             if obj.nImages == 1                
                 lowerl  = single(obj.center(1) - obj.width(1)/2);
-                imshift = (obj.slice{1} - lowerl)/single(obj.width(1)) * size(obj.cmap{1}, 1);
+                imshift = (obj.slice{axNo, 1} - lowerl)/single(obj.width(1)) * size(obj.cmap{1}, 1);
                 if obj.resize ~= 1
                     imshift = imresize(imshift, obj.resize);
                 end
@@ -448,15 +452,15 @@ classdef (Abstract) Draw < handle
                 for idd = 1:obj.nImages
                     % convert images to range [0, cmapResolution]
                     lowerl  = single(obj.center(idd) - obj.width(idd)/2);
-                    imshift = (obj.slice{idd} - lowerl)/single(obj.width(idd)) * size(obj.cmap{idd}, 1);
+                    imshift = (obj.slice{axNo, idd} - lowerl)/single(obj.width(idd)) * size(obj.cmap{idd}, 1);
                     if obj.resize ~= 1
                         imshift = imresize(imshift, obj.resize);
                     end
                     imgRGB  = ind2rgb(round(imshift), obj.cmap{idd}) * obj.layerHider(idd);
-                    imgRGB(repmat(isnan(obj.slice{idd}), [1 1 3])) = 0;
+                    imgRGB(repmat(isnan(obj.slice{axNo, idd}), [1 1 3])) = 0;
                     cImage  = cImage + imgRGB;
                 end
-                cImage(isnan(obj.slice{1}) & isnan(obj.slice{2})) = NaN;
+                cImage(isnan(obj.slice{axNo, 1}) & isnan(obj.slice{axNo, 2})) = NaN;
             end
             
             % make sure no channel has values above 1
@@ -585,7 +589,7 @@ classdef (Abstract) Draw < handle
             obj.width(obj.width <= obj.widthMin) = obj.widthMin(obj.width <= obj.widthMin);
             
             for ida = 1:numel(obj.ax)
-                set(obj.hImage(ida), 'CData', obj.sliceMixer);
+                set(obj.hImage(ida), 'CData', obj.sliceMixer(ida));
             end
             
             for idi = 1:obj.nImages
@@ -792,17 +796,21 @@ classdef (Abstract) Draw < handle
         function calcROI(obj, ~, ~)
             % calculate masks, mean/std and display values and SNR
             
+            % TODO: write code that finds the axes for both rois
+            % hard fix:
+            axNo = 1;
+            
             % get current image
             for ii = 1:obj.nImages
                 if ~isempty(obj.rois{1})
                     % This use does not work with resize ~= 1 !
-                    Mask = obj.slice{ii}(obj.rois{1}.createMask);
+                    Mask = obj.slice{axNo, ii}(obj.rois{1}.createMask);
                     obj.signal(ii) = mean(Mask(:));
                     set(obj.hTextRoi(1, ii), 'String', num2sci(obj.signal(ii), 'padding', 'right'));
                 end
                 if ~isempty(obj.rois{2})
                     % This use does not work with resize ~= 1 !
-                    Mask = obj.slice{ii}(obj.rois{2}.createMask);
+                    Mask = obj.slice{axNo, ii}(obj.rois{2}.createMask);
                     % input to std must ne floating point
                     obj.noise(ii) = std(single(Mask(:)));
                     set(obj.hTextRoi(2, ii), 'String', num2sci(obj.noise(ii), 'padding', 'right'));

@@ -53,6 +53,9 @@ classdef DrawSingle < Draw
             % CONSTRUCTOR
             obj@Draw(in, varargin{:})
             
+            % only one Axis in DrawSingle
+            obj.nAxes = 1;
+            
             obj.nSlider = numel(obj.S) - 2;
             %check whether img is 2D or 3D
 %             if length(obj.S) == 2
@@ -653,7 +656,7 @@ classdef DrawSingle < Draw
              
             obj.prepareSliceData;
             obj.ax      = axes('Parent', obj.pImage, 'Units', 'normal', 'Position', [0 0 1 1]);            
-            obj.hImage  = imagesc(obj.sliceMixer(), 'Parent', obj.ax);  % plot image
+            obj.hImage  = imagesc(obj.sliceMixer(1), 'Parent', obj.ax);  % plot image
             hold on
             eval(['axis ', obj.p.Results.AspectRatio]);
             set(obj.ax, ...
@@ -800,13 +803,13 @@ classdef DrawSingle < Draw
         function locVal(obj, point)
             if ~isempty(point)
                 if obj.nImages == 1
-                    val = obj.complexPart(obj.slice{1}(point{:}));
+                    val = obj.complexPart(obj.slice{1, 1}(point{:}));
                     set(obj.locAndVals, 'String', obj.locValString(...
                         obj.dimensionLabel{obj.showDims(1)}, point{1}, ...
                         obj.dimensionLabel{obj.showDims(2)}, point{2}, val));
                 else
-                    val1 = obj.complexPart(obj.slice{1}(point{:}));
-                    val2 = obj.complexPart(obj.slice{2}(point{:}));
+                    val1 = obj.complexPart(obj.slice{1, 1}(point{:}));
+                    val2 = obj.complexPart(obj.slice{1, 2}(point{:}));
                     set(obj.locAndVals, 'String', obj.locValString(...
                         obj.dimensionLabel{obj.showDims(1)}, point{1}, ...
                         obj.dimensionLabel{obj.showDims(2)}, point{2}, val1, val2));
@@ -820,7 +823,7 @@ classdef DrawSingle < Draw
         function refreshUI(obj)
             
             obj.prepareSliceData;            
-            set(obj.hImage, 'CData', obj.sliceMixer());
+            set(obj.hImage, 'CData', obj.sliceMixer(1));
             
             for iSlider = 1:obj.nSlider
                 set(obj.hEditSlider(iSlider), 'String', num2str(obj.sel{obj.dimMap(iSlider)}));
@@ -923,7 +926,7 @@ classdef DrawSingle < Draw
             
             obj.prepareSliceData;       
             % apply the current azimuthal rotation to the image and save
-            imwrite(rot90(obj.sliceMixer, -obj.azimuthAng/90), path);
+            imwrite(rot90(obj.sliceMixer(1), -obj.azimuthAng/90), path);
         end
         
         
@@ -970,7 +973,7 @@ classdef DrawSingle < Draw
                 for ii = 1: obj.S(obj.interruptedSlider+2)
                     obj.sel{obj.interruptedSlider+2} = ii;
                     obj.prepareSliceData
-                    imgOut = rot90(obj.sliceMixer, -obj.azimuthAng/90);
+                    imgOut = rot90(obj.sliceMixer(1), -obj.azimuthAng/90);
                     
                     if gif
                         [gifImg, cm] = rgb2ind(imgOut, 256);
