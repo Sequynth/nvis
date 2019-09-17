@@ -56,9 +56,7 @@ classdef DrawSingle < Draw
             % only one Axis in DrawSingle
             obj.nAxes    = 1;
             obj.activeAx = 1;
-            
             obj.nSlider = numel(obj.S) - 2;
-            
             obj.standardTitle = inputname(1);
             
             obj.prepareParser()

@@ -221,7 +221,6 @@ classdef (Abstract) Draw < handle
                                                 obj.Max(2)-obj.Min(2)],         @isnumeric);
             addParameter(obj.p, 'widthMin',     single(0.001*(obj.Max-obj.Min)),@isnumeric);
             addParameter(obj.p, 'Unit',         {[], []},                       @(x) iscell(x) && numel(x) <= 2);
-            addParameter(obj.p, 'rgb',          0,                              @(x) isboolean(x));
         end
         
         
@@ -405,18 +404,12 @@ classdef (Abstract) Draw < handle
         
         
         function prepareSliceData(obj)
-            % obtain image information form 
+            % obtain image information form
             for iImg = 1:obj.nImages
                 for iax = 1:obj.nAxes
-                    if obj.nDims >=3 && obj.p.Results.rgb
-                        sel_temp = obj.sel;
-                        sel_temp{1, end} = ':';
-                        obj.slice{iax, iImg} = squeeze(obj.img{iImg}(sel_temp{iax, :}));
-                    else
-                        obj.slice{iax, iImg} = squeeze(obj.img{iImg}(obj.sel{iax, :}));
-                        if obj.fftStatus == 1
-                            obj.slice{iax, iImg} = fftshift(fftn(fftshift(obj.slice{iax, iImg})));
-                        end
+                    obj.slice{iax, iImg} = squeeze(obj.img{iImg}(obj.sel{iax, :}));
+                    if obj.fftStatus == 1
+                        obj.slice{iax, iImg} = fftshift(fftn(fftshift(obj.slice{iax, iImg})));
                     end
                 end
             end
@@ -425,8 +418,8 @@ classdef (Abstract) Draw < handle
                 % at least one of the slices has complex values
                 set(obj.hBtnCmplx, 'Visible', 'on');
                 obj.slice = cellfun(@single, ...
-                cellfun(@obj.complexPart, obj.slice, 'UniformOutput', false), ...
-                'UniformOutput', false);
+                    cellfun(@obj.complexPart, obj.slice, 'UniformOutput', false), ...
+                    'UniformOutput', false);
             else
                 % none of the slices has complex data
                 % when hBtnCmplx are hidden, complexMode must be 3
@@ -450,7 +443,7 @@ classdef (Abstract) Draw < handle
             end
             
             if obj.nImages == 1
-                if obj.nDims >=3 && obj.p.Results.rgb
+                if obj.nDims >=3
                     cImage = obj.slice{axNo, 1};
                 else
                     lowerl  = single(obj.center(1) - obj.width(1)/2);
