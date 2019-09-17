@@ -38,6 +38,8 @@ classdef DrawRGB < Draw
         yPadding
         panelPos
         figurePos
+        
+        isUint
     end
     
     properties (Constant, Access = private)
@@ -58,6 +60,12 @@ classdef DrawRGB < Draw
             obj.activeAx = 1;
             obj.nSlider  = numel(obj.S) - 3;
             obj.standardTitle = inputname(1);
+            obj.complexMode = 3;
+            if isa(in, 'uint8')
+                obj.isUint = true;
+            else
+                obj.isUint = false;
+            end
             
             obj.prepareParser()
             
@@ -73,12 +81,8 @@ classdef DrawRGB < Draw
             addParameter(obj.p, 'DimensionLabel',   strcat(repmat({'Dim'}, 1, numel(obj.S)), ...
                                                     cellfun(@num2str, num2cell(1:obj.nDims), 'UniformOutput', false)), ...
                                                                                         @(x) iscell(x) && numel(x) == obj.nSlider+2);
-                                                                                    
-            if obj.nImages == 1
-                parse(obj.p, varargin{:});
-            else
-                parse(obj.p, varargin{2:end});
-            end
+          
+            parse(obj.p, varargin{:});
                         
             if contains('dimensionLabel', obj.p.UsingDefaults)
                 for ff = 1:obj.nDims
@@ -90,9 +94,7 @@ classdef DrawRGB < Draw
                         
             obj.cmap{1}             = obj.p.Results.Colormap;
             obj.fps                 = obj.p.Results.FPS;
-            obj.complexMode         = obj.p.Results.ComplexMode;
             obj.resize              = obj.p.Results.Resize;
-            obj.contrast            = obj.p.Results.Contrast;
                         
             obj.prepareColors()
             
@@ -104,11 +106,8 @@ classdef DrawRGB < Draw
             obj.azimuthAng   = 0;
             obj.elevationAng = 90;
             
-            % get names of input variables
+            % get name of input variable
             obj.inputNames{1} = inputname(1);
-            if obj.nImages == 2
-                obj.inputNames{2} = inputname(2);
-            end
             
             % when an image or a video is saved, dont create the GUI and
             % terminate the class after finishing
@@ -427,6 +426,28 @@ classdef DrawRGB < Draw
         end
         
         
+        function prepareSliceData(obj)
+            % obtain image information form
+            sel_temp = obj.sel;
+            sel_temp{1, end} = ':';
+            obj.slice{1, 1} = squeeze(obj.img{1}(sel_temp{1, :}));
+        end
+        
+        
+        function cImage = sliceMixer(obj)
+            % calculates an RGB image depending on the windowing values,
+            % the used colormaps and the current slice position. when the
+            % slice position was changed, obj.prepareSliceData should be
+            % run before calling the slice mixer.
+            % axNo defines the axis for which the image is prepared.
+            if obj.isUint
+                cImage = double(obj.slice{1, 1})/255;
+            else
+                cImage = obj.slice{1, 1};
+            end
+        end
+        
+        
         function initializeAxis(obj, firstCall)
             % initializeAxis is called, to create the GUI, or when the
             % dimensions of the image are shifted and a reset of UI elements is
@@ -446,7 +467,7 @@ classdef DrawRGB < Draw
             obj.prepareSliceData;
 
             ax      = axes('Parent', obj.pImage, 'Units', 'normal', 'Position', [0 0 1 1]);            
-            obj.hImage  = imagesc(obj.sliceMixer(1), 'Parent', ax);  % plot image
+            obj.hImage  = imagesc(obj.sliceMixer(), 'Parent', ax);  % plot image
 
             hold on
             eval(['axis ', obj.p.Results.AspectRatio]);
@@ -584,7 +605,7 @@ classdef DrawRGB < Draw
         
         function refreshUI(obj)            
             obj.prepareSliceData;            
-            set(obj.hImage, 'CData', obj.sliceMixer(1));
+            set(obj.hImage, 'CData', obj.sliceMixer());
             
             for iSlider = 1:obj.nSlider
                 set(obj.hEditSlider(iSlider), 'String', num2str(obj.sel{obj.dimMap(iSlider)}));
@@ -690,7 +711,7 @@ classdef DrawRGB < Draw
             
             obj.prepareSliceData;       
             % apply the current azimuthal rotation to the image and save
-            imwrite(rot90(obj.sliceMixer(1), -obj.azimuthAng/90), path);
+            imwrite(rot90(obj.sliceMixer(), -obj.azimuthAng/90), path);
         end
         
         
@@ -737,7 +758,7 @@ classdef DrawRGB < Draw
                 for ii = 1: obj.S(obj.interruptedSlider+2)
                     obj.sel{obj.interruptedSlider+2} = ii;
                     obj.prepareSliceData
-                    imgOut = rot90(obj.sliceMixer(1), -obj.azimuthAng/90);
+                    imgOut = rot90(obj.sliceMixer(), -obj.azimuthAng/90);
                     
                     if gif
                         [gifImg, cm] = rgb2ind(imgOut, 256);
