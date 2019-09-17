@@ -207,6 +207,7 @@ classdef (Abstract) Draw < handle
         function prepareParser(obj)
             
             obj.p = inputParser;
+            isboolean = @(x) x == 1 || x == 0;
             % add parameters to the input parser
             addParameter(obj.p, 'Colormap',     gray(256),                      @(x) obj.isColormap(x));
             addParameter(obj.p, 'Contrast',     'green-magenta',                @(x) obj.isContrast(x, obj.nImages));
@@ -220,6 +221,7 @@ classdef (Abstract) Draw < handle
                                                 obj.Max(2)-obj.Min(2)],         @isnumeric);
             addParameter(obj.p, 'widthMin',     single(0.001*(obj.Max-obj.Min)),@isnumeric);
             addParameter(obj.p, 'Unit',         {[], []},                       @(x) iscell(x) && numel(x) <= 2);
+            addParameter(obj.p, 'rgb',          0,                              @(x) isboolean(x));
         end
         
         
@@ -406,9 +408,15 @@ classdef (Abstract) Draw < handle
             % obtain image information form 
             for iImg = 1:obj.nImages
                 for iax = 1:obj.nAxes
-                    obj.slice{iax, iImg} = squeeze(obj.img{iImg}(obj.sel{iax, :}));
-                    if obj.fftStatus == 1
-                        obj.slice{iax, iImg} = fftshift(fftn(fftshift(obj.slice{iax, iImg})));
+                    if obj.nDims >=3 && obj.p.Results.rgb
+                        sel_temp = obj.sel;
+                        sel_temp{1, end} = ':';
+                        obj.slice{iax, iImg} = squeeze(obj.img{iImg}(sel_temp{iax, :}));
+                    else
+                        obj.slice{iax, iImg} = squeeze(obj.img{iImg}(obj.sel{iax, :}));
+                        if obj.fftStatus == 1
+                            obj.slice{iax, iImg} = fftshift(fftn(fftshift(obj.slice{iax, iImg})));
+                        end
                     end
                 end
             end
@@ -437,13 +445,21 @@ classdef (Abstract) Draw < handle
             % slice position was changed, obj.prepareSliceData should be
             % run before calling the slice mixer.
             % axNo defines the axis for which the image is prepared.
-            if obj.nImages == 1                
-                lowerl  = single(obj.center(1) - obj.width(1)/2);
-                imshift = (obj.slice{axNo, 1} - lowerl)/single(obj.width(1)) * size(obj.cmap{1}, 1);
-                if obj.resize ~= 1
-                    imshift = imresize(imshift, obj.resize);
+            if nargin == 1
+                axNo = 1;
+            end
+            
+            if obj.nImages == 1
+                if obj.nDims >=3 && obj.p.Results.rgb
+                    cImage = obj.slice{axNo, 1};
+                else
+                    lowerl  = single(obj.center(1) - obj.width(1)/2);
+                    imshift = (obj.slice{axNo, 1} - lowerl)/single(obj.width(1)) * size(obj.cmap{1}, 1);
+                    if obj.resize ~= 1
+                        imshift = imresize(imshift, obj.resize);
+                    end
+                    cImage = ind2rgb(round(imshift), obj.cmap{1});
                 end
-                cImage = ind2rgb(round(imshift), obj.cmap{1});
             else
                 cImage  = zeros([size(obj.slice{axNo, 1} ), 3]);
                 for idd = 1:obj.nImages
@@ -696,16 +712,7 @@ classdef (Abstract) Draw < handle
             elseif evtData.VerticalScrollCount > 0
                 obj.incDecActiveDim(+1);
             end
-        end
-        
-        
-        function incDecActiveDim(obj, incDec)
-            % change the active dimension by incDec
-            obj.sel{obj.activeAx, obj.activeDim} = obj.sel{obj.activeAx, obj.activeDim} + incDec;
-            % check whether the value is too large and take the modulus
-            obj.sel{obj.activeAx, obj.activeDim} = mod(obj.sel{obj.activeAx, obj.activeDim}-1, obj.S(obj.activeDim))+1;
-            obj.refreshUI();
-        end
+        end        
         
         
         function activateSlider(obj, dim)
@@ -977,6 +984,7 @@ classdef (Abstract) Draw < handle
         locVal(obj)
         refreshUI(obj)
         keyPress(obj)
+        incDecActiveDim(obj, incDec)
     end
 end
 

@@ -852,6 +852,15 @@ classdef DrawSingle < Draw
         end
         
         
+        function incDecActiveDim(obj, incDec)
+            % change the active dimension by incDec
+            obj.sel{1, obj.activeDim} = obj.sel{1, obj.activeDim} + incDec;
+            % check whether the value is too large and take the modulus
+            obj.sel{1, obj.activeDim} = mod(obj.sel{1, obj.activeDim}-1, obj.S(obj.activeDim))+1;
+            obj.refreshUI();
+        end
+        
+        
         function interrupt(obj, ~, ~)
             % this function is called for every interrupt of the timer and
             % increments/decrements the slider value.
