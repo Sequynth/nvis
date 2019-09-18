@@ -56,7 +56,8 @@ classdef DrawSingle < Draw
             % only one Axis in DrawSingle
             obj.nAxes    = 1;
             obj.activeAx = 1;
-            obj.nSlider = numel(obj.S) - 2;
+            obj.nSlider  = numel(obj.S) - 2;
+            obj.mapSliderToImage = num2cell(ones(1, obj.nSlider));
             obj.standardTitle = inputname(1);
             
             obj.prepareParser()
@@ -124,11 +125,12 @@ classdef DrawSingle < Draw
                 return
             end
             
-            obj.setValNames
-            obj.setLocValFunction            
+            obj.setValNames()
+            
+            obj.setLocValFunction()            
             
             obj.prepareGUI()
-            
+                        
             obj.guiResize()
             set(obj.f, 'Visible', 'on');
             
@@ -156,7 +158,7 @@ classdef DrawSingle < Draw
                 'name',                 obj.p.Results.Title, ...
                 'Units',                'pixel', ...
                 'Position',             obj.p.Results.Position, ...
-                'Visible',              'on', ...
+                'Visible',              'off', ...
                 'ResizeFcn',            @obj.guiResize, ...
                 'CloseRequestFcn',      @obj.closeRqst, ...
                 'WindowKeyPress',       @obj.keyPress, ...
@@ -687,14 +689,14 @@ classdef DrawSingle < Draw
                 set(obj.hSlider(iSlider), ...
                     'Min',              1, ...
                     'Max',              s(iSlider), ...
-                    'Value',            obj.sel{obj.dimMap(iSlider)}, ...
+                    'Value',            obj.sel{obj.mapSliderToDim(iSlider)}, ...
                     'SliderStep',       steps);
                 if s(iSlider) == 1
                     set(obj.hSlider(iSlider), ...
                         'Enable',       'off');
                 end
                 
-                set(obj.hEditSlider(iSlider), 'String', num2str(obj.sel{obj.dimMap(iSlider)}));
+                set(obj.hEditSlider(iSlider), 'String', num2str(obj.sel{obj.mapSliderToDim(iSlider)}));
             end
         end
         
@@ -734,10 +736,10 @@ classdef DrawSingle < Draw
         function createSelector(obj)
             % which dimensions are shown initially
             obj.showDims = [1 2];
-            obj.dimMap   = 3:obj.nDims;
+            obj.mapSliderToDim   = 3:obj.nDims;
             % create slice selector for dimensions 3 and higher
             obj.sel        = repmat({':'}, 1, ndims(obj.img{1}));
-            obj.sel(ismember(1:obj.nDims, obj.dimMap)) = num2cell(obj.p.Results.InitSlice);
+            obj.sel(ismember(1:obj.nDims, obj.mapSliderToDim)) = num2cell(obj.p.Results.InitSlice);
         end
         
         
@@ -823,8 +825,8 @@ classdef DrawSingle < Draw
             set(obj.hImage, 'CData', obj.sliceMixer(1));
             
             for iSlider = 1:obj.nSlider
-                set(obj.hEditSlider(iSlider), 'String', num2str(obj.sel{obj.dimMap(iSlider)}));
-                set(obj.hSlider(iSlider), 'Value', obj.sel{obj.dimMap(iSlider)});
+                set(obj.hEditSlider(iSlider), 'String', num2str(obj.sel{obj.mapSliderToDim(iSlider)}));
+                set(obj.hSlider(iSlider), 'Value', obj.sel{obj.mapSliderToDim(iSlider)});
             end
             % update 'val' when changing slice
             obj.mouseMovement();

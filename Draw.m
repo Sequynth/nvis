@@ -37,9 +37,15 @@ classdef (Abstract) Draw < handle
         
         % DISPLAYING
         % link sliders to image dimensions
-        % dimMap(2) = 4 means, that slider 2 controls the slice along the
+        % mapSliderToDim(2) = 4 means, that slider 2 controls the slice along the
         % 4th dimension.
-        dimMap
+        mapSliderToDim
+        % link sliders to images
+        % mapSliderToImage{2} = 1   means, that slider 2 changes values in
+        % obj.sel{1, :}.
+        % mapSliderToImage{2} = ':' means, that slider 2 changes the
+        % selector for all shown images
+        mapSliderToImage
         showDims
         sel
         activeDim
@@ -443,16 +449,12 @@ classdef (Abstract) Draw < handle
             end
             
             if obj.nImages == 1
-                if obj.nDims >=3
-                    cImage = obj.slice{axNo, 1};
-                else
-                    lowerl  = single(obj.center(1) - obj.width(1)/2);
-                    imshift = (obj.slice{axNo, 1} - lowerl)/single(obj.width(1)) * size(obj.cmap{1}, 1);
-                    if obj.resize ~= 1
-                        imshift = imresize(imshift, obj.resize);
-                    end
-                    cImage = ind2rgb(round(imshift), obj.cmap{1});
+                lowerl  = single(obj.center(1) - obj.width(1)/2);
+                imshift = (obj.slice{axNo, 1} - lowerl)/single(obj.width(1)) * size(obj.cmap{1}, 1);
+                if obj.resize ~= 1
+                    imshift = imresize(imshift, obj.resize);
                 end
+                cImage = ind2rgb(round(imshift), obj.cmap{1});
             else
                 cImage  = zeros([size(obj.slice{axNo, 1} ), 3]);
                 for idd = 1:obj.nImages
@@ -597,7 +599,7 @@ classdef (Abstract) Draw < handle
         function cw(obj)
             % adjust windowing values depending on values for center and width
             obj.width(obj.width <= obj.widthMin) = obj.widthMin(obj.width <= obj.widthMin);
-            
+                        
             for ida = 1:numel(obj.hImage)
                 set(obj.hImage(ida), 'CData', obj.sliceMixer(ida));
             end
@@ -674,11 +676,14 @@ classdef (Abstract) Draw < handle
         function setSlider(obj, src, ~)
             % function is called when an index next to a slider is changed
             % and sets the selector and the image to the new coordinate.
-            sliceID = obj.dimMap(obj.hEditSlider == src);            
-            inSlice = str2double(get(src, 'String'));
+            dim = obj.mapSliderToDim(obj.hEditSlider == src);            
+            inSlice = round(str2double(get(src, 'String')));
+            % make sure the new value is within reasonable bounds
+            inSlice = max([1 inSlice]);
+            inSlice = min([inSlice obj.S(dim)]);
                         
-            obj.sel{obj.hEditSlider == src, sliceID} = inSlice;
-            obj.activateSlider(sliceID)
+            obj.sel{obj.mapSliderToImage{obj.hEditSlider == src}, dim} = inSlice;
+            obj.activateSlider(dim)
             
             obj.refreshUI();
             set(obj.f,  'WindowKeyPress',   @obj.keyPress);
@@ -688,8 +693,10 @@ classdef (Abstract) Draw < handle
         
         function newSlice(obj, src, ~)
             % called when slider is moved, get current slice
-            dim = obj.dimMap(obj.hSlider == src);
-            obj.sel{dim} = round(src.Value);
+            dim = obj.mapSliderToDim(obj.hSlider == src);
+            im  = obj.mapSliderToImage{obj.hSlider == src};
+            obj.sel{im, dim} = round(src.Value);
+            
             obj.activateSlider(dim);
             obj.refreshUI();
         end
@@ -781,11 +788,11 @@ classdef (Abstract) Draw < handle
             % instantiate new roi depending on choice
             switch(get(obj.hPopRoiType, 'Value'))
                 case 1
-                    obj.rois{roiNo} = images.roi.Polygon('Parent', get(obj.hImage(obj.activeDim), 'Parent'), 'Color', obj.COLOR_roi(roiNo, :));
+                    obj.rois{roiNo} = images.roi.Polygon('Parent', gca, 'Color', obj.COLOR_roi(roiNo, :));
                 case 2
-                    obj.rois{roiNo} = images.roi.Ellipse('Parent', get(obj.hImage(obj.activeDim), 'Parent'), 'Color', obj.COLOR_roi(roiNo, :));
+                    obj.rois{roiNo} = images.roi.Ellipse('Parent', gca, 'Color', obj.COLOR_roi(roiNo, :));
                 case 3
-                    obj.rois{roiNo} = images.roi.Freehand('Parent', get(obj.hImage(obj.activeDim), 'Parent'), 'Color', obj.COLOR_roi(roiNo, :));
+                    obj.rois{roiNo} = images.roi.Freehand('Parent', gca, 'Color', obj.COLOR_roi(roiNo, :));
             end
             
             addlistener(obj.rois{roiNo}, 'MovingROI', @obj.calcROI);

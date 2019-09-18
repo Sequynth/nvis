@@ -15,12 +15,14 @@ classdef DrawSlider < Draw
         locAndVals
         hBtnSaveImg
         hBtnSaveVid
+        hGuides         % RGB plot guides in the axes
         
         % UI properties
         pSliderHeight
         panelPos
         controlPanelPos
         figurePos
+        cr
     end
     
     
@@ -47,8 +49,10 @@ classdef DrawSlider < Draw
             if obj.nDims < 4
                 % TODO: if obj.nDims == 2: open DrawSingle instead
                 obj.nSlider = 3;
+                obj.mapSliderToImage = num2cell(1:3);
             elseif obj.nDims == 4
                 obj.nSlider = 4;
+                obj.mapSliderToImage = cat(2, num2cell(1:3), {':'});
             else
                 error('Input-size not supported')
             end
@@ -58,8 +62,10 @@ classdef DrawSlider < Draw
             obj.prepareParser
             
             % definer additional Prameters
-            addParameter(obj.p, 'Position',     obj.defaultPosition,    @(x) isnumeric(x) && numel(x) == 4);
-            addParameter(obj.p, 'InitSlice',    round(obj.S(1:3)/2),  @isnumeric);            
+            addParameter(obj.p, 'Position',     obj.defaultPosition,  @(x) isnumeric(x) && numel(x) == 4);
+            addParameter(obj.p, 'InitSlice',    round(obj.S(1:3)/2),  @isnumeric);
+            addParameter(obj.p, 'Crosshair',    1,                    @isnumeric);
+
             
             if obj.nImages == 1
                 parse(obj.p, varargin{:});
@@ -71,10 +77,11 @@ classdef DrawSlider < Draw
             obj.complexMode         = obj.p.Results.ComplexMode;
             obj.resize              = obj.p.Results.Resize;
             obj.contrast            = obj.p.Results.Contrast;
+            obj.cr                  = obj.p.Results.Crosshair;
             
-            obj.prepareColors
+            obj.prepareColors()
             
-            obj.createSelector      
+            obj.createSelector()     
             
             % get names of input variables
             obj.inputNames{1} = inputname(1);
@@ -82,13 +89,15 @@ classdef DrawSlider < Draw
                 obj.inputNames{2} = inputname(2);
             end
             
-            obj.setLocValFunction
+            obj.setLocValFunction()
             
-            obj.prepareSliceData
+            obj.prepareSliceData()
             
-            obj.prepareGUI
+            obj.prepareGUI()
             
-            obj.guiResize
+            obj.refreshUI()
+            
+            obj.guiResize()
             set(obj.f, 'Visible', 'on');
             
             % do not assign to 'ans' when called without assigned variable
@@ -148,6 +157,8 @@ classdef DrawSlider < Draw
             
             % populate image panels
             ax = gobjects(3, 1);
+            obj.hGuides = gobjects(obj.nAxes, 4);
+            
             for iim = 1:obj.nAxes
                 ax(iim) = axes('Parent', obj.pImage(iim), 'Units', 'normal', 'Position', [0 0 1 1]);
                 obj.hImage(iim)  = imagesc(obj.sliceMixer(iim), 'Parent', ax(iim));  % plot image
@@ -156,6 +167,11 @@ classdef DrawSlider < Draw
                 
                 set(obj.hImage(iim), 'ButtonDownFcn', @obj.startDragFcn)
                 colormap(ax(iim), obj.cmap{1});
+                                
+                for igu = 1:4
+                    obj.hGuides(iim, igu) = plot([1 1], [1 1], ...
+                        'Color', obj.axColors(obj.showDims(iim, abs(ceil((igu-6)/2)))));
+                end
             end
             
             set(ax, ...
@@ -191,7 +207,7 @@ classdef DrawSlider < Draw
                     'Position',         [0.17 1/8 0.6 6/8], ...
                     'Min',              1, ...
                     'Max',              obj.S(iSlider), ...
-                    'Value',            obj.sel{obj.dimMap(iSlider), obj.dimMap(iSlider)}, ...
+                    'Value',            obj.sel{obj.mapSliderToDim(iSlider), obj.mapSliderToDim(iSlider)}, ...
                     'SliderStep',       steps, ...
                     'Callback',         @(src, eventdata) obj.newSlice(src, eventdata), ...
                     'BackgroundColor',  obj.COLOR_BG, ...
@@ -328,6 +344,8 @@ classdef DrawSlider < Draw
                 'FontSize',             0.45, ...
                 'FontName',             'FixedWidth', ...
                 'TooltipString',        'signal / noise');
+            
+            
         end
         
         
@@ -386,14 +404,41 @@ classdef DrawSlider < Draw
         end
         
         
+        function guidePos = calcGuidePos(obj)
+            guidePos = zeros(obj.nAxes, 4, 4);
+            for iim = 1:obj.nAxes
+                guidePos(iim, 1, :) = [...
+                    obj.sel{obj.showDims(iim, 2), obj.showDims(iim, 2)}*obj.resize, ...
+                    obj.sel{obj.showDims(iim, 2), obj.showDims(iim, 2)}*obj.resize, ...
+                    0.5, ...
+                    obj.sel{obj.showDims(iim, 1), obj.showDims(iim, 1)}*obj.resize-obj.cr];
+                guidePos(iim, 2, :) = [...
+                    obj.sel{obj.showDims(iim, 2), obj.showDims(iim, 2)}*obj.resize, ...
+                    obj.sel{obj.showDims(iim, 2), obj.showDims(iim, 2)}*obj.resize, ...
+                    obj.sel{obj.showDims(iim, 1), obj.showDims(iim, 1)}*obj.resize+obj.cr, ...
+                    obj.S(obj.showDims(iim, 1))*obj.resize+0.5];
+                guidePos(iim, 3, :) = [...                    
+                    0.5, ...
+                    obj.sel{obj.showDims(iim, 2), obj.showDims(iim, 2)}*obj.resize-obj.cr, ...
+                    obj.sel{obj.showDims(iim, 1), obj.showDims(iim, 1)}*obj.resize, ...
+                    obj.sel{obj.showDims(iim, 1), obj.showDims(iim, 1)}*obj.resize];
+                guidePos(iim, 4, :) = [...    
+                    obj.sel{obj.showDims(iim, 2), obj.showDims(iim, 2)}*obj.resize+obj.cr, ...
+                    obj.S(obj.showDims(iim, 2))*obj.resize+0.5, ...
+                    obj.sel{obj.showDims(iim, 1), obj.showDims(iim, 1)}*obj.resize, ...
+                    obj.sel{obj.showDims(iim, 1), obj.showDims(iim, 1)}*obj.resize];
+            end
+        end
+        
+        
         function createSelector(obj)
             % which dimensions are shown initially
             obj.showDims = [2 3; 1 3; 1 2];
-            obj.dimMap   = 1:4;
+            obj.mapSliderToDim   = 1:4;
             % create slice selector for dimensions 3 and higher
             obj.sel        = repmat({':'}, obj.nAxes, ndims(obj.img{1}));
             for iim = 1:obj.nAxes
-                obj.sel(iim, obj.dimMap == iim) = num2cell(obj.p.Results.InitSlice(iim));
+                obj.sel(iim, obj.mapSliderToDim == iim) = num2cell(obj.p.Results.InitSlice(iim));
             end
             
             if obj.nSlider == 4
@@ -407,11 +452,27 @@ classdef DrawSlider < Draw
             
             for iim = 1:obj.nAxes
                 set(obj.hImage(iim), 'CData', obj.sliceMixer(iim));
+                
+                if true % guides visible
+                    guidePos = obj.calcGuidePos();
+                    set(obj.hGuides(iim, 1), ...
+                        'XData', guidePos(iim, 1, 1:2), ...
+                        'YData', guidePos(iim, 1, 3:4));
+                    set(obj.hGuides(iim, 2), ...
+                        'XData', guidePos(iim, 2, 1:2), ...
+                        'YData', guidePos(iim, 2, 3:4));
+                    set(obj.hGuides(iim, 3), ...
+                        'XData', guidePos(iim, 3, 1:2), ...
+                        'YData', guidePos(iim, 3, 3:4));
+                    set(obj.hGuides(iim, 4), ...
+                        'XData', guidePos(iim, 4, 1:2), ...
+                        'YData', guidePos(iim, 4, 3:4));
+                end
             end
             
             for iSlider = 1:obj.nSlider
-                set(obj.hEditSlider(iSlider), 'String', num2str(obj.sel{obj.dimMap(iSlider), obj.dimMap(iSlider)}));
-                set(obj.hSlider(iSlider), 'Value', obj.sel{obj.dimMap(iSlider), obj.dimMap(iSlider)});
+                set(obj.hEditSlider(iSlider), 'String', num2str(obj.sel{obj.mapSliderToDim(iSlider), obj.mapSliderToDim(iSlider)}));
+                set(obj.hSlider(iSlider), 'Value', obj.sel{obj.mapSliderToDim(iSlider), obj.mapSliderToDim(iSlider)});
             end
             % update 'val' when changing slice
             obj.mouseMovement();
@@ -442,6 +503,19 @@ classdef DrawSlider < Draw
                 else
                     % set(pSlider(4),'ShadowColor', color_F)
                 end
+            end
+        end
+        
+        
+        function activateSlider(obj, dim)
+            % change current axes and indicate to user by drawing coloured line
+            % around current axes, but only if dim wasnt the active axis before
+            if obj.activeDim ~= dim
+                obj.activeDim = dim;
+            end
+            
+            if obj.nSlider < 4
+                obj.activateAx(dim);
             end
         end
         

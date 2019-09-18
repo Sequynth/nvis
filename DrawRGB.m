@@ -59,6 +59,7 @@ classdef DrawRGB < Draw
             obj.nAxes    = 1;
             obj.activeAx = 1;
             obj.nSlider  = numel(obj.S) - 3;
+            obj.mapSliderToImage = num2cell(ones(1, obj.nSlider));
             obj.standardTitle = inputname(1);
             obj.complexMode = 3;
             if isa(in, 'uint8')
