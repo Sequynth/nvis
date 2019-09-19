@@ -48,7 +48,10 @@ classdef (Abstract) Draw < handle
         mapSliderToImage
         showDims
         sel
+        % index of the currently active dimension for slider scrolling
+        % etc...
         activeDim
+        % index of the currently active ax element
         activeAx
         % complex representation
         complexMode

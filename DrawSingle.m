@@ -644,8 +644,8 @@ classdef DrawSingle < Draw
             %   imageData   h1
             
             if ~firstCall
-                delete(ax1)
-                deleteROIs()
+                delete(obj.hImage.Parent)
+                obj.delRois()
             end
             
             obj.sel(1, ~obj.showDims) = num2cell(round(obj.S(~obj.showDims)/2));
@@ -1041,7 +1041,29 @@ classdef DrawSingle < Draw
         
         
         function shiftDims(obj, src, ~)
-            disp('Functionality not yet implemented')
+            switch (src.String)
+                case '->'
+                    obj.showDims  = mod(obj.showDims, obj.nSlider+2)+1;
+                    if ismember(obj.activeDim, obj.showDims)
+                        obj.activeDim = mod(obj.activeDim, obj.nSlider+2)+1;
+                    end
+                case '<-'
+                    obj.showDims  = mod(obj.showDims-2, obj.nSlider+2)+1;
+                    if ismember(obj.activeDim, obj.showDims)
+                        obj.activeDim = mod(obj.activeDim-2, obj.nSlider+2)+1;
+                    end
+            end
+            
+            % renew mapping of sliders to dimensions
+            obj.mapSliderToDim = 1:obj.nDims;
+            obj.mapSliderToDim(obj.showDims) = [];
+            
+            % renew slice selector for dimensions 3 and higher
+            obj.sel        = repmat({':'}, 1, ndims(obj.img{1}));
+            obj.sel(ismember(1:obj.nDims, obj.mapSliderToDim)) = num2cell(round(obj.S(obj.mapSliderToDim)/2));
+            
+            obj.initializeSliders()
+            obj.initializeAxis(false)
         end
         
         
