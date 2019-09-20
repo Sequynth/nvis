@@ -1,5 +1,9 @@
 classdef DrawSingle < Draw
     
+    
+    % TODO:
+    % - RadioGroup Buttons for animated sliders
+    
     properties (Access = private)
         t           % interrupt timer
         fps
@@ -104,7 +108,6 @@ classdef DrawSingle < Draw
             obj.interruptedSlider = 1;
             % necessary for view orientation, already needed when saving image or video
             obj.azimuthAng   = 0;
-            obj.elevationAng = 90;
             
             % get names of input variables
             obj.inputNames{1} = inputname(1);
@@ -665,7 +668,7 @@ classdef DrawSingle < Draw
             set(obj.hImage, 'ButtonDownFcn', @obj.startDragFcn)
             colormap(ax, obj.cmap{1});
             
-            view([obj.azimuthAng obj.elevationAng])
+            view([obj.azimuthAng 90])
         end
         
         
@@ -767,8 +770,6 @@ classdef DrawSingle < Draw
             wsToAdd = max(cellfun(@numel, obj.valNames)) - cellfun(@numel, obj.valNames);
             ws = {repmat(' ', [1, wsToAdd(1)]), repmat(' ', [1, wsToAdd(2)])};
             obj.valNames = strcat(obj.valNames, ws);
-            
-            
         end
         
         
@@ -799,7 +800,7 @@ classdef DrawSingle < Draw
         end
         
         
-        function locVal(obj, point)
+        function locVal(obj, point, ~)
             if ~isempty(point)
                 if obj.nImages == 1
                     val = obj.complexPart(obj.slice{1, 1}(point{:}));
@@ -1036,7 +1037,7 @@ classdef DrawSingle < Draw
                 case 'rotR'
                     obj.azimuthAng = mod(obj.azimuthAng + 90, 360);
             end
-            view([obj.azimuthAng obj.elevationAng])
+            view([obj.azimuthAng 90])
         end
         
         

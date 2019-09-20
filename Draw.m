@@ -1,10 +1,6 @@
 classdef (Abstract) Draw < handle
-    %Draw Baseclass for Draw.. GUIs
+    %Draw Baseclass for Draw. GUIs
     %   Detailed explanation goes here
-    
-    % TODO:
-    % - implement functionality of ShiftDim buttons
-    % - RadioGroup Buttons for animated sliders
     
     properties
         f
@@ -25,41 +21,56 @@ classdef (Abstract) Draw < handle
         % WINDOWING PROPERTIES
         Max             % maximum value in both images
         Min             % minimum value in both images
-        center
-        width
-        widthMin
-        centerStep
-        widthStep
-        nrmFac
+        center          % current value mapped to the center of the colormap
+        width           % width of values mapped to the colormap, around center
+        widthMin        % minimalWidth of the colormap, prevents division by 0
+        centerStep      % how much 'center' changes when windowing
+        widthStep       % how much 'width' changes when windowing
+        nrmFac          % normalization factor for windowing process
         
-        fftStatus
-        fftData
+        fftStatus       % keeps track of fft-button status
         
         % DISPLAYING
         % link sliders to image dimensions
         % mapSliderToDim(2) = 4 means, that slider 2 controls the slice along the
         % 4th dimension.
         mapSliderToDim
+        
         % link sliders to images
         % mapSliderToImage{2} = 1   means, that slider 2 changes values in
         % obj.sel{1, :}.
         % mapSliderToImage{2} = ':' means, that slider 2 changes the
         % selector for all shown images
         mapSliderToImage
+        
+        % showDims(1, :) = [3 4] means, that in axis 1, the first
+        % dimensions shows the input data along its third dimension, the
+        % second axis shows the input data along its fourth dimension.
         showDims
+        
+        % cell array that stores the location information in the input data
+        % of each currently shown slice
         sel
+        
+        % cell array containing the current slice image information
+        slice
+                
         % index of the currently active dimension for slider scrolling
         % etc...
         activeDim
+        
         % index of the currently active ax element
         activeAx
-        % complex representation
+        
+        % stores the current complex representation mode
         complexMode
+        
+        % resize factor for the displayed data
         resize
+        
+        % used to rotate the view on the axes when necessary
         azimuthAng
-        elevationAng
-        % cell array containing the current slice image information
-        slice
+        
         
         contrast
         COLOR_m
@@ -94,13 +105,16 @@ classdef (Abstract) Draw < handle
         hPopRoiType
         hBtnDelRois
         hBtnSaveRois
+        hLocAndVals
         
         % GUI ELEMENT PROPERTIES
         nSlider
         
         % array with ROIs
         rois
+        % mean in the signal rois
         signal
+        % std-deviation in the noie rois
         noise
     end
     
@@ -110,9 +124,8 @@ classdef (Abstract) Draw < handle
         COLOR_B   = [0.1 0.1 0.1];
         COLOR_F   = [0.9 0.9 0.9];
         COLOR_roi = [1.0 0.0 0.0;
-                    0.0 0.0 1.0];
+                     0.0 0.0 1.0];
         contrastList = {'green-magenta', 'PET', 'heat'};
-        
     end
     
     
@@ -127,7 +140,6 @@ classdef (Abstract) Draw < handle
             obj.isComplex   = ~isreal(in);
             % necessary for view orientation, already needed when saving image or video
             obj.azimuthAng   = 0;
-            obj.elevationAng = 90;
                         
             
             % check varargin for a sencond input matrix
@@ -760,11 +772,11 @@ classdef (Abstract) Draw < handle
 				iteratingAx = get(obj.hImage(ida), 'Parent');
                 pAx = round(get(iteratingAx, 'CurrentPoint')/obj.resize);
                 if obj.inAxis(iteratingAx, pAx(1, 1), pAx(1, 2))
-                    obj.locVal({pAx(1, 2) pAx(1, 1)});
+                    obj.locVal({pAx(1, 2), pAx(1, 1)}, ida);
                     return
                 end
             end
-            % if the cursor is not on top of any axis
+            % if the cursor is not on top of any axis, set it empty
             obj.locVal([]);
         end
         
@@ -984,7 +996,7 @@ classdef (Abstract) Draw < handle
     %% abstract methods
     
     methods (Abstract)
-        locVal(obj)
+        locVal(obj, axNo)
         refreshUI(obj)
         keyPress(obj)
         incDecActiveDim(obj, incDec)
