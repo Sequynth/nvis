@@ -6,8 +6,6 @@ classdef DrawSlider < Draw
         % DISPLAYING
         locValString
         dimensionLabel
-        inputNames
-        valNames
         
         % UI Elements
         pColorbar
@@ -59,7 +57,14 @@ classdef DrawSlider < Draw
                 error('Input-size not supported')
             end
             
-            obj.standardTitle = inputname(1);
+            if obj.nImages == 2
+                obj.inputNames{1} = inputname(1);
+                obj.inputNames{2} = inputname(2);
+                obj.standardTitle = [inputname(1) ' ' inputname(2)];
+            else
+                obj.inputNames{1} = inputname(1);
+                obj.standardTitle = inputname(1);
+            end
             
             obj.prepareParser
             
@@ -84,12 +89,8 @@ classdef DrawSlider < Draw
             obj.prepareColors()
             
             obj.createSelector()     
-            
-            % get names of input variables
-            obj.inputNames{1} = inputname(1);
-            if obj.nImages == 2
-                obj.inputNames{2} = inputname(2);
-            end
+
+            obj.setValNames()
             
             obj.setLocValFunction()
             
@@ -573,6 +574,32 @@ classdef DrawSlider < Draw
         end
         
         
+        function setValNames(obj)
+            obj.valNames = {'val1', 'val2'};
+            
+            if ~isempty(obj.inputNames{1})
+                if numel(obj.inputNames{1}) > obj.maxLetters
+                    obj.valNames{1} = obj.inputNames{1}(1:obj.maxLetters);
+                else
+                    obj.valNames{1} = obj.inputNames{1};
+                end
+            end
+            
+            if obj.nImages == 2 && ~isempty(obj.inputNames{2})
+                if numel(obj.inputNames{2}) > obj.maxLetters
+                    obj.valNames{2} = obj.inputNames{2}(1:obj.maxLetters);
+                else
+                    obj.valNames{2} = obj.inputNames{2};
+                end
+            end
+            
+            % find number of trailing whitespace
+            wsToAdd = max(cellfun(@numel, obj.valNames)) - cellfun(@numel, obj.valNames);
+            ws = {repmat(' ', [1, wsToAdd(1)]), repmat(' ', [1, wsToAdd(2)])};
+            obj.valNames = strcat(obj.valNames, ws);
+        end
+        
+        
         function setLocValFunction(obj)
             if obj.nImages == 1
                 obj.locValString = @(dim1L, dim1, dim2L, dim2, dim3L, dim3, val) sprintf('\\color[rgb]{%.2f,%.2f,%.2f}%s:%4d\n%s:%4d\n%s:%4d\n%s:%s', ...
@@ -583,7 +610,7 @@ classdef DrawSlider < Draw
                     dim2, ...
                     dim3L, ...
                     dim3, ...
-                    'val1', ...
+                    obj.valNames{1}, ...
                     [num2sci(val) ' ' obj.p.Results.Unit{1}]);
             else
                 obj.locValString = @(dim1L, dim1, dim2L, dim2, dim3L, dim3, val1, val2) sprintf('\\color[rgb]{%.2f,%.2f,%.2f}%s:%4d\n%s:%4d\n%s:%4d\n\\color[rgb]{%.2f,%.2f,%.2f}%s:%s\n\\color[rgb]{%.2f,%.2f,%.2f}%s:%s', ...
@@ -595,10 +622,10 @@ classdef DrawSlider < Draw
                     dim3L, ...
                     dim3, ...
                     obj.COLOR_m(1, :), ...
-                    'val1', ...
+                    obj.valNames{1}, ...
                     [num2sci(val1) obj.p.Results.Unit{1}], ...
                     obj.COLOR_m(2, :), ...
-                    'val2', ...
+                    obj.valNames{2}, ...
                     [num2sci(val2) obj.p.Results.Unit{2}]);
             end
         end

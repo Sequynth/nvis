@@ -8,8 +8,6 @@ classdef DrawRGB < Draw
         interruptedSlider
         locValString
         dimensionLabel
-        inputNames
-        valNames
         
         % UI Elements
         pImage
@@ -68,6 +66,15 @@ classdef DrawRGB < Draw
                 obj.isUint = false;
             end
             
+            if obj.nImages == 2
+                obj.inputNames{1} = inputname(1);
+                obj.inputNames{2} = inputname(2);
+                obj.standardTitle = [inputname(1) ' ' inputname(2)];
+            else
+                obj.inputNames{1} = inputname(1);
+                obj.standardTitle = inputname(1);
+            end
+            
             obj.prepareParser()
             
             % additional parameters
@@ -105,11 +112,7 @@ classdef DrawRGB < Draw
             obj.interruptedSlider = 1;
             % necessary for view orientation, already needed when saving image or video
             obj.azimuthAng   = 0;
-            obj.elevationAng = 90;
-            
-            % get name of input variable
-            obj.inputNames{1} = inputname(1);
-            
+                        
             % when an image or a video is saved, dont create the GUI and
             % terminate the class after finishing
             if ~contains('SaveImage', obj.p.UsingDefaults)
@@ -480,7 +483,7 @@ classdef DrawRGB < Draw
             set(obj.hImage, 'ButtonDownFcn', @obj.startDragFcn)
             colormap(ax, obj.cmap{1});
             
-            view([obj.azimuthAng obj.elevationAng])
+            view([obj.azimuthAng 90])
         end
         
         
@@ -504,14 +507,14 @@ classdef DrawRGB < Draw
                 set(obj.hSlider(iSlider), ...
                     'Min',              1, ...
                     'Max',              s(iSlider), ...
-                    'Value',            obj.sel{obj.dimMap(iSlider)}, ...
+                    'Value',            obj.sel{obj.mapSliderToDim(iSlider)}, ...
                     'SliderStep',       steps);
                 if s(iSlider) == 1
                     set(obj.hSlider(iSlider), ...
                         'Enable',       'off');
                 end
                 
-                set(obj.hEditSlider(iSlider), 'String', num2str(obj.sel{obj.dimMap(iSlider)}));
+                set(obj.hEditSlider(iSlider), 'String', num2str(obj.sel{obj.mapSliderToDim(iSlider)}));
             end
         end
         
@@ -551,10 +554,10 @@ classdef DrawRGB < Draw
         function createSelector(obj)
             % which dimensions are shown initially
             obj.showDims = [1 2];
-            obj.dimMap   = 3:obj.nDims;
+            obj.mapSliderToDim   = 3:obj.nDims;
             % create slice selector for dimensions 3 and higher
             obj.sel        = repmat({':'}, 1, ndims(obj.img{1}));
-            obj.sel(ismember(1:obj.nDims, obj.dimMap)) = num2cell(obj.p.Results.InitSlice);
+            obj.sel(ismember(1:obj.nDims, obj.mapSliderToDim)) = num2cell(obj.p.Results.InitSlice);
         end
         
         
@@ -585,7 +588,7 @@ classdef DrawRGB < Draw
         end
         
         
-        function locVal(obj, point)
+        function locVal(obj, point, ~)
             if ~isempty(point)
                 % select all color values
                 point{3} = ':';
@@ -609,8 +612,8 @@ classdef DrawRGB < Draw
             set(obj.hImage, 'CData', obj.sliceMixer());
             
             for iSlider = 1:obj.nSlider
-                set(obj.hEditSlider(iSlider), 'String', num2str(obj.sel{obj.dimMap(iSlider)}));
-                set(obj.hSlider(iSlider), 'Value', obj.sel{obj.dimMap(iSlider)});
+                set(obj.hEditSlider(iSlider), 'String', num2str(obj.sel{obj.mapSliderToDim(iSlider)}));
+                set(obj.hSlider(iSlider), 'Value', obj.sel{obj.mapSliderToDim(iSlider)});
             end
             % update 'val' when changing slice
             obj.mouseMovement();
@@ -814,7 +817,7 @@ classdef DrawRGB < Draw
                 case 'rotR'
                     obj.azimuthAng = mod(obj.azimuthAng + 90, 360);
             end
-            view([obj.azimuthAng obj.elevationAng])
+            view([obj.azimuthAng 90])
         end
         
         

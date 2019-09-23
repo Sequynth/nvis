@@ -1,6 +1,5 @@
 classdef DrawSingle < Draw
     
-    
     % TODO:
     % - RadioGroup Buttons for animated sliders
     
@@ -12,8 +11,6 @@ classdef DrawSingle < Draw
         interruptedSlider
         locValString
         dimensionLabel
-        inputNames
-        valNames
         
         % UI Elements
         pImage
@@ -49,7 +46,7 @@ classdef DrawSingle < Draw
         % default figure position and size
         defaultPosition = [ 300, 200, 1000, 800];
         % absolute width of Control panel in pixel
-        controlWidth = 275; % px
+        controlWidth = 275; % px        
     end
     
     methods
@@ -62,7 +59,14 @@ classdef DrawSingle < Draw
             obj.activeAx = 1;
             obj.nSlider  = numel(obj.S) - 2;
             obj.mapSliderToImage = num2cell(ones(1, obj.nSlider));
-            obj.standardTitle = inputname(1);
+            if obj.nImages == 2
+                obj.inputNames{1} = inputname(1);
+                obj.inputNames{2} = inputname(2);
+                obj.standardTitle = [inputname(1) ' ' inputname(2)];
+            else
+                obj.inputNames{1} = inputname(1);
+                obj.standardTitle = inputname(1);
+            end
             
             obj.prepareParser()
             
@@ -108,13 +112,7 @@ classdef DrawSingle < Draw
             obj.interruptedSlider = 1;
             % necessary for view orientation, already needed when saving image or video
             obj.azimuthAng   = 0;
-            
-            % get names of input variables
-            obj.inputNames{1} = inputname(1);
-            if obj.nImages == 2
-                obj.inputNames{2} = inputname(2);
-            end
-            
+                        
             % when an image or a video is saved, dont create the GUI and
             % terminate the class after finishing
             if ~contains('SaveImage', obj.p.UsingDefaults)

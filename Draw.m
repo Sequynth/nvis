@@ -2,6 +2,9 @@ classdef (Abstract) Draw < handle
     %Draw Baseclass for Draw. GUIs
     %   Detailed explanation goes here
     
+    % TODO: mask underscores and other latex stud in inputnames to not mess
+    % up the display in the locAndVal section
+    
     properties
         f
     end
@@ -109,7 +112,8 @@ classdef (Abstract) Draw < handle
         
         % GUI ELEMENT PROPERTIES
         nSlider
-        
+        inputNames
+        valNames
         % array with ROIs
         rois
         % mean in the signal rois
@@ -126,6 +130,7 @@ classdef (Abstract) Draw < handle
         COLOR_roi = [1.0 0.0 0.0;
                      0.0 0.0 1.0];
         contrastList = {'green-magenta', 'PET', 'heat'};
+        maxLetters = 6;
     end
     
     
@@ -882,6 +887,32 @@ classdef (Abstract) Draw < handle
             end
         end
                 
+        
+        function setValNames(obj)
+            obj.valNames = {'val1', 'val2'};
+            
+            if ~isempty(obj.inputNames{1})
+                if numel(obj.inputNames{1}) > obj.maxLetters
+                    obj.valNames{1} = obj.inputNames{1}(1:obj.maxLetters);
+                else
+                    obj.valNames{1} = obj.inputNames{1};
+                end
+            end
+            
+            if obj.nImages == 2 && ~isempty(obj.inputNames{2})
+                if numel(obj.inputNames{2}) > obj.maxLetters
+                    obj.valNames{2} = obj.inputNames{2}(1:obj.maxLetters);
+                else
+                    obj.valNames{2} = obj.inputNames{2};
+                end
+            end
+            
+            % find number of trailing whitespace
+            wsToAdd = max(cellfun(@numel, obj.valNames)) - cellfun(@numel, obj.valNames);
+            ws = {repmat(' ', [1, wsToAdd(1)]), repmat(' ', [1, wsToAdd(2)])};
+            obj.valNames = strcat(obj.valNames, ws);
+        end
+        
         
         function removeListener(obj, src, ~)
             set(obj.f, 'WindowKeyPress', '');
