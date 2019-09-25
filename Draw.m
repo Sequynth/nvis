@@ -2,7 +2,7 @@ classdef (Abstract) Draw < handle
     %Draw Baseclass for Draw. GUIs
     %   Detailed explanation goes here
     
-    % TODO: mask underscores and other latex stud in inputnames to not mess
+    % TODO: mask underscores and other latex stuff in inputnames to not mess
     % up the display in the locAndVal section
     
     properties
@@ -562,7 +562,7 @@ classdef (Abstract) Draw < handle
         end
         
         
-        function startDragFcn(obj, src, ~)
+        function startDragFcn(obj, src, evtData)
             % when middle mouse button is pressed, save current point and start
             % tracking of mouse movements
             callingAx = src.Parent;
@@ -590,6 +590,8 @@ classdef (Abstract) Draw < handle
                         wStep   = [obj.widthStep(1), 0];
                         obj.f.WindowButtonMotionFcn = {@obj.draggingFcn, callingAx, Pt, sCenter, sWidth, cStep, wStep};
                     end
+                case 'alt'
+                    obj.mouseButtonAlt(src, evtData)
             end
         end
         
@@ -891,7 +893,7 @@ classdef (Abstract) Draw < handle
         function setValNames(obj)
             obj.valNames = {'val1', 'val2'};
             
-            if ~isempty(obj.inputNames{1})
+            if ~isempty(obj.inputNames{1})                
                 if numel(obj.inputNames{1}) > obj.maxLetters
                     obj.valNames{1} = obj.inputNames{1}(1:obj.maxLetters);
                 else
@@ -1031,6 +1033,7 @@ classdef (Abstract) Draw < handle
         refreshUI(obj)
         keyPress(obj)
         incDecActiveDim(obj, incDec)
+        mouseButtonAlt(src, evtData)
     end
 end
 

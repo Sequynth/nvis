@@ -642,6 +642,10 @@ classdef DrawRGB < Draw
         end
         
         
+        function mouseButtonAlt(obj, src, evtData)
+        end
+        
+        
         function interrupt(obj, ~, ~)
             % this function is called for every interrupt of the timer and
             % increments/decrements the slider value.

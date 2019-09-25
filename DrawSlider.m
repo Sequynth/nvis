@@ -574,6 +574,15 @@ classdef DrawSlider < Draw
         end
         
         
+        function mouseButtonAlt(obj, src, evtData)
+            Pt = get(gca, 'CurrentPoint');
+            iim = find(src == obj.hImage);
+            obj.sel{obj.showDims(iim, 1), obj.showDims(iim, 1)} = round(Pt(1, 2));
+            obj.sel{obj.showDims(iim, 2), obj.showDims(iim, 2)} = round(Pt(1, 1));
+            obj.refreshUI
+        end
+        
+        
         function setValNames(obj)
             obj.valNames = {'val1', 'val2'};
             
@@ -601,6 +610,8 @@ classdef DrawSlider < Draw
         
         
         function setLocValFunction(obj)
+            % sets the function for the locAndVal string depending on the
+            % amount of input images
             if obj.nImages == 1
                 obj.locValString = @(dim1L, dim1, dim2L, dim2, dim3L, dim3, val) sprintf('\\color[rgb]{%.2f,%.2f,%.2f}%s:%4d\n%s:%4d\n%s:%4d\n%s:%s', ...
                     obj.COLOR_F, ...
