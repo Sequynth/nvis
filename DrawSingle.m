@@ -131,7 +131,9 @@ classdef DrawSingle < Draw
             obj.setLocValFunction()            
             
             obj.prepareGUI()
-                        
+               
+            obj.optimizeInitialFigureSize()   
+            
             obj.guiResize()
             set(obj.f, 'Visible', 'on');
             
@@ -1067,6 +1069,24 @@ classdef DrawSingle < Draw
             
             obj.initializeSliders()
             obj.initializeAxis(false)
+        end
+        
+        
+        function optimizeInitialFigureSize(obj)
+            % cange the figure size such, that the image fill pImage
+            % without border
+            % no aspect ratio was specified -> the image is a square.
+            % The necessary figure imension is increased to make pImage
+            % a square
+            addPix = max(obj.pImage.Position(3:4)) - obj.pImage.Position(3:4);
+            obj.f.Position(3:4) =  obj.f.Position(3:4) + addPix;
+            % limit the figure size
+            if obj.f.Position(3) > 1800
+                obj.f.Position(3) = 1800;
+            end
+            if obj.f.Position(4) > 1000
+                obj.f.Position(4) = 1000;
+            end
         end
         
         
