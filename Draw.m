@@ -109,6 +109,8 @@ classdef (Abstract) Draw < handle
         hBtnDelRois
         hBtnSaveRois
         hLocAndVals
+        % colorbars
+        hAxCb        
         
         % GUI ELEMENT PROPERTIES
         nSlider
@@ -120,6 +122,8 @@ classdef (Abstract) Draw < handle
         signal
         % std-deviation in the noie rois
         noise
+        % do we see the colorbars?
+        cbShown
     end
     
     properties (Constant = true, Hidden = true)
@@ -621,7 +625,7 @@ classdef (Abstract) Draw < handle
         function cw(obj)
             % adjust windowing values depending on values for center and width
             obj.width(obj.width <= obj.widthMin) = obj.widthMin(obj.width <= obj.widthMin);
-                        
+            
             for ida = 1:numel(obj.hImage)
                 set(obj.hImage(ida), 'CData', obj.sliceMixer(ida));
             end
@@ -629,6 +633,24 @@ classdef (Abstract) Draw < handle
             for idi = 1:obj.nImages
                 set(obj.hEditC(idi), 'String', num2sci(obj.center(idi), 'padding', 'right'));
                 set(obj.hEditW(idi), 'String', num2sci(obj.width(idi) , 'padding', 'right'));
+            end
+            
+            if obj.cbShown
+                for idi = 1:obj.nImages                    
+                    set(allchild(obj.hAxCb(idi)), ...
+                        'XData',    linspace(obj.center(idi)-obj.width(idi)/2, obj.center(idi)+obj.width(idi)/2, size(obj.cmap{idi}, 1)))
+                    set(obj.hAxCb(idi), ...
+                        'XLim',     [obj.center(idi)-obj.width(idi)/2, obj.center(idi)+obj.width(idi)/2])
+                    
+                    % get tick positions
+                    ticks = get(obj.hAxCb(idi), 'XTick');
+                    % prepend a color for each tick label
+                    ticks_new = cell(size(ticks));
+                    for ii = 1:length(ticks)
+                        ticks_new{ii} = [sprintf('\\color[rgb]{%.3f,%.3f,%.3f} ', obj.COLOR_m(idi,  :)) num2str(ticks(ii))];
+                    end
+                    set(obj.hAxCb(idi), 'XTickLabel', ticks_new);
+                end
             end
         end
         

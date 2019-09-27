@@ -66,7 +66,7 @@ classdef DrawSlider < Draw
                 obj.standardTitle = inputname(1);
             end
             
-            obj.prepareParser
+            obj.prepareParser()
             
             % definer additional Prameters
             addParameter(obj.p, 'Position',     obj.defaultPosition,  @(x) isnumeric(x) && numel(x) == 4);
@@ -290,6 +290,28 @@ classdef DrawSlider < Draw
                         'FontSize',             0.4, ...
                         'ForegroundColor',      obj.COLOR_m(idh, :));                    
                 end
+                
+                % create the colorbar axis for the colorbarpanel
+                obj.hAxCb(idh)      = axes('Units',            'normal', ...
+                    'Position',         [1/9+(idh-1)*4/9 1/3 1/3 1/3], ...
+                    'Parent',           obj.pColorbar, ...
+                    'Color',            obj.COLOR_m(idh, :));
+                imagesc(linspace(0, 1, size(obj.cmap{idh}, 1)));
+                colormap(obj.hAxCb(idh), obj.cmap{idh});
+                caxis(obj.hAxCb(idh), [0 1])
+                
+                % get the current tick labeks
+                ticklabels = get(obj.hAxCb(idh), 'XTickLabel');
+                % prepend a color for each tick label
+                ticklabels_new = cell(size(ticklabels));
+                for i = 1:length(ticklabels)
+                    ticklabels_new{i} = [sprintf('\\color[rgb]{%.3f,%.3f,%.3f} ', obj.COLOR_m(idh,  1), obj.COLOR_m(idh,  2), obj.COLOR_m(idh,  3)) ticklabels{i}];
+                end
+                set(obj.hAxCb(idh), ...
+                    'XTickLabel',   ticklabels_new, ...
+                    'YTickLabel',   [], ...
+                    'YTick',        []);
+                
             end
             
             if obj.nImages == 2
@@ -358,6 +380,16 @@ classdef DrawSlider < Draw
                 'FontName',             'FixedWidth', ...
                 'BackgroundColor',      obj.COLOR_BG, ...
                 'Interpreter',          'Tex');
+            
+            %% OVERWRITE TOOLBAR BUTTONS
+            
+            % hide colorbar
+            obj.cbShown = true;
+            obj.toggleCb()
+            
+            % change callback of 'colorbar' icon in MATLAB toolbar
+            hToolColorbar = findall(gcf, 'tag', 'Annotation.InsertColorbar');
+            set(hToolColorbar, 'ClickedCallback', {@obj.toggleCb});
             
             
         end
@@ -575,11 +607,11 @@ classdef DrawSlider < Draw
         
         
         function mouseButtonAlt(obj, src, evtData)
-            Pt = get(gca, 'CurrentPoint');
+            Pt = round(get(gca, 'CurrentPoint'));
             iim = find(src == obj.hImage);
-            obj.sel{obj.showDims(iim, 1), obj.showDims(iim, 1)} = round(Pt(1, 2));
-            obj.sel{obj.showDims(iim, 2), obj.showDims(iim, 2)} = round(Pt(1, 1));
-            obj.refreshUI
+            obj.sel{obj.showDims(iim, 1), obj.showDims(iim, 1)} = Pt(1, 2);
+            obj.sel{obj.showDims(iim, 2), obj.showDims(iim, 2)} = Pt(1, 1);
+            obj.refreshUI()
         end
         
         
@@ -669,6 +701,22 @@ classdef DrawSlider < Draw
                 end
             else
                 set(obj.locAndVals, 'String', '');
+            end
+        end
+        
+        
+        function toggleCb(obj, ~, ~)
+            images = allchild(obj.hAxCb);
+            if ~obj.cbShown
+                set(obj.hAxCb,      'Visible', 'on')
+                set([images{:}],    'Visible', 'on')
+                obj.cbShown = true;
+                % run cw() again, to update ticklabels
+                obj.cw();
+            else
+                set(obj.hAxCb,      'Visible', 'off')
+                set([images{:}],    'Visible', 'off')
+                obj.cbShown = false;
             end
         end
         
