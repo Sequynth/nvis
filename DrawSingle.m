@@ -479,7 +479,7 @@ classdef DrawSingle < Draw
                 'FontUnits',            'normalized', ...
                 'FontSize',             0.45);
             
-            if ismember(true, obj.isComplex) && isempty(obj.img{2})
+            if any(obj.isComplex)% && isempty(obj.img{2})
                 set(obj.hBtnCmplx, 'Visible', 'on');
             else
                 % when hBtnCmplx are hidden, complexMode must be 3

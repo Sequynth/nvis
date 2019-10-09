@@ -709,13 +709,21 @@ classdef DrawSlider < Draw
             images = allchild(obj.hAxCb);
             if ~obj.cbShown
                 set(obj.hAxCb,      'Visible', 'on')
-                set([images{:}],    'Visible', 'on')
+                if obj.nImages == 1
+                    set(images,      'Visible', 'on')
+                else
+                    set([images{:}],    'Visible', 'on')
+                end
                 obj.cbShown = true;
                 % run cw() again, to update ticklabels
                 obj.cw();
             else
                 set(obj.hAxCb,      'Visible', 'off')
-                set([images{:}],    'Visible', 'off')
+                if obj.nImages == 1
+                    set(images,    'Visible', 'off')
+                else
+                    set([images{:}],    'Visible', 'off')
+                end
                 obj.cbShown = false;
             end
         end
