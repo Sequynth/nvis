@@ -33,6 +33,9 @@ classdef DrawSingle < Draw
         % UI properties
         
         pSliderHeight
+        sliderHeight
+        sliderPadding
+        sliderStartPos
         division
         margin 
         height
@@ -57,7 +60,18 @@ classdef DrawSingle < Draw
             % only one Axis in DrawSingle
             obj.nAxes    = 1;
             obj.activeAx = 1;
-            obj.nSlider  = numel(obj.S) - 2;
+            % only show slider for a dimension with a length higher than 1
+            if obj.nDims > 2
+                tmp = 3:obj.nDims;
+                obj.mapSliderToDim  = tmp(obj.S(3:end) > 1);
+                obj.nSlider         = numel(obj.mapSliderToDim);
+                obj.activeDim       = obj.mapSliderToDim(1);
+            else
+                % there is no dimension to slide through anyway
+                obj.nSlider   = 0;
+                obj.activeDim = 3;
+            end
+            
             obj.mapSliderToImage = num2cell(ones(1, obj.nSlider));
             if obj.nImages == 2
                 obj.inputNames{1} = inputname(1);
@@ -72,7 +86,7 @@ classdef DrawSingle < Draw
             
             % additional parameters
             addParameter(obj.p, 'Position',         obj.defaultPosition,                @(x) isnumeric(x) && numel(x) == 4);
-            addParameter(obj.p, 'InitSlice',        round(obj.S(3:end)/2),              @isnumeric);
+            addParameter(obj.p, 'InitSlice',        round(obj.S(obj.mapSliderToDim)/2), @isnumeric);
             addParameter(obj.p, 'FPS',              0,                                  @isnumeric);
             addParameter(obj.p, 'ROI_Signal',       [0 0; 0 0; 0 0],                    @isnumeric);
             addParameter(obj.p, 'ROI_Noise',        [0 0; 0 0; 0 0],                    @isnumeric);
@@ -81,7 +95,7 @@ classdef DrawSingle < Draw
             addParameter(obj.p, 'LoopDimension',    3,                                  @(x) isnumeric(x) && x <= obj.nDims && obj.nDims >= 3);
             addParameter(obj.p, 'DimensionLabel',   strcat(repmat({'Dim'}, 1, numel(obj.S)), ...
                                                     cellfun(@num2str, num2cell(1:obj.nDims), 'UniformOutput', false)), ...
-                                                                                        @(x) iscell(x) && numel(x) == obj.nSlider+2);
+                                                                                        @(x) iscell(x) && numel(x) == obj.nDims);
                                                                                     
             if obj.nImages == 1
                 parse(obj.p, varargin{:});
@@ -106,9 +120,10 @@ classdef DrawSingle < Draw
                         
             obj.prepareColors()
             
+            % which dimensions are shown initially
+            obj.showDims = [1 2]; 
             obj.createSelector()            
             
-            obj.activeDim = 3;
             obj.interruptedSlider = 1;
             % necessary for view orientation, already needed when saving image or video
             obj.azimuthAng   = 0;
@@ -174,7 +189,9 @@ classdef DrawSingle < Draw
             end
             
             % absolute height of slider panel
-            obj.pSliderHeight = obj.nSlider*30;%px
+            obj.sliderHeight    = 24; % px 
+            obj.sliderPadding   = 4;  % px
+            obj.pSliderHeight   = obj.nSlider * (obj.sliderHeight + 2*obj.sliderPadding); % px
             obj.setPanelPos()
             
             % create and place panels
@@ -553,55 +570,32 @@ classdef DrawSingle < Draw
                 'SelectionChangedFcn',  @(bg, event) obj.BtnGselection(bg, event));
             
             % create and position the sliders
-            sliderHeight    = 6/(8*obj.nSlider);
             for iSlider = 1:obj.nSlider
                 
-                sliderHeight0   = 1 - (iSlider-1)/obj.nSlider - 1/(8*obj.nSlider) - sliderHeight;
-                SliderWidth     = 0.75;
-                SliderWidth0    = 0.2;
-                IndexWidth      = 0.1;
-                IndexWidth0     = 0.1;
-                TextWidth       = 0.1;
-                TextWidth0      = 0;
+                sliderHeight0  = obj.pSliderHeight - iSlider*(2*obj.sliderPadding+obj.sliderHeight) + obj.sliderPadding;                
+                TextWidth0     = 10;
+                TextWidth      = 75;
+                EditWidth0     = TextWidth0 + TextWidth + 10;
+                EditWidth      = 100;
+                obj.sliderStartPos = EditWidth0 + EditWidth + 10;
+                
                 
                 obj.hTextSlider(iSlider) = uicontrol( ...
                     'Parent',           obj.pSlider, ...
                     'Style',            'text', ...
-                    'Units',            'normalized', ...
-                    'Position',         [TextWidth0 ...
-                                        sliderHeight0 ...
-                                        TextWidth ...
-                                        sliderHeight], ...
+                    'Units',            'pixel', ...                    
                     'FontUnits',        'normalized', ...
+                    'Position',         [TextWidth0 sliderHeight0 TextWidth obj.sliderHeight], ...
                     'FontSize',         0.8, ...
                     'BackgroundColor',  obj.COLOR_BG, ...
-                    'ForegroundColor',  obj.COLOR_F);                
-                
-                obj.hSlider(iSlider) = uicontrol( ...
-                    'Parent',           obj.pSlider, ...
-                    'Style',            'slider', ...
-                    'Units',            'normalized', ...
-                    'Position',         [SliderWidth0 ...
-                                        sliderHeight0 ...
-                                        SliderWidth ...
-                                        sliderHeight], ...
-                    'Callback',         @(src, eventdata) obj.newSlice(src, eventdata), ...
-                    'BackgroundColor',  obj.COLOR_BG, ...
-                    'ForegroundColor',  obj.COLOR_BG);
-                
-                addlistener(obj.hSlider(iSlider), ...
-                    'ContinuousValueChange', ...
-                    @(src, eventdata) obj.newSlice(src, eventdata));
+                    'ForegroundColor',  obj.COLOR_F);
                 
                 obj.hEditSlider(iSlider) = uicontrol( ...
                     'Parent',           obj.pSlider, ...
                     'Style',            'edit', ...
-                    'Units',            'normalized', ...
-                    'Position',         [IndexWidth0 ...
-                                        sliderHeight0 ...
-                                        IndexWidth ...
-                                        sliderHeight], ...
+                    'Units',            'pixel', ...
                     'FontUnits',        'normalized', ...
+                    'Position',         [EditWidth0 sliderHeight0 EditWidth obj.sliderHeight], ...
                     'FontSize',         0.8, ...
                     'Enable',           'Inactive', ...
                     'Value',            iSlider, ...
@@ -611,14 +605,22 @@ classdef DrawSingle < Draw
                 
                 set(obj.hEditSlider(iSlider), 'Callback', @obj.setSlider);
                 
+                obj.hSlider(iSlider) = uicontrol( ...
+                    'Parent',           obj.pSlider, ...
+                    'Style',            'slider', ...
+                    'Units',            'pixel', ...                    
+                    'Callback',         @(src, eventdata) obj.newSlice(src, eventdata), ...
+                    'BackgroundColor',  obj.COLOR_BG, ...
+                    'ForegroundColor',  obj.COLOR_BG);
+                
+                addlistener(obj.hSlider(iSlider), ...
+                    'ContinuousValueChange', ...
+                    @(src, eventdata) obj.newSlice(src, eventdata));                
+                
                 obj.hRadioBtnSlider(iSlider) = uicontrol(obj.hBtnG, ...
                     'Style',            'radiobutton', ...
-                    'Units',            'normalized', ...
+                    'Units',            'pixel', ...
                     'Tag',              num2str(iSlider), ...
-                    'Position',         [SliderWidth0+SliderWidth+0.02 ...
-                                        sliderHeight0 ...
-                                        0.02 ...
-                                        sliderHeight], ...
                     'HandleVisibility', 'off', ...
                     'BackgroundColor',  obj.COLOR_BG, ...
                     'ForegroundColor',  obj.COLOR_F);
@@ -650,9 +652,7 @@ classdef DrawSingle < Draw
                 delete(obj.hImage.Parent)
                 obj.delRois()
             end
-            
-            obj.sel(1, ~obj.showDims) = num2cell(round(obj.S(~obj.showDims)/2));
-             
+                         
             obj.prepareSliceData;
 
             ax      = axes('Parent', obj.pImage, 'Units', 'normal', 'Position', [0 0 1 1]);            
@@ -674,10 +674,9 @@ classdef DrawSingle < Draw
         
         function initializeSliders(obj)
             % get the size, dimensionNo, and labels only for the sliders
-            s = size(obj.img{1});
-            labels = obj.dimensionLabel;
-            s(     obj.showDims) = [];
-            labels(obj.showDims) = [];
+            s = obj.S(obj.mapSliderToDim);
+            labels = obj.dimensionLabel(obj.mapSliderToDim);
+            
             
             for iSlider = 1:obj.nSlider
                 set(obj.hTextSlider(iSlider), 'String', labels{iSlider});
@@ -710,14 +709,6 @@ classdef DrawSingle < Draw
             
             obj.figurePos = get(obj.f, 'Position');
             
-            if obj.figurePos(3) < obj.controlWidth
-                set(gcf, ...
-                    'Position', [obj.figurePos(1) ...
-                                obj.figurePos(2) ...
-                                obj.controlWidth ...
-                                obj.figurePos(4)]);
-            end
-            
             % pImage
             obj.panelPos(1, :) =    [obj.controlWidth ...
                                     obj.pSliderHeight ...
@@ -737,12 +728,9 @@ classdef DrawSingle < Draw
         
         
         function createSelector(obj)
-            % which dimensions are shown initially
-            obj.showDims = [1 2];
-            obj.mapSliderToDim   = 3:obj.nDims;
             % create slice selector for dimensions 3 and higher
-            obj.sel        = repmat({':'}, 1, ndims(obj.img{1}));
-            obj.sel(ismember(1:obj.nDims, obj.mapSliderToDim)) = num2cell(obj.p.Results.InitSlice);
+            obj.sel        = repmat({':'}, 1, obj.nDims);
+            obj.sel(ismember(1:obj.nDims, obj.mapSliderToDim)) = num2cell(round(obj.S(obj.mapSliderToDim)/2));
         end
         
         
@@ -1046,25 +1034,24 @@ classdef DrawSingle < Draw
         
         
         function shiftDims(obj, src, ~)
+            dimArray = [obj.showDims obj.mapSliderToDim];
             switch (src.String)
                 case '->'
-                    obj.showDims  = mod(obj.showDims, obj.nSlider+2)+1;
-                    if ismember(obj.activeDim, obj.showDims)
-                        obj.activeDim = mod(obj.activeDim, obj.nSlider+2)+1;
+                    shifted = circshift(dimArray, -1);                    
+                    if ismember(obj.activeDim, shifted(1:2))
+                        obj.activeDim = shifted(3);
                     end
                 case '<-'
-                    obj.showDims  = mod(obj.showDims-2, obj.nSlider+2)+1;
-                    if ismember(obj.activeDim, obj.showDims)
-                        obj.activeDim = mod(obj.activeDim-2, obj.nSlider+2)+1;
+                    shifted = circshift(dimArray, +1);
+                    if ismember(obj.activeDim, shifted(1:2))
+                        obj.activeDim = shifted(end);
                     end
             end
-            
-            % renew mapping of sliders to dimensions
-            obj.mapSliderToDim = 1:obj.nDims;
-            obj.mapSliderToDim(obj.showDims) = [];
-            
+            obj.showDims        = shifted(1:2);
+            obj.mapSliderToDim  = shifted(3:end);
+                        
             % renew slice selector for dimensions 3 and higher
-            obj.sel        = repmat({':'}, 1, ndims(obj.img{1}));
+            obj.sel        = repmat({':'}, 1, obj.nDims);
             obj.sel(ismember(1:obj.nDims, obj.mapSliderToDim)) = num2cell(round(obj.S(obj.mapSliderToDim)/2));
             
             obj.initializeSliders()
@@ -1091,12 +1078,43 @@ classdef DrawSingle < Draw
         
         
         function guiResize(obj, varargin)
-            obj.setPanelPos()
+            obj.figurePos = get(obj.f, 'Position');
             
+            if obj.figurePos(3) < obj.controlWidth
+                % make sure the window is not wide enough
+                 obj.f.Position(3) = obj.controlWidth;
+            end
+            
+            obj.setPanelPos()            
             set(obj.pImage,     'Position', obj.panelPos(1, :));
             set(obj.pSlider,    'Position', obj.panelPos(2, :));
             set(obj.pControls,  'Position', obj.panelPos(3, :));
-                        
+                  
+            % set Slider positions
+            RadioBtnWidth = 30; % px 
+            sliderWidth   = obj.pSlider.Position(3) - obj.sliderStartPos - RadioBtnWidth - 10;
+            
+            if sliderWidth <= 20
+                obj.f.Position(3) = obj.controlWidth + obj.sliderStartPos + RadioBtnWidth + 10 + 21;
+                obj.setPanelPos()
+                set(obj.pControls,  'Position', obj.panelPos(3, :));
+                sliderWidth       = obj.pSlider.Position(3) - obj.sliderStartPos - RadioBtnWidth - 10;
+            end
+            
+            for iSlider = 1:obj.nSlider
+                sliderHeight0  = obj.pSliderHeight - iSlider*(2*obj.sliderPadding+obj.sliderHeight) + obj.sliderPadding;
+                
+                set(obj.hSlider(iSlider), 'Position', [obj.sliderStartPos ...
+                                        sliderHeight0 ...
+                                        sliderWidth ...
+                                        obj.sliderHeight]);
+                                        
+                set(obj.hRadioBtnSlider(iSlider), 'Position', [obj.sliderStartPos + sliderWidth + 10 ...
+                                        sliderHeight0 ...
+                                        RadioBtnWidth ...
+                                        obj.sliderHeight]);
+            end
+            
             n = 1;
             position = obj.divPosition(n);
             set(obj.hTextC, 'Position', position(1, :));
@@ -1161,16 +1179,10 @@ classdef DrawSingle < Draw
             set(obj.hBtnRotR,   'Position', position(3, :));
             set(obj.hBtnShiftR, 'Position', position(4, :));
             
-            n = n + 1;
-            position = obj.positionN(n, 3);
-            set(obj.hBtnRun,    'Position', position(1, :))
-            set(obj.hEditF,     'Position', position(2, :))
-            set(obj.hTextFPS,   'Position', position(3, :))
-            
-            n = n + 1;
+            n = n + 2;
             set(obj.hBtnFFT, 'Position', obj.positionN(n, 1));
             
-            n = n+1;
+            n = n + 1;
             position = obj.positionN(n, 2);
             set(obj.hBtnCmplx(1), 'Position', position(1, :))
             set(obj.hBtnCmplx(2), 'Position', position(2, :))
@@ -1179,6 +1191,11 @@ classdef DrawSingle < Draw
             set(obj.hBtnCmplx(3), 'Position', position(1, :))
             set(obj.hBtnCmplx(4), 'Position', position(2, :))
             
+            n = n + 2;
+            position = obj.positionN(n, 3);
+            set(obj.hBtnRun,    'Position', position(1, :))
+            set(obj.hEditF,     'Position', position(2, :))
+            set(obj.hTextFPS,   'Position', position(3, :))
         end
             
         

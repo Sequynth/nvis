@@ -148,7 +148,7 @@ classdef (Abstract) Draw < handle
             obj.activeDim   = 1;
             obj.isComplex   = ~isreal(in);
             % necessary for view orientation, already needed when saving image or video
-            obj.azimuthAng   = 0;
+            obj.azimuthAng  = 0;
                         
             
             % check varargin for a sencond input matrix
