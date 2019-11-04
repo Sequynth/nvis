@@ -85,6 +85,7 @@ classdef DrawSingle < Draw
             obj.prepareParser()
             
             % additional parameters
+            addParameter(obj.p, 'InitialRot',       0,                                  @(x) isnumeric(x));
             addParameter(obj.p, 'Position',         obj.defaultPosition,                @(x) isnumeric(x) && numel(x) == 4);
             addParameter(obj.p, 'InitSlice',        round(obj.S(obj.mapSliderToDim)/2), @isnumeric);
             addParameter(obj.p, 'FPS',              0,                                  @isnumeric);
@@ -126,7 +127,7 @@ classdef DrawSingle < Draw
             
             obj.interruptedSlider = 1;
             % necessary for view orientation, already needed when saving image or video
-            obj.azimuthAng   = 0;
+            obj.azimuthAng   = obj.p.Results.InitialRot;
                         
             % when an image or a video is saved, dont create the GUI and
             % terminate the class after finishing
@@ -146,6 +147,7 @@ classdef DrawSingle < Draw
             obj.setLocValFunction()            
             
             obj.prepareGUI()
+            
                
             obj.optimizeInitialFigureSize()   
             
@@ -189,7 +191,7 @@ classdef DrawSingle < Draw
             end
             
             % absolute height of slider panel
-            obj.sliderHeight    = 24; % px 
+            obj.sliderHeight    = 20; % px 
             obj.sliderPadding   = 4;  % px
             obj.pSliderHeight   = obj.nSlider * (obj.sliderHeight + 2*obj.sliderPadding); % px
             obj.setPanelPos()
@@ -937,6 +939,7 @@ classdef DrawSingle < Draw
             [filename, filepath] = uiputfile({'*.avi', 'AVI-file (*.avi)'; ...
                 '*.gif', 'gif-Animation (*.gif)'}, ...
                 'Save video', '.avi');
+            
             if filepath == 0
                 return
             else
@@ -949,11 +952,13 @@ classdef DrawSingle < Draw
             % save video of matrix with current windowing and each frame being
             % one slice in the 3rd dimension.
             
-            % get the state of the timer
-            bRunning = strcmp(obj.t.Running, 'on');
-            % stop the interrupt, to get control over the data shown.
-            if bRunning
-                stop(obj.t)
+            if ~isempty(obj.t)
+                % get the state of the timer
+                bRunning = strcmp(obj.t.Running, 'on');
+                % stop the interrupt, to get control over the data shown.
+                if bRunning
+                    stop(obj.t)
+                end
             end
             
             if strcmp(path(end-2:end), 'avi') || strcmp(path(end-2:end), 'gif')
@@ -999,9 +1004,12 @@ classdef DrawSingle < Draw
             if ~gif
                 close(v)
             end
-            % restart the timer if it was running before
-            if bRunning
-                start(obj.t)
+            
+            if ~isempty(obj.t)
+                % restart the timer if it was running before
+                if bRunning
+                    start(obj.t)
+                end
             end
         end
         

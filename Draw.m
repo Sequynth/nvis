@@ -240,7 +240,7 @@ classdef (Abstract) Draw < handle
             isboolean = @(x) x == 1 || x == 0;
             % add parameters to the input parser
             addParameter(obj.p, 'Colormap',     gray(256),                      @(x) obj.isColormap(x));
-            addParameter(obj.p, 'Contrast',     'green-magenta',                @(x) obj.isContrast(x, obj.nImages));
+            addParameter(obj.p, 'Contrast',     'green-magenta',                @(x) obj.isContrast(x));
             addParameter(obj.p, 'ComplexMode',  obj.complexMode,                @(x) isnumeric(x) && x <= 4);
             addParameter(obj.p, 'AspectRatio',  'square',                       @(x) any(strcmp({'image', 'square'}, x)));
             addParameter(obj.p, 'Resize',       1,                              @isnumeric);
