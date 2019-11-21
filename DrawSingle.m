@@ -732,7 +732,7 @@ classdef DrawSingle < Draw
         function createSelector(obj)
             % create slice selector for dimensions 3 and higher
             obj.sel        = repmat({':'}, 1, obj.nDims);
-            obj.sel(ismember(1:obj.nDims, obj.mapSliderToDim)) = num2cell(round(obj.S(obj.mapSliderToDim)/2));
+            obj.sel(ismember(1:obj.nDims, obj.mapSliderToDim)) = num2cell(obj.p.Results.InitSlice);
         end
         
         
@@ -793,13 +793,13 @@ classdef DrawSingle < Draw
         function locVal(obj, point, ~)
             if ~isempty(point)
                 if obj.nImages == 1
-                    val = obj.complexPart(obj.slice{1, 1}(point{:}));
+                    val = obj.slice{1, 1}(point{:});
                     set(obj.locAndVals, 'String', obj.locValString(...
                         obj.dimensionLabel{obj.showDims(1)}, point{1}, ...
                         obj.dimensionLabel{obj.showDims(2)}, point{2}, val));
                 else
-                    val1 = obj.complexPart(obj.slice{1, 1}(point{:}));
-                    val2 = obj.complexPart(obj.slice{1, 2}(point{:}));
+                    val1 = obj.slice{1, 1}(point{:});
+                    val2 = obj.slice{1, 2}(point{:});
                     set(obj.locAndVals, 'String', obj.locValString(...
                         obj.dimensionLabel{obj.showDims(1)}, point{1}, ...
                         obj.dimensionLabel{obj.showDims(2)}, point{2}, val1, val2));
@@ -853,6 +853,7 @@ classdef DrawSingle < Draw
         
         
         function mouseButtonAlt(obj, src, evtData)
+            
         end
         
         
@@ -1018,12 +1019,6 @@ classdef DrawSingle < Draw
             % closeRqst is called, when the user closes the figure (by 'x' or
             % 'close'). It stops and deletes the timer, frees up memory taken
             % by img and closes the figure.
-%             try
-%                 stop(obj.t);
-%                 delete(obj.t);
-%             catch
-%             end
-%             delete(obj.f);
             delete(obj.f);
             obj.delete
         end
