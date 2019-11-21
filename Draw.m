@@ -2,9 +2,10 @@ classdef (Abstract) Draw < handle
     %Draw Baseclass for Draw. GUIs
     %   Detailed explanation goes here
     
-    % TODO: mask underscores and other latex stuff in inputnames to not mess
+    % TODO: 
+    % - mask underscores and other latex stuff in inputnames to not mess
     % up the display in the locAndVal section
-    
+    % - strg + mWheel = zoom into and out of image at
     properties
         f
     end
@@ -373,6 +374,7 @@ classdef (Abstract) Draw < handle
                 'Style',                'text', ...
                 'BackgroundColor',      obj.COLOR_BG, ...
                 'ForegroundColor',      obj.COLOR_F);
+            
             obj.hTextRoiType = uicontrol( ...
                 'Style',                'text', ...
                 'BackgroundColor',      obj.COLOR_BG, ...
@@ -437,16 +439,24 @@ classdef (Abstract) Draw < handle
             % obtain image information form
             for iImg = 1:obj.nImages
                 for iax = 1:obj.nAxes
+                    % get the image information of the current slice(s)
+                    % from the input matrices
                     obj.slice{iax, iImg} = squeeze(obj.img{iImg}(obj.sel{iax, :}));
                     if obj.fftStatus == 1
+                        % if chosen by the user, perform a 2D fft on the
+                        % Data
                         obj.slice{iax, iImg} = fftshift(fftn(fftshift(obj.slice{iax, iImg})));
                     end
                 end
             end
             
             if any(~cellfun(@isreal, obj.slice))
-                % at least one of the slices has complex values
+                % at least one of the slices has complex values, that
+                % means:
+                % show the complex Buttons
                 set(obj.hBtnCmplx, 'Visible', 'on');
+                % convert the displayed data to the complex mode chosen by
+                % the user and then to datatype single
                 obj.slice = cellfun(@single, ...
                     cellfun(@obj.complexPart, obj.slice, 'UniformOutput', false), ...
                     'UniformOutput', false);
@@ -455,9 +465,12 @@ classdef (Abstract) Draw < handle
                 % when hBtnCmplx are hidden, complexMode must be 3
                 obj.complexMode = 3;
                 set(obj.hBtnCmplx, 'Visible', 'off');
+                % convert the displayed data to datatype single
                 obj.slice = cellfun(@single, obj.slice, 'UniformOutput', false);
             end
             
+            % Why is this here? Just curious. But somebody might want to
+            % add some comment here (@Johannes?)
             obj.calcROI
         end
         
@@ -796,21 +809,29 @@ classdef (Abstract) Draw < handle
         end
         
         
-        function mouseMovement(obj, ~, ~)        % display location and value
+        function pt = mouseMovement(obj, ~, ~)        % display location and value
             for ida = 1:numel(obj.hImage)
 				iteratingAx = get(obj.hImage(ida), 'Parent');
                 pAx = round(get(iteratingAx, 'CurrentPoint')/obj.resize);
                 if obj.inAxis(iteratingAx, pAx(1, 1), pAx(1, 2))
                     obj.locVal({pAx(1, 2), pAx(1, 1)}, ida);
+                    if nargout > 0
+                        pt = [pAx(1, 2) pAx(1, 1)];
+                    else
+                        pt = [];
+                    end
                     return
                 end
             end
             % if the cursor is not on top of any axis, set it empty
             obj.locVal([]);
+            pt = [];
         end
         
         
         function b = inAxis(obj, ax, x, y)
+            % inAxis checks, whether the point with coordinated (x, y) lies
+            % within the limits of 'ax' and returns a bool
             if x >= (ax.XLim(1)-0.5)/obj.resize+0.5 && x <= (ax.XLim(2)-0.5)/obj.resize+0.5 && ...
                     y >= (ax.YLim(1)-0.5)/obj.resize+0.5 && y <= (ax.YLim(2)-0.5)/obj.resize+0.5
                 b = true;
