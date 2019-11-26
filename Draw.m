@@ -5,7 +5,6 @@ classdef (Abstract) Draw < handle
     % TODO: 
     % - mask underscores and other latex stuff in inputnames to not mess
     % up the display in the locAndVal section
-    % - strg + mWheel = zoom into and out of image at
     properties
         f
     end
@@ -75,6 +74,10 @@ classdef (Abstract) Draw < handle
         % used to rotate the view on the axes when necessary
         azimuthAng
         
+        % coordinates of the current point under the cursor (third element
+        % is the axis, pt is empty when curser not over any axis)
+        pt
+        
         
         contrast
         COLOR_m
@@ -127,6 +130,7 @@ classdef (Abstract) Draw < handle
         cbShown
     end
     
+    
     properties (Constant = true, Hidden = true)
         % color scheme of the GUI
         COLOR_BG  = [0.2 0.2 0.2];
@@ -136,6 +140,8 @@ classdef (Abstract) Draw < handle
                      0.0 0.0 1.0];
         contrastList = {'green-magenta', 'PET', 'heat'};
         maxLetters = 6;
+        zoomInFac  = 1.1;
+        zoomOutFac = 0.9;
     end
     
     
@@ -761,15 +767,53 @@ classdef (Abstract) Draw < handle
         % Think about combining setSlider, newSlice and scrollSlider
         
         function scrollSlider(obj, ~, evtData)
-            % scroll slider is a callback of the mouse wheel and handles the
-            % scrolling through the slices by incrementing or decrementing the
-            % index along the activeSlider.
-            if evtData.VerticalScrollCount < 0
-                obj.incDecActiveDim(-1);
-            elseif evtData.VerticalScrollCount > 0
-                obj.incDecActiveDim(+1);
+            % scroll slider is a callback of the mouse wheel and handles
+            % zooming within a slice and scrolling through the slices by
+            % incrementing or decrementing the index along the
+            % activeSlider.
+            if strcmp(get(gcf, 'CurrentModifier'), 'control') & ~isempty(obj.pt)
+                % zoom-mode
+                % ctrl-key is pressed and obj.pt is not empty
+                ax = get(obj.hImage(obj.pt(3)), 'Parent');
+                if evtData.VerticalScrollCount < 0
+                    % zoom in
+                    % keep the point below the cursor at its position so
+                    % users can zoom exactly to the point they want to
+                    ax.XLim(1) = ax.XLim(1)/obj.zoomInFac + obj.pt(2)*(1-1/obj.zoomInFac);
+                    ax.XLim(2) = ax.XLim(2)/obj.zoomInFac + obj.pt(2)*(1-1/obj.zoomInFac);
+                    
+                    ax.YLim(1) = ax.YLim(1)/obj.zoomInFac + obj.pt(1)*(1-1/obj.zoomInFac);
+                    ax.YLim(2) = ax.YLim(2)/obj.zoomInFac + obj.pt(1)*(1-1/obj.zoomInFac);                    
+                elseif evtData.VerticalScrollCount > 0
+                    % zooom out
+                    % zoom out such, that limits increase independent of
+                    % cursor position
+                    dX = 0.5*(ax.XLim(2)-ax.XLim(1))*(1/obj.zoomOutFac-1);
+                    XLim(1) = ax.XLim(1) - dX;
+                    XLim(2) = ax.XLim(2) + dX;
+                    
+                    dY = 0.5*(ax.YLim(2)-ax.YLim(1))*(1/obj.zoomOutFac-1);
+                    YLim(1) = ax.YLim(1) - dY;
+                    YLim(2) = ax.YLim(2) + dY;
+                    
+                    % make sure not to scroll beyond the limits
+                    XLim(1) = max([XLim(1) 0.5]);
+                    YLim(1) = max([YLim(1) 0.5]);
+                    XLim(2) = min([XLim(2) size(obj.slice{1}, 2)+0.5]);
+                    YLim(2) = min([YLim(2) size(obj.slice{1}, 1)+0.5]);
+                    
+                    ax.XLim = XLim;
+                    ax.YLim = YLim;
+                end
+            else
+                % scroll mode
+                if evtData.VerticalScrollCount < 0
+                    obj.incDecActiveDim(-1);
+                elseif evtData.VerticalScrollCount > 0
+                    obj.incDecActiveDim(+1);
+                end
             end
-        end        
+        end
         
         
         function activateSlider(obj, dim)
@@ -809,31 +853,28 @@ classdef (Abstract) Draw < handle
         end
         
         
-        function pt = mouseMovement(obj, ~, ~)        % display location and value
+        function mouseMovement(obj, ~, ~)        % display location and value
             for ida = 1:numel(obj.hImage)
 				iteratingAx = get(obj.hImage(ida), 'Parent');
-                pAx = round(get(iteratingAx, 'CurrentPoint')/obj.resize);
+                pAx = get(iteratingAx, 'CurrentPoint')/obj.resize;
                 if obj.inAxis(iteratingAx, pAx(1, 1), pAx(1, 2))
+                    pAx = round(pAx);
                     obj.locVal({pAx(1, 2), pAx(1, 1)}, ida);
-                    if nargout > 0
-                        pt = [pAx(1, 2) pAx(1, 1)];
-                    else
-                        pt = [];
-                    end
+                    obj.pt = [pAx(1, 2) pAx(1, 1) ida];
                     return
                 end
             end
             % if the cursor is not on top of any axis, set it empty
             obj.locVal([]);
-            pt = [];
+            obj.pt = [];
         end
         
         
         function b = inAxis(obj, ax, x, y)
-            % inAxis checks, whether the point with coordinated (x, y) lies
+            % inAxis checks, whether the point with coordinates (x, y) lies
             % within the limits of 'ax' and returns a bool
-            if x >= (ax.XLim(1)-0.5)/obj.resize+0.5 && x <= (ax.XLim(2)-0.5)/obj.resize+0.5 && ...
-                    y >= (ax.YLim(1)-0.5)/obj.resize+0.5 && y <= (ax.YLim(2)-0.5)/obj.resize+0.5
+            if x >= ax.XLim(1)/obj.resize && x <= ax.XLim(2)/obj.resize && ...
+                    y >= ax.YLim(1)/obj.resize && y <= ax.YLim(2)/obj.resize
                 b = true;
             else
                 b = false;
