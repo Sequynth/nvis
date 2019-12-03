@@ -202,7 +202,17 @@ classdef (Abstract) Draw < handle
             % Calculates the minimal and maximal value in the upto two
             % input matrices. If there are +-Inf values in the data, a
             % slower, less memory efficient calculation is performed.
-            obj.Max = [max(obj.img{1}, [], 'all', 'omitnan'), max(obj.img{2}, [], 'all', 'omitnan')];
+                        
+            if sum(version('-release') < '2018b')
+                % version is older than 2018b, use slower, but not very
+                % slow max/min calculation implementation.
+                obj.Max = [obj.cleverMax(obj.img{1}), obj.cleverMax(obj.img{2})];
+                obj.Min = [obj.cleverMin(obj.img{1}), obj.cleverMin(obj.img{2})];
+            else
+                obj.Max = [max(obj.img{1}, [], 'all', 'omitnan'), max(obj.img{2}, [], 'all', 'omitnan')];
+                obj.Min = [min(obj.img{1}, [], 'all', 'omitnan'), min(obj.img{2}, [], 'all', 'omitnan')];
+            end
+            
             hasInf = obj.Max == Inf;
             if hasInf(1)
                 warning('+Inf values present in input 1. For large input matrices this can cause memory overflow and long startup time.')
@@ -212,7 +222,7 @@ classdef (Abstract) Draw < handle
                 obj.Max(2)           = max(obj.img{2}(~isinf(obj.img{2})), [], 'omitnan');
             end
             
-            obj.Min = [min(obj.img{1}, [], 'all', 'omitnan'), min(obj.img{2}, [], 'all', 'omitnan')];
+            obj.Min = [min(obj.img{1}, [], 'all', 'omitnan'), min(obj.img{2}, [], 'all', 'omitnan')];            
             hasInf = obj.Min == -Inf;
             if hasInf(1)
                 warning('+Inf values present in input 1. For large input matrices this can cause memory overflow and long startup time.')
@@ -1120,6 +1130,48 @@ classdef (Abstract) Draw < handle
             cm = cell(1, 2);
             cm{1} = cm1;
             cm{2} = cm2;
+        end
+        
+        
+        function tmp = cleverMax(~, in)
+            % this function is called by MATLAB versions older than R2018a
+            % in which 'max(A, [], 'all')' syntax was implemented. It
+            % iteratively calculates the max along the remaining largest
+            % dimension.
+            
+            sz = size(in);
+            
+            for i = 1:numel(sz)
+                % find the index for the largest dimenison
+                [~, idx] = max(sz);
+                if i==1
+                    tmp = max(in,[], idx(1), 'omitnan');
+                else
+                    tmp = max(tmp,[], idx(1), 'omitnan');
+                end
+                sz = size(tmp);
+            end
+        end
+        
+        
+        function tmp = cleverMin(~, in)
+            % this function is called by MATLAB versions older than R2018a
+            % in which 'min(A, [], 'all')' syntax was implemented. It
+            % iteratively calculates the max along the remaining largest
+            % dimension.
+            
+            sz = size(in);
+            
+            for i = 1:numel(sz)
+                % find the index for the largest dimenison
+                [~, idx] = max(sz);
+                if i==1
+                    tmp = min(in,[], idx(1), 'omitnan');
+                else
+                    tmp = min(tmp,[], idx(1), 'omitnan');
+                end
+                sz = size(tmp);
+            end
         end
     end
     
