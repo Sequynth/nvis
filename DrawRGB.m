@@ -125,7 +125,7 @@ classdef DrawRGB < Draw
                 clear obj
                 return
             end
-            
+                        
             obj.setLocValFunction            
             
             obj.prepareGUI()

@@ -142,6 +142,8 @@ classdef DrawSingle < Draw
                 return
             end
             
+            % overwrite the default value fot maxLetters in locVal section
+            obj.maxLetters = 8;
             obj.setValNames()
             
             obj.setLocValFunction()            
@@ -183,13 +185,9 @@ classdef DrawSingle < Draw
                 'CloseRequestFcn',      @obj.closeRqst, ...
                 'WindowKeyPress',       @obj.keyPress, ...
                 'WindowButtonMotionFcn',@obj.mouseMovement, ...
-                'WindowButtonUpFcn',    @obj.stopDragFcn);
-            
-            if obj.nDims > 2
-                set(obj.f, ...
-                    'WindowScrollWheelFcn', @obj.scrollSlider);
-            end
-            
+                'WindowButtonUpFcn',    @obj.stopDragFcn, ...
+                'WindowScrollWheelFcn', @obj.scrollSlider);
+                        
             % absolute height of slider panel
             obj.sliderHeight    = 20; % px 
             obj.sliderPadding   = 4;  % px
@@ -576,9 +574,9 @@ classdef DrawSingle < Draw
                 
                 sliderHeight0  = obj.pSliderHeight - iSlider*(2*obj.sliderPadding+obj.sliderHeight) + obj.sliderPadding;                
                 TextWidth0     = 10;
-                TextWidth      = 75;
+                TextWidth      = 50;
                 EditWidth0     = TextWidth0 + TextWidth + 10;
-                EditWidth      = 100;
+                EditWidth      = 75;
                 obj.sliderStartPos = EditWidth0 + EditWidth + 10;
                 
                 
@@ -730,36 +728,9 @@ classdef DrawSingle < Draw
         
         
         function createSelector(obj)
-            % create slice selector for dimensions 3 and higher
+            % create slice selector
             obj.sel        = repmat({':'}, 1, obj.nDims);
-            obj.sel(ismember(1:obj.nDims, obj.mapSliderToDim)) = num2cell(obj.p.Results.InitSlice);
-        end
-        
-        
-        function setValNames(obj)
-            maxLetters = 8;
-            obj.valNames = {'val1', 'val2'};
-            
-            if ~isempty(obj.inputNames{1})
-                if numel(obj.inputNames{1}) > maxLetters
-                    obj.valNames{1} = obj.inputNames{1}(1:maxLetters);
-                else
-                    obj.valNames{1} = obj.inputNames{1};
-                end
-            end
-            
-            if obj.nImages == 2 && ~isempty(obj.inputNames{2})
-                if numel(obj.inputNames{2}) > maxLetters
-                    obj.valNames{2} = obj.inputNames{2}(1:maxLetters);
-                else
-                    obj.valNames{2} = obj.inputNames{2};
-                end
-            end
-            
-            % find number of trailing whitespace
-            wsToAdd = max(cellfun(@numel, obj.valNames)) - cellfun(@numel, obj.valNames);
-            ws = {repmat(' ', [1, wsToAdd(1)]), repmat(' ', [1, wsToAdd(2)])};
-            obj.valNames = strcat(obj.valNames, ws);
+            obj.sel(ismember(1:obj.nDims, obj.mapSliderToDim)) = num2cell(obj.p.Results.InitSlice);            
         end
         
         

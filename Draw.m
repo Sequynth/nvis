@@ -128,6 +128,8 @@ classdef (Abstract) Draw < handle
         noise
         % do we see the colorbars?
         cbShown
+        % max number of letters for variable names in the locVal section
+        maxLetters
     end
     
     
@@ -139,7 +141,6 @@ classdef (Abstract) Draw < handle
         COLOR_roi = [1.0 0.0 0.0;
                      0.0 0.0 1.0];
         contrastList = {'green-magenta', 'PET', 'heat'};
-        maxLetters = 6;
         zoomInFac  = 1.1;
         zoomOutFac = 0.9;
     end
@@ -151,11 +152,15 @@ classdef (Abstract) Draw < handle
             
             obj.img{1}      = in;
             obj.S           = size(in);
-            obj.nDims       = ndims(in);
+            obj.nDims       = ndims(in);            
             obj.activeDim   = 1;
             obj.isComplex   = ~isreal(in);
             % necessary for view orientation, already needed when saving image or video
             obj.azimuthAng  = 0;
+            
+            % set the default value for max Number of letters is locVal
+            % section
+            obj.maxLetters = 6;
                         
             
             % check varargin for a sencond input matrix
@@ -785,7 +790,7 @@ classdef (Abstract) Draw < handle
                     ax.YLim(1) = ax.YLim(1)/obj.zoomInFac + obj.pt(1)*(1-1/obj.zoomInFac);
                     ax.YLim(2) = ax.YLim(2)/obj.zoomInFac + obj.pt(1)*(1-1/obj.zoomInFac);                    
                 elseif evtData.VerticalScrollCount > 0
-                    % zooom out
+                    % zoom out
                     % zoom out such, that limits increase independent of
                     % cursor position
                     dX = 0.5*(ax.XLim(2)-ax.XLim(1))*(1/obj.zoomOutFac-1);
@@ -799,17 +804,17 @@ classdef (Abstract) Draw < handle
                     % make sure not to scroll beyond the limits
                     XLim(1) = max([XLim(1) 0.5]);
                     YLim(1) = max([YLim(1) 0.5]);
-                    XLim(2) = min([XLim(2) size(obj.slice{1}, 2)+0.5]);
-                    YLim(2) = min([YLim(2) size(obj.slice{1}, 1)+0.5]);
+                    XLim(2) = min([XLim(2) size(obj.slice{obj.pt(3)}, 2)+0.5]);
+                    YLim(2) = min([YLim(2) size(obj.slice{obj.pt(3)}, 1)+0.5]);
                     
                     ax.XLim = XLim;
                     ax.YLim = YLim;
                 end
             else
                 % scroll mode
-                if evtData.VerticalScrollCount < 0
+                if evtData.VerticalScrollCount < 0 && obj.nDims > 2
                     obj.incDecActiveDim(-1);
-                elseif evtData.VerticalScrollCount > 0
+                elseif evtData.VerticalScrollCount > 0 && obj.nDims > 2
                     obj.incDecActiveDim(+1);
                 end
             end
@@ -975,27 +980,35 @@ classdef (Abstract) Draw < handle
                 
         
         function setValNames(obj)
-            obj.valNames = {'val1', 'val2'};
             
-            if ~isempty(obj.inputNames{1})                
-                if numel(obj.inputNames{1}) > obj.maxLetters
-                    obj.valNames{1} = obj.inputNames{1}(1:obj.maxLetters);
-                else
-                    obj.valNames{1} = obj.inputNames{1};
+            for ii = 1:obj.nImages
+                % create default val name
+                obj.valNames{ii} = ['val' num2str(ii)];
+                
+                % if available, take the name of the input variable
+                if ~isempty(obj.inputNames{ii})
+                    if numel(obj.inputNames{ii}) > obj.maxLetters
+                        obj.valNames{ii} = obj.inputNames{ii}(1:obj.maxLetters);
+                    else
+                        obj.valNames{ii} = obj.inputNames{ii};
+                    end
+                    % text is shown using the LaTeX interpreter. We need to
+                    % escape underscores
+                    obj.valNames{ii} = strrep(obj.valNames{ii}, '_', '\_');
                 end
             end
             
-            if obj.nImages == 2 && ~isempty(obj.inputNames{2})
-                if numel(obj.inputNames{2}) > obj.maxLetters
-                    obj.valNames{2} = obj.inputNames{2}(1:obj.maxLetters);
-                else
-                    obj.valNames{2} = obj.inputNames{2};
-                end
-            end
+            % to get the number of the displayed characters correct, we
+            % need to know howm many '_' are in each name to compensate the
+            % result from numel
+            usNo = cellfun(@(x) sum(x == '_'), obj.valNames);
             
             % find number of trailing whitespace
-            wsToAdd = max(cellfun(@numel, obj.valNames)) - cellfun(@numel, obj.valNames);
-            ws = {repmat(' ', [1, wsToAdd(1)]), repmat(' ', [1, wsToAdd(2)])};
+            wsToAdd = max(cellfun(@numel, obj.valNames) - usNo) - (cellfun(@numel, obj.valNames) - usNo);
+            ws = cell(1, obj.nImages);
+            for ii = 1:obj.nImages
+                ws{ii} = repmat(' ', [1, wsToAdd(ii)]);
+            end
             obj.valNames = strcat(obj.valNames, ws);
         end
         

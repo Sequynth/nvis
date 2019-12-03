@@ -90,6 +90,8 @@ classdef DrawSlider < Draw
             
             obj.createSelector()     
 
+            % overwrite the default value fot maxLetters in locVal section
+            obj.maxLetters = 8;
             obj.setValNames()
             
             obj.setLocValFunction()
@@ -613,33 +615,7 @@ classdef DrawSlider < Draw
             obj.sel{obj.showDims(iim, 2), obj.showDims(iim, 2)} = Pt(1, 1);
             obj.refreshUI()
         end
-        
-        
-        function setValNames(obj)
-            obj.valNames = {'val1', 'val2'};
-            
-            if ~isempty(obj.inputNames{1})
-                if numel(obj.inputNames{1}) > obj.maxLetters
-                    obj.valNames{1} = obj.inputNames{1}(1:obj.maxLetters);
-                else
-                    obj.valNames{1} = obj.inputNames{1};
-                end
-            end
-            
-            if obj.nImages == 2 && ~isempty(obj.inputNames{2})
-                if numel(obj.inputNames{2}) > obj.maxLetters
-                    obj.valNames{2} = obj.inputNames{2}(1:obj.maxLetters);
-                else
-                    obj.valNames{2} = obj.inputNames{2};
-                end
-            end
-            
-            % find number of trailing whitespace
-            wsToAdd = max(cellfun(@numel, obj.valNames)) - cellfun(@numel, obj.valNames);
-            ws = {repmat(' ', [1, wsToAdd(1)]), repmat(' ', [1, wsToAdd(2)])};
-            obj.valNames = strcat(obj.valNames, ws);
-        end
-        
+                
         
         function setLocValFunction(obj)
             % sets the function for the locAndVal string depending on the
