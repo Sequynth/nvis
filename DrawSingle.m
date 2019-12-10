@@ -802,6 +802,9 @@ classdef DrawSingle < Draw
         
         
         function keyPress(obj, src, ~)
+            
+            keyPress@Draw(obj, src)
+            
             % in case of 3D input, the image stack can be scrolled with 1 and 3
             % on the numpad
             key = get(src, 'CurrentCharacter');

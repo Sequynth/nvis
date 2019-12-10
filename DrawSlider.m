@@ -286,7 +286,7 @@ classdef DrawSlider < Draw
                         'Parent',               obj.pControls, ...
                         'Value',                1, ...
                         'Units',                'pixel', ...
-                        'String',               'Hide', ...
+                        'String',               ['Hide (' obj.BtnHideKey(idh) ')'] , ...
                         'HorizontalAlignment',  'left', ...
                         'FontUnits',            'normalized', ...
                         'FontSize',             0.4, ...
@@ -578,18 +578,33 @@ classdef DrawSlider < Draw
             % in case of 3D input, the image stack can be scrolled with 1 and 3
             % on the numpad
             key = get(src, 'CurrentCharacter');
+            
+            keyPress@Draw(obj, src)
+            
             switch(key)
                 case '1'
+                    obj.activeDim = 1;
+                    obj.activeAx  = 1;
                     obj.incDecActiveDim(-1);
                 case '3'
+                    obj.activeDim = 1;
+                    obj.activeAx  = 1;
                     obj.incDecActiveDim(+1);
                 case '4'
+                    obj.activeDim = 2;
+                    obj.activeAx  = 2;
                     obj.incDecActiveDim(-1);
                 case '6'
+                    obj.activeDim = 2;
+                    obj.activeAx  = 2;
                     obj.incDecActiveDim(+1);
                 case '7'
+                    obj.activeDim = 3;
+                    obj.activeAx  = 3;
                     obj.incDecActiveDim(-1);
                 case '9'
+                    obj.activeDim = 3;
+                    obj.activeAx  = 3;
                     obj.incDecActiveDim(+1);
             end
         end

@@ -3,8 +3,7 @@ classdef (Abstract) Draw < handle
     %   Detailed explanation goes here
     
     % TODO: 
-    % - mask underscores and other latex stuff in inputnames to not mess
-    % up the display in the locAndVal section
+
     properties
         f
     end
@@ -143,6 +142,8 @@ classdef (Abstract) Draw < handle
         contrastList = {'green-magenta', 'PET', 'heat'};
         zoomInFac  = 1.1;
         zoomOutFac = 0.9;
+        
+        BtnHideKey = ['q' 'w'];
     end
     
     
@@ -317,7 +318,8 @@ classdef (Abstract) Draw < handle
             
             % create figure handle, but hide figure
             obj.f = figure('Color', obj.COLOR_BG, ...
-                'Visible',          'off');
+                'Visible',              'off', ...
+                'WindowKeyPress',       @obj.keyPress);
             
             % create UI elements for center and width
             obj.hTextC = uicontrol( ...
@@ -349,7 +351,7 @@ classdef (Abstract) Draw < handle
                     obj.hBtnHide(idh) = uicontrol( ...
                         'Style',                'togglebutton', ...
                         'BackgroundColor',      obj.COLOR_BG, ...
-                        'Callback',             {@obj.hidelayer});
+                        'Callback',             {@obj.BtnHideCallback});
                 end
             end
             
@@ -365,7 +367,7 @@ classdef (Abstract) Draw < handle
                     'Style',                'pushbutton', ...
                     'BackgroundColor',      obj.COLOR_BG, ...
                     'ForegroundColor',      obj.COLOR_F, ...
-                    'Callback',             {@obj.togglelayers});
+                    'Callback',             {@obj.BtnToggleCallback});
             end
             
             % uicontrols must be initialized alone, cannot be done without
@@ -689,46 +691,39 @@ classdef (Abstract) Draw < handle
         end
         
         
-        function hidelayer(obj, src, ~)
-            if src.Value == 0
-                src.String  = 'Show';
-                if src == obj.hBtnHide(1)
-                    obj.layerHider(1) = 0;
-                else
-                    obj.layerHider(2) = 0;
-                end
-            else
-                src.String  = 'Hide';
-                if src == obj.hBtnHide(1)
-                    obj.layerHider(1) = 1;
-                else
-                    obj.layerHider(2) = 1;
-                end
-            end
-            obj.refreshUI()
+        function BtnHideCallback(obj, src, ~)
+            % call the toggle layer fucntion
+            obj.toggleLayer( find(obj.hBtnHide == src) );
         end
         
         
-        function togglelayers(obj, ~, ~)
+        function BtnToggleCallback(obj, ~, ~)
             if sum(obj.layerHider) == 1
                 % if only one of the layers is shown, toggle both
-                obj.layerHider = xor(obj.layerHider, [1 1]);
+                obj.toggleLayer(1);
+                obj.toggleLayer(2);
             else
-                % if both are hidden or shown, only show the first layer
-                obj.layerHider = [1 0];
+                % if both are hidden or shown, only show the first or the
+                % last layer
+                obj.toggleLayer(1);
             end
-            % at this point one should be 1 and the other should be 0
-            if obj.layerHider(1) == 1
-                set(obj.hBtnHide(1), 'String', 'Hide')
-                set(obj.hBtnHide(2), 'String', 'Show')
-                set(obj.hBtnHide(1), 'Value',  1)
-                set(obj.hBtnHide(2), 'Value',  0)
+        end
+        
+        
+        function toggleLayer(obj, layer)
+            % toggles the display of obj.img{layer}
+            % toggle the state
+            %obj.hBtnHide(layer)
+            obj.layerHider(layer) = ~obj.layerHider(layer);
+            
+            if obj.layerHider(layer)
+                string = ['Hide (' obj.BtnHideKey(layer) ')'];
+                set(obj.hBtnHide(layer), 'String', string)
             else
-                set(obj.hBtnHide(1), 'String', 'Show')
-                set(obj.hBtnHide(2), 'String', 'Hide')
-                set(obj.hBtnHide(1), 'Value',  0)
-                set(obj.hBtnHide(2), 'Value',  1)
+                string = ['Show (' obj.BtnHideKey(layer) ')'];
+                set(obj.hBtnHide(layer), 'String', string)
             end
+            set(obj.hBtnHide(layer), 'Value', obj.layerHider(layer))
             obj.refreshUI()
         end
         
@@ -893,6 +888,15 @@ classdef (Abstract) Draw < handle
                 b = true;
             else
                 b = false;
+            end
+        end
+        
+        
+        function keyPress(obj, src, ~)
+            key = get(src, 'CurrentCharacter');
+            
+            if isletter(key) && ismember(lower(key), obj.BtnHideKey)
+                obj.toggleLayer(find(ismember(obj.BtnHideKey, lower(key))))
             end
         end
         
@@ -1136,8 +1140,10 @@ classdef (Abstract) Draw < handle
         function tmp = cleverMax(~, in)
             % this function is called by MATLAB versions older than R2018a
             % in which 'max(A, [], 'all')' syntax was implemented. It
-            % iteratively calculates the max along the remaining largest
-            % dimension.
+            % iteratively calculates the max value along the remaining
+            % largest dimension. Calculating max like this proves less
+            % memory intensive than max(in(:)), which gets slow for large
+            % arrays.
             
             sz = size(in);
             
@@ -1157,8 +1163,10 @@ classdef (Abstract) Draw < handle
         function tmp = cleverMin(~, in)
             % this function is called by MATLAB versions older than R2018a
             % in which 'min(A, [], 'all')' syntax was implemented. It
-            % iteratively calculates the max along the remaining largest
-            % dimension.
+            % iteratively calculates the min value along the remaining
+            % largest dimension. Calculating min like this proves less
+            % memory intensive than min(in(:)), which gets slow for large
+            % arrays.
             
             sz = size(in);
             
@@ -1180,7 +1188,6 @@ classdef (Abstract) Draw < handle
     methods (Abstract)
         locVal(obj, axNo)
         refreshUI(obj)
-        keyPress(obj)
         incDecActiveDim(obj, incDec)
         mouseButtonAlt(src, evtData)
     end
