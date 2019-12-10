@@ -16,6 +16,7 @@ classdef DrawSlider < Draw
         hBtnSaveImg
         hBtnSaveVid
         hGuides         % RGB plot guides in the axes
+        hBtnGuides
         
         % UI properties
         pSliderHeight
@@ -372,6 +373,17 @@ classdef DrawSlider < Draw
                 'FontName',             'FixedWidth', ...
                 'TooltipString',        'signal / noise');
             
+            obj.hBtnGuides = uicontrol(...
+                'Parent',               obj.pControls, ...
+                'Style',                'togglebutton', ...
+                'String',               'Guides', ...
+                'FontUnits',            'normalized', ...
+                'FontSize',             0.4, ...
+                'TooltipString',        'Toggle between showing and hiding the guides', ...
+                'BackgroundColor',      obj.COLOR_BG, ...
+                'ForegroundColor',      obj.COLOR_F, ...
+                'Callback',             {@obj.toggleGuides});
+            
             obj.locAndVals = annotation(obj.pControls, 'textbox', ...
                 'LineStyle',            'none', ...
                 'Units',                'pixel', ...
@@ -720,6 +732,15 @@ classdef DrawSlider < Draw
         end
         
         
+        function toggleGuides(obj, ~, ~)
+            if strcmp(get(obj.hGuides, 'Visible'), 'on')
+                set(obj.hGuides, 'Visible', 'off');
+            else
+                set(obj.hGuides, 'Visible', 'on');
+            end
+        end
+        
+        
         function closeRqst(obj, varargin)
             % closeRqst is called, when the user closes the figure (by 'x' or
             % 'close'). It stops and deletes the timer, frees up memory taken
@@ -763,6 +784,8 @@ classdef DrawSlider < Draw
                 set(obj.hTextRoi(2, iImg),  'Position', obj.controlPanelPos(2, 4+iImg, :));
                 set(obj.hTextSNRvals(iImg), 'Position', obj.controlPanelPos(3, 4+iImg, :));
             end
+            
+            set(obj.hBtnGuides, 'Position', obj.controlPanelPos(1, 4+obj.nImages+1, :));
             
             lavWidth = 200; % px
             set(obj.locAndVals, ...
