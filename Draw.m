@@ -153,7 +153,8 @@ classdef (Abstract) Draw < handle
         zoomInFac  = 1.1;
         zoomOutFac = 0.9;
         
-        BtnHideKey = ['q' 'w'];
+        BtnHideKey = ['w' 'e'];
+        BtnTgglKey = 'q';
     end
     
     
@@ -368,20 +369,21 @@ classdef (Abstract) Draw < handle
                 end
             end
             
+            if obj.nImages == 2
+                obj.hBtnToggle = uicontrol( ...
+                    'Style',                'pushbutton', ...
+                    'String',               ['Toggle (' obj.BtnTgglKey ')'], ...
+                    'BackgroundColor',      obj.COLOR_BG, ...
+                    'ForegroundColor',      obj.COLOR_F, ...
+                    'Callback',             {@obj.BtnToggleCallback});
+            end
+            
             obj.hPopContrast = uicontrol( ...
                 'Style',                'popup', ...
                 'String',               {'green-magenta', 'PET', 'heat'}, ...
                 'BackgroundColor',      obj.COLOR_BG, ...
                 'ForegroundColor',      obj.COLOR_F, ...
                 'Callback',             {@obj.changeContrast});
-            
-            if obj.nImages == 2
-                obj.hBtnToggle = uicontrol( ...
-                    'Style',                'pushbutton', ...
-                    'BackgroundColor',      obj.COLOR_BG, ...
-                    'ForegroundColor',      obj.COLOR_F, ...
-                    'Callback',             {@obj.BtnToggleCallback});
-            end
             
             % uicontrols must be initialized alone, cannot be done without
             % loop (i guess...)
@@ -908,8 +910,12 @@ classdef (Abstract) Draw < handle
         function keyPress(obj, src, ~)
             key = get(src, 'CurrentCharacter');
             
-            if isletter(key) && ismember(lower(key), obj.BtnHideKey)
-                obj.toggleLayer(find(ismember(obj.BtnHideKey, lower(key))))
+            if isletter(key)
+                if ismember(lower(key), obj.BtnHideKey)
+                    obj.toggleLayer(find(ismember(obj.BtnHideKey, lower(key))))
+                elseif key == obj.BtnTgglKey
+                    obj.BtnToggleCallback()
+                end
             end
         end
         
