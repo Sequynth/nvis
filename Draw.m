@@ -8,17 +8,10 @@ classdef (Abstract) Draw < handle
         f
     end
     
-    properties (Access = protected)
-        % INPUT PROPERTIES
-        nImages         % number of images (1 or 2)
-        nAxes           % number of displayed image Axes (DrawSingle: 1, DrawSlider: 3)
-        img             % cell array in which the input matrices are stored
-        nDims           % number of image dimensions
-        isComplex       % is one of the inputs complex
-        layerHider      % which of the images is currently shown?
-        S               % size of the image(s)
-        p               % input parser
-        standardTitle   % name of the figure, default depends on inputnames
+    properties (Access = private)
+        % DISPLAY PROPERTIES
+        layerShown      % which of the images is currently shown?
+        fftStatus       % keeps track of fft-button status
         
         % WINDOWING PROPERTIES
         Max             % maximum value in both images
@@ -30,8 +23,20 @@ classdef (Abstract) Draw < handle
         widthStep       % how much 'width' changes when windowing
         nrmFac          % normalization factor for windowing process
         
-        fftStatus       % keeps track of fft-button status
         
+    end
+    
+    properties (Access = protected)
+        % INPUT PROPERTIES
+        nImages         % number of images (1 or 2)
+        nAxes           % number of displayed image Axes (DrawSingle: 1, DrawSlider: 3)
+        img             % cell array in which the input matrices are stored
+        nDims           % number of image dimensions
+        isComplex       % is one of the inputs complex
+        S               % size of the image(s)
+        p               % input parser
+        standardTitle   % name of the figure, default depends on inputnames
+                
         % DISPLAYING
         % link sliders to image dimensions
         % mapSliderToDim(2) = 4 means, that slider 2 controls the slice along the
@@ -77,9 +82,14 @@ classdef (Abstract) Draw < handle
         % is the axis, pt is empty when curser not over any axis)
         pt
         
-        
+        % contains the information, which contrast is currently chosen
         contrast
+        
+        % Foregroud color for text, similar in hue to the colormap of the
+        % associated image
         COLOR_m
+        
+        % colormap for all images as a cell array, containing Nx3 colormaps
         cmap
         
         % GUI ELEMENTS
@@ -248,7 +258,7 @@ classdef (Abstract) Draw < handle
             if ~isempty(varargin) && ( isnumeric(varargin{1}) || islogical(varargin{1}) )
                 obj.nImages = 2;
                 obj.img{2}  = varargin{1};
-                obj.layerHider   = [1, 1];
+                obj.layerShown   = [1, 1];
                 obj.isComplex(2) = ~isreal(obj.img{2});
             else
                 obj.nImages = 1;
@@ -269,15 +279,15 @@ classdef (Abstract) Draw < handle
             addParameter(obj.p, 'Resize',       1,                              @isnumeric);
             addParameter(obj.p, 'Title',        obj.standardTitle,              @ischar);
             addParameter(obj.p, 'CW',           [(obj.Max(1) - obj.Min(1))/2+obj.Min(1), ...
-                                                obj.Max(1)-obj.Min(1)],         @isnumeric);
-            addParameter(obj.p, 'CW2',          [(obj.Max(2) - obj.Min(2))/2+obj.Min(2), ...
-                                                obj.Max(2)-obj.Min(2)],         @isnumeric);
+                                                obj.Max(1)-obj.Min(1); ...
+                                                (obj.Max(2) - obj.Min(2))/2+obj.Min(2), ...
+                                                obj.Max(2)-obj.Min(2)],         @isnumeric);            
             addParameter(obj.p, 'widthMin',     single(0.001*(obj.Max-obj.Min)),@isnumeric);
             addParameter(obj.p, 'Unit',         {[], []},                       @(x) iscell(x) && numel(x) <= 2);
         end
         
         
-        function prepareColors(obj)
+        function prepareColors(obj)            
             % Depending on the amount of input matrices and the provided
             % colormaps or contrast information, the colorscheme for the UI
             % is set and 'center', 'width', and 'widthMin' are given proper
@@ -285,6 +295,7 @@ classdef (Abstract) Draw < handle
             %
             % Called by constructor of inheriting class
             % 
+            
             if obj.nImages == 2
                 [obj.cmap, c1, c2] = obj.getContrast();
                 obj.COLOR_m(1,:) = c1;
@@ -304,10 +315,12 @@ classdef (Abstract) Draw < handle
                 end
             end
             
-            obj.center(1)	= double(obj.p.Results.CW(1));
-            obj.width(1)    = double(obj.p.Results.CW(2));
-            obj.center(2)   = double(obj.p.Results.CW2(1));
-            obj.width(2)    = double(obj.p.Results.CW2(2));
+            for idh = 1:obj.nImages
+                obj.center(idh)	= double(obj.p.Results.CW(idh, 1));
+                obj.width(idh)  = double(obj.p.Results.CW(idh, 2));
+                set(obj.hEditC(idh), 'String', num2sci(obj.center(idh), 'padding', 'right'));
+                set(obj.hEditW(idh), 'String', num2sci(obj.width(idh),  'padding', 'right'));
+            end
             obj.centerStep  = double(obj.center);
             obj.widthStep   = double(obj.width);
             obj.widthMin    = obj.p.Results.widthMin;
@@ -524,7 +537,7 @@ classdef (Abstract) Draw < handle
                     if obj.resize ~= 1
                         imshift = imresize(imshift, obj.resize);
                     end
-                    imgRGB  = ind2rgb(round(imshift), obj.cmap{idd}) * obj.layerHider(idd);
+                    imgRGB  = ind2rgb(round(imshift), obj.cmap{idd}) * obj.layerShown(idd);
                     imgRGB(repmat(isnan(obj.slice{axNo, idd}), [1 1 3])) = 0;
                     cImage  = cImage + imgRGB;
                 end
@@ -615,7 +628,7 @@ classdef (Abstract) Draw < handle
             obj.nrmFac = [obj.S(find(obj.showDims(imgIdx, :), 1, 'first')) obj.S(find(obj.showDims(imgIdx, :), 1, 'last'))]*obj.resize;
             switch get(gcbf, 'SelectionType')
                 case 'normal'
-                    if ~isempty(obj.img{2}) && obj.layerHider(2)
+                    if ~isempty(obj.img{2}) && obj.layerShown(2)
                         sCenter = obj.center;
                         sWidth  = obj.width;
                         cStep   = [0, obj.centerStep(2)];
@@ -623,7 +636,7 @@ classdef (Abstract) Draw < handle
                         obj.f.WindowButtonMotionFcn = {@obj.draggingFcn, callingAx, Pt, sCenter, sWidth, cStep, wStep};
                     end
                 case 'extend'
-                    if isempty(obj.img{2}) || (~isempty(obj.img{2}) && obj.layerHider(1))
+                    if isempty(obj.img{2}) || (~isempty(obj.img{2}) && obj.layerShown(1))
                         sCenter = obj.center;
                         sWidth  = obj.width;
                         cStep   = [obj.centerStep(1), 0];
@@ -698,7 +711,7 @@ classdef (Abstract) Draw < handle
         
         
         function BtnToggleCallback(obj, ~, ~)
-            if sum(obj.layerHider) == 1
+            if sum(obj.layerShown) == 1
                 % if only one of the layers is shown, toggle both
                 obj.toggleLayer(1);
                 obj.toggleLayer(2);
@@ -714,16 +727,16 @@ classdef (Abstract) Draw < handle
             % toggles the display of obj.img{layer}
             % toggle the state
             %obj.hBtnHide(layer)
-            obj.layerHider(layer) = ~obj.layerHider(layer);
+            obj.layerShown(layer) = ~obj.layerShown(layer);
             
-            if obj.layerHider(layer)
+            if obj.layerShown(layer)
                 string = ['Hide (' obj.BtnHideKey(layer) ')'];
                 set(obj.hBtnHide(layer), 'String', string)
             else
                 string = ['Show (' obj.BtnHideKey(layer) ')'];
                 set(obj.hBtnHide(layer), 'String', string)
             end
-            set(obj.hBtnHide(layer), 'Value', obj.layerHider(layer))
+            set(obj.hBtnHide(layer), 'Value', obj.layerShown(layer))
             obj.refreshUI()
         end
         
