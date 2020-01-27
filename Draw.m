@@ -3,7 +3,12 @@ classdef (Abstract) Draw < handle
     %   Detailed explanation goes here
     
     % TODO: 
-
+    % - check for installed 'colorcet' box for better colormaps, if not,
+    % allow selection of individual colormaps.
+    % - make DrawSlider work with new colormap scheme
+    % - when 'q','w' or 'e' are pressed, check whether more than two
+    % images are available
+    
     properties
         f
     end
@@ -107,7 +112,7 @@ classdef (Abstract) Draw < handle
         hEditW        
         hBtnHide
         hBtnToggle
-        hPopContrast
+        hPopCm
         % buttons array for complex data display
         hBtnCmplx
         % FFT button
@@ -139,6 +144,9 @@ classdef (Abstract) Draw < handle
         cbShown
         % max number of letters for variable names in the locVal section
         maxLetters
+        % colormaps available
+        availableCmaps
+        cmapStrings
     end
     
     
@@ -296,6 +304,33 @@ classdef (Abstract) Draw < handle
             %
             % Called by constructor of inheriting class
             % 
+            cmapResolution = 256;
+            obj.availableCmaps.gray    = gray(cmapResolution);
+            obj.availableCmaps.green   = [zeros(cmapResolution,1) linspace(0,1,cmapResolution)' zeros(cmapResolution,1)];;
+            obj.availableCmaps.magenta = [linspace(0,1,cmapResolution)' zeros(cmapResolution,1) linspace(0,1,cmapResolution)'];
+            obj.availableCmaps.hot     = hot(cmapResolution);
+            
+            % check whether colorcet is available
+            if exist('colorcet.m',  'file') == 2
+                % replace hot with fire, maybe add mor cmaps?
+                obj.availableCmaps.fire = colorcet('fire', 'N', cmapResolution);
+                obj.availableCmaps = rmfield(obj.availableCmaps, 'hot');
+                
+                % add some more cmaps
+                obj.availableCmaps.redblue = colorcet('D4', 'N', cmapResolution);
+            end
+            % check whether certain colormaps are available
+            if exist('viridis.m', 'file') == 2
+                obj.availableCmaps.viridis = viridis;
+            end
+            
+            obj.cmapStrings = fieldnames(obj.availableCmaps);
+            
+            set(obj.hPopCm(1), 'String', obj.cmapStrings)
+            if obj.nImages == 2
+                set(obj.hPopCm(2), 'String', obj.cmapStrings)
+            end
+            
             
             if obj.nImages == 2
                 [obj.cmap, c1, c2] = obj.getContrast();
@@ -378,12 +413,17 @@ classdef (Abstract) Draw < handle
                     'Callback',             {@obj.BtnToggleCallback});
             end
             
-            obj.hPopContrast = uicontrol( ...
+            obj.hPopCm(1) = uicontrol( ...
                 'Style',                'popup', ...
-                'String',               {'green-magenta', 'PET', 'heat'}, ...
                 'BackgroundColor',      obj.COLOR_BG, ...
                 'ForegroundColor',      obj.COLOR_F, ...
-                'Callback',             {@obj.changeContrast});
+                'Callback',             {@obj.changeCmap});
+            
+            obj.hPopCm(2) = uicontrol( ...
+                'Style',                'popup', ...
+                'BackgroundColor',      obj.COLOR_BG, ...
+                'ForegroundColor',      obj.COLOR_F, ...
+                'Callback',             {@obj.changeCmap});
             
             % uicontrols must be initialized alone, cannot be done without
             % loop (i guess...)
@@ -470,7 +510,7 @@ classdef (Abstract) Draw < handle
                 'Callback',             {@obj.toggleComplex},...
                 'BackgroundColor',      obj.COLOR_BG, ...
                 'ForegroundColor',      obj.COLOR_F);
-        end
+        end        
         
         
         function prepareSliceData(obj)
@@ -1078,10 +1118,23 @@ classdef (Abstract) Draw < handle
         end
         
         
-        function changeContrast(obj, ~, ~)
-            obj.contrast = obj.contrastList{get(obj.hPopContrast, 'Value')};
-            obj.prepareColors
-            % TODO: change color of c/w edit fields
+        function changeCmap(obj, src, ~)
+            
+            % which colormap is selected
+            idx = find(src == obj.hPopCm);
+            cm = obj.cmapStrings{get(src, 'Value')};
+            obj.cmap{idx} = obj.availableCmaps.(cm);
+            
+            obj.COLOR_m(idx, :) = obj.cmap{idx}(round(size(obj.availableCmaps.(cm), 1) * 0.9), :);
+            
+            % change color of c/w edit fields
+            set(obj.hEditC(idx), 'ForegroundColor', obj.COLOR_m(idx, :))
+            set(obj.hEditW(idx), 'ForegroundColor', obj.COLOR_m(idx, :))
+            if obj.nImages == 2
+                set(obj.hBtnHide(idx), 'ForegroundColor', obj.COLOR_m(idx, :))
+            end
+            
+            % reclaculate the shown image with the new colormap
             obj.refreshUI
         end
         
@@ -1119,7 +1172,6 @@ classdef (Abstract) Draw < handle
             % depending on the selected contrast, both colormaps are generated
             % and stored in cm, as well as the colors for the text in the control
             % panel (c1, c2)
-            cmapResolution = 256;
             if iscell(obj.contrast)
                 cm1 = obj.contrast{1};
                 cm2 = obj.contrast{2};
@@ -1128,18 +1180,22 @@ classdef (Abstract) Draw < handle
             else
                 switch obj.contrast
                     case 'green-magenta'
-                        cm1 = [linspace(0,1,cmapResolution)' zeros(cmapResolution,1) linspace(0,1,cmapResolution)'];
-                        cm2 = [zeros(cmapResolution,1) linspace(0,1,cmapResolution)' zeros(cmapResolution,1)];
+                        cm1 = obj.availableCmaps.magenta;
+                        cm2 = obj.availableCmaps.green;
                         c1  = [1 .4 1];
                         c2  = cm2(end,:);
                     case 'PET'
-                        cm1 = gray(cmapResolution);
-                        cm2 = colorcet('L3', 'N', cmapResolution);
+                        cm1 = obj.availableCmaps.gray;
+                        if isfield(obj.availableCmaps, 'fire')
+                            cm2 = obj.availableCmaps.fire;
+                        else
+                            cm2 = obj.availableCmaps.hot;
+                        end
                         c1  = [.9 .9 .9];
                         c2  = [1 1 0];
                     case 'heat'
-                        cm1 = gray(cmapResolution);
-                        cm2 = colorcet('D4', 'N', cmapResolution);
+                        cm1 = obj.availableCmaps.gray;
+                        cm2 = obj.availableCmaps.redblue;
                         c1  = [.9 .9 .9];
                         c2  = [.7 .7 1];
                     otherwise

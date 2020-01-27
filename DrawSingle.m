@@ -2,6 +2,8 @@ classdef DrawSingle < Draw
     
     % TODO:
     % - RadioGroup Buttons for animated sliders
+    % - overwrite colorbar button in toolbar, dispaly (both) colorbar(s)
+    % and change according to windowing
     
     properties (Access = private)
         t           % interrupt timer
@@ -300,12 +302,15 @@ classdef DrawSingle < Draw
                     'FontSize',             0.4);
             end
             
-            set(obj.hPopContrast, ...
+            set(obj.hPopCm(1), ...
                 'Parent',               obj.pControls, ...
                 'FontUnits',            'normalized', ...
                 'FontSize',             0.6);
-            if obj.nImages == 1
-                set(obj.hPopContrast, 'visible', 'off')
+            if obj.nImages == 2
+                set(obj.hPopCm(2), ...
+                    'Parent',               obj.pControls, ...
+                    'FontUnits',            'normalized', ...
+                    'FontSize',             0.6);
             end
             
             obj.hBtnShiftL = uicontrol( ...
@@ -1112,9 +1117,14 @@ classdef DrawSingle < Draw
             end
             
             n = n + 1;
-            position = obj.positionN(n, 1);
-            set(obj.hPopContrast, 'Position', position(1, :));
-            
+            if obj.nImages == 1
+                position = obj.positionN(n, 1);
+                set(obj.hPopCm(1), 'Position', position(1, :));
+            else
+                position = obj.positionN(n, 2);
+                set(obj.hPopCm(1), 'Position', position(1, :));
+                set(obj.hPopCm(2), 'Position', position(2, :));
+            end
             n = n + 1;
             position = obj.divPosition(n);
             set(obj.hBtnRoi(1), 'Position', position(1, :));
