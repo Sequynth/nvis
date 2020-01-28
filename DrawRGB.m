@@ -60,7 +60,7 @@ classdef DrawRGB < Draw
             obj.mapSliderToImage = num2cell(ones(1, obj.nSlider));
             obj.standardTitle = inputname(1);
             obj.complexMode = 3;
-            if isa(in, 'uint8')
+            if isa(in, 'integer')
                 obj.isUint = true;
             else
                 obj.isUint = false;
