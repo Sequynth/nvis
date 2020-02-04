@@ -311,6 +311,11 @@ classdef DrawSingle < Draw
                     'Parent',               obj.pControls, ...
                     'FontUnits',            'normalized', ...
                     'FontSize',             0.6);
+                
+                set(obj.hPopOverlay, ...
+                    'Parent',               obj.pControls, ...
+                    'FontUnits',            'normalized', ...
+                    'FontSize',             0.6);
             end
             
             obj.hBtnShiftL = uicontrol( ...
@@ -783,7 +788,7 @@ classdef DrawSingle < Draw
         end
         
         
-        function refreshUI(obj)
+        function refreshUI(obj, ~, ~)
             
             obj.prepareSliceData;            
             set(obj.hImage, 'CData', obj.sliceMixer(1));
@@ -1121,9 +1126,10 @@ classdef DrawSingle < Draw
                 position = obj.positionN(n, 1);
                 set(obj.hPopCm(1), 'Position', position(1, :));
             else
-                position = obj.positionN(n, 2);
-                set(obj.hPopCm(1), 'Position', position(1, :));
-                set(obj.hPopCm(2), 'Position', position(2, :));
+                position = obj.divPosition(n);
+                set(obj.hPopOverlay, 'Position', position(1, :));
+                set(obj.hPopCm(1),    'Position', position(2, :));
+                set(obj.hPopCm(2),    'Position', position(3, :));
             end
             n = n + 1;
             position = obj.divPosition(n);

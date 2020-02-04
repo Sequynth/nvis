@@ -5,9 +5,9 @@ classdef (Abstract) Draw < handle
     % TODO: 
     % - check for installed 'colorcet' box for better colormaps, if not,
     % allow selection of individual colormaps.
+    % - allow user to chose overlay types (addition, multiply division,
+    % ...)
     % - make DrawSlider work with new colormap scheme
-    % - when 'q','w' or 'e' are pressed, check whether more than two
-    % images are available
     
     properties
         f
@@ -97,6 +97,9 @@ classdef (Abstract) Draw < handle
         % colormap for all images as a cell array, containing Nx3 colormaps
         cmap
         
+        % overlay mode
+        overlay
+        
         % GUI ELEMENTS
         % array of images displayed in 'ax', the handle to the respective axis can always be obtained via
 		% get(obj.hImage(...), 'Parent')
@@ -112,7 +115,10 @@ classdef (Abstract) Draw < handle
         hEditW        
         hBtnHide
         hBtnToggle
+        % select the colormap for each channel
         hPopCm
+        % select the overlay mode
+        hPopOverlay
         % buttons array for complex data display
         hBtnCmplx
         % FFT button
@@ -163,6 +169,8 @@ classdef (Abstract) Draw < handle
         
         BtnHideKey = ['w' 'e'];
         BtnTgglKey = 'q';
+        
+        overlayStrings = {'add', 'multiply'}
     end
     
     
@@ -412,6 +420,13 @@ classdef (Abstract) Draw < handle
                     'ForegroundColor',      obj.COLOR_F, ...
                     'Callback',             {@obj.BtnToggleCallback});
             end
+            
+            obj.hPopOverlay = uicontrol( ...
+                'Style',                'popup', ...
+                'String',               obj.overlayStrings, ...
+                'BackgroundColor',      obj.COLOR_BG, ...
+                'ForegroundColor',      obj.COLOR_F, ...
+                'Callback',             {@obj.changeOverlay});
             
             obj.hPopCm(1) = uicontrol( ...
                 'Style',                'popup', ...
@@ -952,7 +967,7 @@ classdef (Abstract) Draw < handle
         function keyPress(obj, src, ~)
             key = get(src, 'CurrentCharacter');
             
-            if isletter(key)
+            if isletter(key) & obj.nImages == 2
                 if ismember(lower(key), obj.BtnHideKey)
                     obj.toggleLayer(find(ismember(obj.BtnHideKey, lower(key))))
                 elseif key == obj.BtnTgglKey
@@ -1094,6 +1109,33 @@ classdef (Abstract) Draw < handle
         end
         
         
+        function changeOverlay(obj, src, ~)            
+            obj.overlay = obj.overlayStrings{get(src, 'Value')};
+            obj.refreshUI()
+        end
+        
+        
+        function changeCmap(obj, src, ~)
+            
+            % which colormap is selected
+            idx = find(src == obj.hPopCm);
+            cm = obj.cmapStrings{get(src, 'Value')};
+            obj.cmap{idx} = obj.availableCmaps.(cm);
+            
+            obj.COLOR_m(idx, :) = obj.cmap{idx}(round(size(obj.availableCmaps.(cm), 1) * 0.9), :);
+            
+            % change color of c/w edit fields
+            set(obj.hEditC(idx), 'ForegroundColor', obj.COLOR_m(idx, :))
+            set(obj.hEditW(idx), 'ForegroundColor', obj.COLOR_m(idx, :))
+            if obj.nImages == 2
+                set(obj.hBtnHide(idx), 'ForegroundColor', obj.COLOR_m(idx, :))
+            end
+            
+            % reclaculate the shown image with the new colormap
+            obj.refreshUI
+        end
+        
+        
         function isContrast = isContrast(obj, inputContrast)
             contrasts = {'green-magenta', 'PET', 'heat'};
             if obj.nImages == 1
@@ -1117,27 +1159,6 @@ classdef (Abstract) Draw < handle
                         error('Contrast must be an identifier string or colormap-cell!');
                 end
             end
-        end
-        
-        
-        function changeCmap(obj, src, ~)
-            
-            % which colormap is selected
-            idx = find(src == obj.hPopCm);
-            cm = obj.cmapStrings{get(src, 'Value')};
-            obj.cmap{idx} = obj.availableCmaps.(cm);
-            
-            obj.COLOR_m(idx, :) = obj.cmap{idx}(round(size(obj.availableCmaps.(cm), 1) * 0.9), :);
-            
-            % change color of c/w edit fields
-            set(obj.hEditC(idx), 'ForegroundColor', obj.COLOR_m(idx, :))
-            set(obj.hEditW(idx), 'ForegroundColor', obj.COLOR_m(idx, :))
-            if obj.nImages == 2
-                set(obj.hBtnHide(idx), 'ForegroundColor', obj.COLOR_m(idx, :))
-            end
-            
-            % reclaculate the shown image with the new colormap
-            obj.refreshUI
         end
         
         
