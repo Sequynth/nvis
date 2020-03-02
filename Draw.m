@@ -216,7 +216,7 @@ classdef (Abstract) Draw < handle
             obj.prepareParser()
             
             % create GUI elements for cw windowing
-            obj.prepareGUIElements()
+            % obj.prepareGUIElements()
             
         end
         
@@ -289,6 +289,7 @@ classdef (Abstract) Draw < handle
             obj.p = inputParser;
             isboolean = @(x) x == 1 || x == 0;
             % add parameters to the input parser
+            addParameter(obj.p, 'Overlay',      1,                              @(x) floor(x)==x && x >= 1); %is integer greater 1
             addParameter(obj.p, 'Colormap',     gray(256),                      @(x) obj.isColormap(x));
             addParameter(obj.p, 'Contrast',     'green-magenta',                @(x) obj.isContrast(x));
             addParameter(obj.p, 'ComplexMode',  obj.complexMode,                @(x) isnumeric(x) && x <= 4);
@@ -331,6 +332,9 @@ classdef (Abstract) Draw < handle
             if exist('viridis.m', 'file') == 2
                 obj.availableCmaps.viridis = viridis;
             end
+            if exist('inferno.m', 'file') == 2
+                obj.availableCmaps.inferno = inferno;
+            end
             
             obj.cmapStrings = fieldnames(obj.availableCmaps);
             
@@ -339,35 +343,24 @@ classdef (Abstract) Draw < handle
                 set(obj.hPopCm(2), 'String', obj.cmapStrings)
             end
             
+            % get initial Contrast for the display from InputParser values
+            obj.setInitialContrast()
             
-            if obj.nImages == 2
-                [obj.cmap, c1, c2] = obj.getContrast();
-                obj.COLOR_m(1,:) = c1;
-                obj.COLOR_m(2,:) = c2;
-                
-                % if widthMin is scalar, make it a vector
-                if isscalar(obj.widthMin)
-                    obj.widthMin = [obj.widthMin obj.widthMin];
-                end
-            else
-                obj.COLOR_m(1,:) = obj.COLOR_F;
-                obj.COLOR_m(2,:) = obj.COLOR_F;
-                
-                % if widthMin is scalar, make it a vector
-                if isscalar(obj.widthMin)
-                    obj.widthMin = [obj.widthMin 0];
-                end
-            end
-            
+            % make sure width min is vector with [wM wM] for the case of
+            % two input images and [wM 0] in the case of one input image
+            obj.widthMin = obj.p.Results.widthMin;
+            obj.widthMin = [obj.widthMin(1) 0];
             for idh = 1:obj.nImages
                 obj.center(idh)	= double(obj.p.Results.CW(idh, 1));
                 obj.width(idh)  = double(obj.p.Results.CW(idh, 2));
                 set(obj.hEditC(idh), 'String', num2sci(obj.center(idh), 'padding', 'right'));
                 set(obj.hEditW(idh), 'String', num2sci(obj.width(idh),  'padding', 'right'));
+                obj.widthMin(idh) = obj.widthMin(1);
+                % apply the initial colormaps to the popdown menus
+                obj.setCmap(obj.hPopCm(idh))
             end
             obj.centerStep  = double(obj.center);
             obj.widthStep   = double(obj.width);
-            obj.widthMin    = obj.p.Results.widthMin;
         end
         
         
@@ -424,6 +417,7 @@ classdef (Abstract) Draw < handle
             obj.hPopOverlay = uicontrol( ...
                 'Style',                'popup', ...
                 'String',               obj.overlayStrings, ...
+                'Value',                obj.overlay, ...
                 'BackgroundColor',      obj.COLOR_BG, ...
                 'ForegroundColor',      obj.COLOR_F, ...
                 'Callback',             {@obj.changeOverlay});
@@ -588,7 +582,14 @@ classdef (Abstract) Draw < handle
                 end
                 cImage = ind2rgb(round(imshift), obj.cmap{1});
             else
-                cImage  = zeros([size(obj.slice{axNo, 1} ), 3]);
+                switch (obj.overlay)
+                        % for assignment of overlay modes, see
+                        % obj.overlayStrings
+                        case 1 % add
+                            cImage  = zeros([size(obj.slice{axNo, 1} ), 3]);
+                        case 2 % multiply
+                            cImage  = ones([size(obj.slice{axNo, 1} ), 3]);
+                end
                 for idd = 1:obj.nImages
                     % convert images to range [0, cmapResolution]
                     lowerl  = single(obj.center(idd) - obj.width(idd)/2);
@@ -598,7 +599,14 @@ classdef (Abstract) Draw < handle
                     end
                     imgRGB  = ind2rgb(round(imshift), obj.cmap{idd}) * obj.layerShown(idd);
                     imgRGB(repmat(isnan(obj.slice{axNo, idd}), [1 1 3])) = 0;
-                    cImage  = cImage + imgRGB;
+                    switch (obj.overlay)
+                        % for assignment of overlay modes, see
+                        % obj.overlayStrings
+                        case 1 % add
+                            cImage  = cImage + imgRGB;
+                        case 2 % multiply
+                            cImage  = cImage .* imgRGB;
+                    end
                 end
                 cImage(isnan(obj.slice{axNo, 1}) & isnan(obj.slice{axNo, 2})) = NaN;
             end
@@ -1109,19 +1117,19 @@ classdef (Abstract) Draw < handle
         end
         
         
-        function changeOverlay(obj, src, ~)            
-            obj.overlay = obj.overlayStrings{get(src, 'Value')};
+        function changeOverlay(obj, src, ~)
+            % get the index of the new overlay value in obj.overlayStrings
+            obj.overlay = find(cellfun( @(x) strcmp(x, obj.overlayStrings{get(src, 'Value')}), obj.overlayStrings));
             obj.refreshUI()
         end
         
-        
-        function changeCmap(obj, src, ~)
-            
+        function setCmap(obj, src, ~)            
             % which colormap is selected
             idx = find(src == obj.hPopCm);
             cm = obj.cmapStrings{get(src, 'Value')};
             obj.cmap{idx} = obj.availableCmaps.(cm);
             
+            % 
             obj.COLOR_m(idx, :) = obj.cmap{idx}(round(size(obj.availableCmaps.(cm), 1) * 0.9), :);
             
             % change color of c/w edit fields
@@ -1130,6 +1138,12 @@ classdef (Abstract) Draw < handle
             if obj.nImages == 2
                 set(obj.hBtnHide(idx), 'ForegroundColor', obj.COLOR_m(idx, :))
             end
+            
+        end
+        
+        function changeCmap(obj, src, ~)
+            
+            obj.setCmap(src)
             
             % reclaculate the shown image with the new colormap
             obj.refreshUI
@@ -1191,49 +1205,39 @@ classdef (Abstract) Draw < handle
         end
         
         
-        function [cm, c1, c2] = getContrast(obj)
+        function setInitialContrast(obj)
             % depending on the selected contrast, both colormaps are generated
             % and stored in cm, as well as the colors for the text in the control
             % panel (c1, c2)
-            if iscell(obj.contrast)
-                cm1 = obj.contrast{1};
-                cm2 = obj.contrast{2};
-                c1  = cm1(end,:);
-                c2  = cm2(end,:);
-            else
-                switch obj.contrast
-                    case 'green-magenta'
-                        cm1 = obj.availableCmaps.magenta;
-                        cm2 = obj.availableCmaps.green;
-                        c1  = [1 .4 1];
-                        c2  = cm2(end,:);
-                    case 'PET'
-                        cm1 = obj.availableCmaps.gray;
-                        if isfield(obj.availableCmaps, 'fire')
-                            cm2 = obj.availableCmaps.fire;
-                        else
-                            cm2 = obj.availableCmaps.hot;
-                        end
-                        c1  = [.9 .9 .9];
-                        c2  = [1 1 0];
-                    case 'heat'
-                        cm1 = obj.availableCmaps.gray;
-                        cm2 = obj.availableCmaps.redblue;
-                        c1  = [.9 .9 .9];
-                        c2  = [.7 .7 1];
-                    otherwise
-                        error(['Contrast not available. Choose', ...
-                            "\t'green-magenta'", ...
-                            "\t'PET'", ...
-                            "or \t''"]);
-                end
+            switch obj.contrast
+                case 'green-magenta'
+                    obj.setPopCm(1, 'magenta')
+                    obj.setPopCm(2, 'green')
+                case 'PET'
+                    obj.setPopCm(1, 'gray')
+                    if isfield(obj.availableCmaps, 'fire')
+                        obj.setPopCm(2, 'fire')
+                    else
+                        obj.setPopCm(2, 'hot')
+                    end
+                case 'heat'
+                    obj.setPopCm(1, 'gray')
+                    obj.setPopCm(2, 'redblue')
+                otherwise
+                    error(['Contrast not available. Choose', ...
+                        "\t'green-magenta'", ...
+                        "\t'PET'", ...
+                        "or \t''"]);
             end
-            % append both cmaps to form one matrix
-            cm = cell(1, 2);
-            cm{1} = cm1;
-            cm{2} = cm2;
         end
         
+        function setPopCm(obj, idx, cName)
+           % sets the value of hPopCm(idx) to the string specified by cName
+           
+           idxValue = find(cellfun( @(x) strcmp(x, cName), obj.cmapStrings));
+           
+           set(obj.hPopCm(idx), 'Value', idxValue);            
+        end
         
         function tmp = cleverMax(~, in)
             % this function is called by MATLAB versions older than R2018a

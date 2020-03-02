@@ -120,7 +120,10 @@ classdef DrawSingle < Draw
             obj.complexMode         = obj.p.Results.ComplexMode;
             obj.resize              = obj.p.Results.Resize;  
             obj.contrast            = obj.p.Results.Contrast;
-                        
+            obj.overlay             = obj.p.Results.Overlay;
+            
+            obj.prepareGUIElements()
+            
             obj.prepareColors()
             
             % which dimensions are shown initially
@@ -150,8 +153,7 @@ classdef DrawSingle < Draw
             
             obj.setLocValFunction()            
             
-            obj.prepareGUI()
-            
+            obj.prepareGUI()            
                
             obj.optimizeInitialFigureSize()   
             
@@ -174,8 +176,7 @@ classdef DrawSingle < Draw
         end
         
         
-        function prepareGUI(obj)
-            
+        function prepareGUI(obj)            
             % adjust figure properties
             
             set(obj.f, ...
@@ -1127,7 +1128,7 @@ classdef DrawSingle < Draw
                 set(obj.hPopCm(1), 'Position', position(1, :));
             else
                 position = obj.divPosition(n);
-                set(obj.hPopOverlay, 'Position', position(1, :));
+                set(obj.hPopOverlay,  'Position', position(1, :));
                 set(obj.hPopCm(1),    'Position', position(2, :));
                 set(obj.hPopCm(2),    'Position', position(3, :));
             end
