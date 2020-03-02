@@ -88,7 +88,7 @@ classdef DrawSlider < Draw
             obj.resize              = obj.p.Results.Resize;
             obj.cr                  = obj.p.Results.Crosshair;
             obj.contrast            = obj.p.Results.Contrast;
-            obj.overlay             = obj.p.Results.Overlay;
+%             obj.overlay             = obj.p.Results.Overlay;
             
             obj.prepareGUIElements()
             
@@ -296,15 +296,15 @@ classdef DrawSlider < Draw
                         'FontSize',             0.4, ...
                         'ForegroundColor',      obj.COLOR_m(idh, :));
                     
-                    set(obj.hPopCm(idh), ...
-                        'Parent',               obj.pControls, ...
-                        'FontUnits',            'normalized', ...
-                        'FontSize',             0.6);
-                    
-                    set(obj.hPopOverlay, ...
-                        'Parent',               obj.pControls, ...
-                        'FontUnits',            'normalized', ...
-                        'FontSize',             0.6);
+%                     set(obj.hPopCm(idh), ...
+%                         'Parent',               obj.pControls, ...
+%                         'FontUnits',            'normalized', ...
+%                         'FontSize',             0.6);
+%                     
+%                     set(obj.hPopOverlay, ...
+%                         'Parent',               obj.pControls, ...
+%                         'FontUnits',            'normalized', ...
+%                         'FontSize',             0.6);
                 end
             end
             
@@ -471,9 +471,8 @@ classdef DrawSlider < Draw
             width  = repmat(width, [1, obj.gridSize(2)]);
             
             % set some columns to fixed width
-            width([1 4]) = 75;
             if obj.nImages == 1
-               width([3 6]) = 0; 
+               width(3) = 0; 
             end
             
             w0 = [xPadding cumsum(width, 2) + (1:obj.gridSize(2)) * xPadding];
@@ -789,9 +788,9 @@ classdef DrawSlider < Draw
                 set(obj.hBtnToggle,  'Position', obj.controlPanelPos(3, 1, :));
                 set(obj.hBtnHide(1), 'Position', obj.controlPanelPos(3, 2, :));
                 set(obj.hBtnHide(2), 'Position', obj.controlPanelPos(3, 3, :));
-                set(obj.hPopOverlay, 'Position', obj.controlPanelPos(4, 1, :));
-                set(obj.hPopCm(1),   'Position', obj.controlPanelPos(4, 2, :));
-                set(obj.hPopCm(2),   'Position', obj.controlPanelPos(4, 3, :));
+%                 set(obj.hPopOverlay, 'Position', obj.controlPanelPos(4, 1, :));
+%                 set(obj.hPopCm(1),   'Position', obj.controlPanelPos(4, 2, :));
+%                 set(obj.hPopCm(2),   'Position', obj.controlPanelPos(4, 3, :));
             end
             
             set(obj.hBtnRoi(1), 'Position', obj.controlPanelPos(1, 4, :));
