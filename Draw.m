@@ -327,6 +327,10 @@ classdef (Abstract) Draw < handle
                 
                 % add some more cmaps
                 obj.availableCmaps.redblue = colorcet('D4', 'N', cmapResolution);
+                obj.availableCmaps.cyclic  = colorcet('C2', 'N', cmapResolution);
+                obj.availableCmaps.isolum  = colorcet('I1', 'N', cmapResolution);
+                obj.availableCmaps.protanopic  = colorcet('CBL2', 'N', cmapResolution);
+                obj.availableCmaps.tritanopic  = colorcet('CBTL1', 'N', cmapResolution);
             end
             % check whether certain colormaps are available
             if exist('viridis.m', 'file') == 2
