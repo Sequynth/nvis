@@ -6,6 +6,8 @@ classdef DrawSlider < Draw
         % DISPLAYING
         locValString
         dimensionLabel
+        % stores information about the grid in the control bar
+        gridSize
         
         % UI Elements
         pColorbar
@@ -86,6 +88,9 @@ classdef DrawSlider < Draw
             obj.resize              = obj.p.Results.Resize;
             obj.cr                  = obj.p.Results.Crosshair;
             obj.contrast            = obj.p.Results.Contrast;
+            obj.overlay             = obj.p.Results.Overlay;
+            
+            obj.prepareGUIElements()
             
             obj.prepareColors()
             
@@ -289,30 +294,18 @@ classdef DrawSlider < Draw
                         'HorizontalAlignment',  'left', ...
                         'FontUnits',            'normalized', ...
                         'FontSize',             0.4, ...
-                        'ForegroundColor',      obj.COLOR_m(idh, :));                    
+                        'ForegroundColor',      obj.COLOR_m(idh, :));
+                    
+                    set(obj.hPopCm(idh), ...
+                        'Parent',               obj.pControls, ...
+                        'FontUnits',            'normalized', ...
+                        'FontSize',             0.6);
+                    
+                    set(obj.hPopOverlay, ...
+                        'Parent',               obj.pControls, ...
+                        'FontUnits',            'normalized', ...
+                        'FontSize',             0.6);
                 end
-                
-                % create the colorbar axis for the colorbarpanel
-                obj.hAxCb(idh)      = axes('Units',            'normal', ...
-                    'Position',         [1/9+(idh-1)*4/9 1/3 1/3 1/3], ...
-                    'Parent',           obj.pColorbar, ...
-                    'Color',            obj.COLOR_m(idh, :));
-                imagesc(linspace(0, 1, size(obj.cmap{idh}, 1)));
-                colormap(obj.hAxCb(idh), obj.cmap{idh});
-                caxis(obj.hAxCb(idh), [0 1])
-                
-                % get the current tick labeks
-                ticklabels = get(obj.hAxCb(idh), 'XTickLabel');
-                % prepend a color for each tick label
-                ticklabels_new = cell(size(ticklabels));
-                for i = 1:length(ticklabels)
-                    ticklabels_new{i} = [sprintf('\\color[rgb]{%.3f,%.3f,%.3f} ', obj.COLOR_m(idh,  1), obj.COLOR_m(idh,  2), obj.COLOR_m(idh,  3)) ticklabels{i}];
-                end
-                set(obj.hAxCb(idh), ...
-                    'XTickLabel',   ticklabels_new, ...
-                    'YTickLabel',   [], ...
-                    'YTick',        []);
-                
             end
             
             if obj.nImages == 2
@@ -394,6 +387,29 @@ classdef DrawSlider < Draw
             
             %% OVERWRITE TOOLBAR BUTTONS
             
+            for idh = 1:obj.nImages
+                % create the colorbar axis for the colorbarpanel
+                obj.hAxCb(idh)      = axes('Units',            'normal', ...
+                    'Position',         [1/9+(idh-1)*4/9 1/3 1/3 1/3], ...
+                    'Parent',           obj.pColorbar, ...
+                    'Color',            obj.COLOR_m(idh, :));
+                imagesc(linspace(0, 1, size(obj.cmap{idh}, 1)));
+                colormap(obj.hAxCb(idh), obj.cmap{idh});
+                caxis(obj.hAxCb(idh), [0 1])
+                
+                % get the current tick labeks
+                ticklabels = get(obj.hAxCb(idh), 'XTickLabel');
+                % prepend a color for each tick label
+                ticklabels_new = cell(size(ticklabels));
+                for i = 1:length(ticklabels)
+                    ticklabels_new{i} = [sprintf('\\color[rgb]{%.3f,%.3f,%.3f} ', obj.COLOR_m(idh,  1), obj.COLOR_m(idh,  2), obj.COLOR_m(idh,  3)) ticklabels{i}];
+                end
+                set(obj.hAxCb(idh), ...
+                    'XTickLabel',   ticklabels_new, ...
+                    'YTickLabel',   [], ...
+                    'YTick',        []);
+            end
+            
             % hide colorbar
             obj.cbShown = true;
             obj.toggleCb()
@@ -401,17 +417,16 @@ classdef DrawSlider < Draw
             % change callback of 'colorbar' icon in MATLAB toolbar
             hToolColorbar = findall(gcf, 'tag', 'Annotation.InsertColorbar');
             set(hToolColorbar, 'ClickedCallback', {@obj.toggleCb});
-            
-            
         end
         
         
         function setPanelPos(obj)
             pos = get(obj.f, 'Position');
             
-            colorbarHeight = 80; % px
-            slidersHeight  = 30;   % px
-            controlHeight  = 100;  % px
+            % set size of controlHeight
+            colorbarHeight = 80;  % px
+            slidersHeight  = 30;  % px
+            controlHeight  = 120; % px
             % pImage(..), pColorbar, pSliders, pControl            
             for iim = 1:3
                 obj.panelPos(iim, :) = [(iim-1)*1/3*pos(3) ...
@@ -439,17 +454,21 @@ classdef DrawSlider < Draw
         
         
         function genControlPanelGrid(obj)
-            gridSize = [3 8];
+            if obj.nImages == 1
+                obj.gridSize = [3 8];
+            else
+                obj.gridSize = [4 8];
+            end
             pos = get(obj.pControls, 'Position');
             
             xPadding = 3;
             yPadding = 3;
-            width  = 90;%(pos(3) - (gridSize(2)+1)*xPadding) / gridSize(2);
-            height = (pos(4) - (gridSize(1)+1)*yPadding) / gridSize(1);
+            width  = 90;%(pos(3) - (obj.gridSize(2)+1)*xPadding) / obj.gridSize(2);
+            height = (pos(4) - (obj.gridSize(1)+1)*yPadding) / obj.gridSize(1);
             
             
             % repeat arrays to create gridSize x 4 matrix
-            width  = repmat(width, [1, gridSize(2)]);
+            width  = repmat(width, [1, obj.gridSize(2)]);
             
             % set some columns to fixed width
             width([1 4]) = 75;
@@ -457,12 +476,12 @@ classdef DrawSlider < Draw
                width([3 6]) = 0; 
             end
             
-            w0 = [xPadding cumsum(width, 2) + (1:gridSize(2)) * xPadding];
-            h0 = pos(4) - yPadding - (1:gridSize(1)) * (height+yPadding);
-            width  = repmat(width, [gridSize(1) 1]);
-            height = repmat(height, gridSize);
-            w0 = repmat(w0(1:end-1), [gridSize(1) 1]);
-            h0 = repmat(h0', [1 gridSize(2)]);
+            w0 = [xPadding cumsum(width, 2) + (1:obj.gridSize(2)) * xPadding];
+            h0 = pos(4) - yPadding - (1:obj.gridSize(1)) * (height+yPadding);
+            width  = repmat(width, [obj.gridSize(1) 1]);
+            height = repmat(height, obj.gridSize);
+            w0 = repmat(w0(1:end-1), [obj.gridSize(1) 1]);
+            h0 = repmat(h0', [1 obj.gridSize(2)]);
             obj.controlPanelPos = cat(3, w0, h0, width, height);
         end
         
@@ -767,9 +786,12 @@ classdef DrawSlider < Draw
             end
             
             if obj.nImages == 2
-                set(obj.hBtnToggle,   'Position', obj.controlPanelPos(3, 1, :));
-                set(obj.hBtnHide(1),  'Position', obj.controlPanelPos(3, 2, :));
-                set(obj.hBtnHide(2),  'Position', obj.controlPanelPos(3, 3, :));
+                set(obj.hBtnToggle,  'Position', obj.controlPanelPos(3, 1, :));
+                set(obj.hBtnHide(1), 'Position', obj.controlPanelPos(3, 2, :));
+                set(obj.hBtnHide(2), 'Position', obj.controlPanelPos(3, 3, :));
+                set(obj.hPopOverlay, 'Position', obj.controlPanelPos(4, 1, :));
+                set(obj.hPopCm(1),   'Position', obj.controlPanelPos(4, 2, :));
+                set(obj.hPopCm(2),   'Position', obj.controlPanelPos(4, 3, :));
             end
             
             set(obj.hBtnRoi(1), 'Position', obj.controlPanelPos(1, 4, :));
