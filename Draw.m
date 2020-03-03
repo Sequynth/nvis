@@ -881,7 +881,7 @@ classdef (Abstract) Draw < handle
         function mouseMovement(obj, ~, ~)        % display location and value
             for ida = 1:numel(obj.hImage)
 				iteratingAx = get(obj.hImage(ida), 'Parent');
-                pAx = get(iteratingAx, 'CurrentPoint')/obj.resize;
+                pAx = round(get(iteratingAx, 'CurrentPoint')/obj.resize);                
                 if obj.inAxis(iteratingAx, pAx(1, 1), pAx(1, 2))
                     pAx = round(pAx);
                     obj.locVal({pAx(1, 2), pAx(1, 1)}, ida);

@@ -171,6 +171,8 @@ classdef DrawSlider < Draw
             obj.hGuides = gobjects(obj.nAxes, 4);
             
             for iim = 1:obj.nAxes
+                % axes are not members of Draw or DrawSlider, to get the
+                % handle to an axis use: get(hImage(i), 'Parent')
                 ax(iim) = axes('Parent', obj.pImage(iim), 'Units', 'normal', 'Position', [0 0 1 1]);
                 obj.hImage(iim)  = imagesc(obj.sliceMixer(iim), 'Parent', ax(iim));  % plot image
                 hold on
@@ -651,7 +653,7 @@ classdef DrawSlider < Draw
         
         
         function mouseButtonAlt(obj, src, evtData)
-            Pt = round(get(gca, 'CurrentPoint'));
+            Pt = round(get(gca, 'CurrentPoint')/obj.resize);
             iim = find(src == obj.hImage);
             obj.sel{obj.showDims(iim, 1), obj.showDims(iim, 1)} = Pt(1, 2);
             obj.sel{obj.showDims(iim, 2), obj.showDims(iim, 2)} = Pt(1, 1);
