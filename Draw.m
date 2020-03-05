@@ -1266,33 +1266,6 @@ classdef (Abstract) Draw < handle
                 warning('Could not parse input for colormap %d, using gray(256) instead', idx)
             end
         end
-            
-%             colorMaps = {'parula', 'jet', 'hsv', 'hot', 'cool', 'spring', 'summer', 'autumn', 'winter', 'gray', 'bone', 'copper', 'pink', 'lines', 'colorcube', 'prism', 'flag', 'white'};
-%             switch class(inputMap)
-%                 case 'double'
-%                     if ~isequal(size(inputMap,2), 3)
-%                         error('Colormap size must be a (N x 3) array');
-%                     else
-%                         if max(inputMap(:)) > 1 || min(inputMap(:) < 0)
-%                             error('Colormap must be in the range [0,1]');
-%                         else
-%                             isMap = true;
-%                         end
-%                     end
-%                 case 'char'
-%                     if sum(strcmp(colorMaps, inputMap))
-%                         isMap = true;
-%                     else
-%                         fprintf('ColorMap must be any of the following:\n');
-%                         for map = colorMaps
-%                             fprintf('%s\n', map{1});
-%                         end
-%                         error('Choose a valid color map');
-%                     end
-%                 otherwise
-%                     error('Colormap must be numeric or string.');
-%             end
-%         end
         
         
         function setInitialContrast(obj)
@@ -1320,6 +1293,7 @@ classdef (Abstract) Draw < handle
                         "or \t''"]);
             end
         end
+        
         
         function setPopCm(obj, idx, cName)
            % sets the value of hPopCm(idx) to the string specified by cName
