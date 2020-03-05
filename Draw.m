@@ -148,6 +148,8 @@ classdef (Abstract) Draw < handle
         noise
         % do we see the colorbars?
         cbShown
+        % how are the colorbars oriented
+        cbDirection
         % max number of letters for variable names in the locVal section
         maxLetters
         % colormaps available
@@ -756,20 +758,37 @@ classdef (Abstract) Draw < handle
             end
             
             if obj.cbShown
+                % only recalculate the tickvalues when colorbars are
+                % acutally visible
+                
+                % depending on the direction of the colorbar, elementy of
+                % the x or y axis must be changed
+                if strcmp(obj.cbDirection, 'horizontal')
+                    Data = 'XData';
+                    Lim = 'XLim';
+                    Tick = 'XTick';
+                    TickLabel = 'XTickLabel';
+                else
+                    Data = 'YData';
+                    Lim = 'YLim';
+                    Tick = 'YTick';
+                    TickLabel = 'YTickLabel';
+                end
+                
                 for idi = 1:obj.nImages                    
                     set(allchild(obj.hAxCb(idi)), ...
-                        'XData',    linspace(obj.center(idi)-obj.width(idi)/2, obj.center(idi)+obj.width(idi)/2, size(obj.cmap{idi}, 1)))
+                        Data,    linspace(obj.center(idi)-obj.width(idi)/2, obj.center(idi)+obj.width(idi)/2, size(obj.cmap{idi}, 1)))
                     set(obj.hAxCb(idi), ...
-                        'XLim',     [obj.center(idi)-obj.width(idi)/2, obj.center(idi)+obj.width(idi)/2])
+                        Lim,     [obj.center(idi)-obj.width(idi)/2, obj.center(idi)+obj.width(idi)/2])
                     
                     % get tick positions
-                    ticks = get(obj.hAxCb(idi), 'XTick');
+                    ticks = get(obj.hAxCb(idi), Tick);
                     % prepend a color for each tick label
                     ticks_new = cell(size(ticks));
                     for ii = 1:length(ticks)
                         ticks_new{ii} = [sprintf('\\color[rgb]{%.3f,%.3f,%.3f} ', obj.COLOR_m(idi,  :)) num2str(ticks(ii))];
                     end
-                    set(obj.hAxCb(idi), 'XTickLabel', ticks_new);
+                    set(obj.hAxCb(idi), TickLabel, ticks_new);
                 end
             end
         end
@@ -935,6 +954,8 @@ classdef (Abstract) Draw < handle
                 end
             end
             
+            % cw is called in order to update the colobar ticks
+            obj.cw();
             obj.refreshUI();
             set(obj.f,  'WindowKeyPress',   @obj.keyPress);
             set(src,    'Enable',           'Inactive');
