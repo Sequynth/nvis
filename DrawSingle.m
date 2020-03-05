@@ -130,7 +130,7 @@ classdef DrawSingle < Draw
             obj.prepareGUIElements()
             
             obj.prepareColors()
-            
+                        
             % which dimensions are shown initially
             obj.showDims = [1 2]; 
             obj.createSelector()            

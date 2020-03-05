@@ -217,6 +217,9 @@ classdef (Abstract) Draw < handle
             % prepare the input parser
             obj.prepareParser()
             
+            % prepare the colormaps
+            obj.prepareColormaps()
+            
             % create GUI elements for cw windowing
             % obj.prepareGUIElements()
             
@@ -292,7 +295,7 @@ classdef (Abstract) Draw < handle
             isboolean = @(x) x == 1 || x == 0;
             % add parameters to the input parser
             addParameter(obj.p, 'Overlay',      1,                              @(x) floor(x)==x && x >= 1); %is integer greater 1
-            addParameter(obj.p, 'Colormap',     gray(256),                      @(x) obj.isColormap(x));
+            addParameter(obj.p, 'Colormap',     gray(256),                      @(x) iscell(x) | isnumeric(x) | ischar(x));
             addParameter(obj.p, 'Contrast',     'green-magenta',                @(x) obj.isContrast(x));
             addParameter(obj.p, 'ComplexMode',  obj.complexMode,                @(x) isnumeric(x) && x <= 4);
             addParameter(obj.p, 'AspectRatio',  'square',                       @(x) any(strcmp({'image', 'square'}, x)));
@@ -314,43 +317,25 @@ classdef (Abstract) Draw < handle
             % initial values.
             %
             % Called by constructor of inheriting class
-            % 
-            cmapResolution = 256;
-            obj.availableCmaps.gray    = gray(cmapResolution);
-            obj.availableCmaps.green   = [zeros(cmapResolution,1) linspace(0,1,cmapResolution)' zeros(cmapResolution,1)];;
-            obj.availableCmaps.magenta = [linspace(0,1,cmapResolution)' zeros(cmapResolution,1) linspace(0,1,cmapResolution)'];
-            obj.availableCmaps.hot     = hot(cmapResolution);
+            %
             
-            % check whether colorcet is available
-            if exist('colorcet.m',  'file') == 2
-                % replace hot with fire, maybe add mor cmaps?
-                obj.availableCmaps.fire = colorcet('fire', 'N', cmapResolution);
-                obj.availableCmaps = rmfield(obj.availableCmaps, 'hot');
-                
-                % add some more cmaps
-                obj.availableCmaps.redblue = colorcet('D4', 'N', cmapResolution);
-                obj.availableCmaps.cyclic  = colorcet('C2', 'N', cmapResolution);
-                obj.availableCmaps.isolum  = colorcet('I1', 'N', cmapResolution);
-                obj.availableCmaps.protanopic  = colorcet('CBL2', 'N', cmapResolution);
-                obj.availableCmaps.tritanopic  = colorcet('CBTL1', 'N', cmapResolution);
-            end
-            % check whether certain colormaps are available
-            if exist('viridis.m', 'file') == 2
-                obj.availableCmaps.viridis = viridis;
-            end
-            if exist('inferno.m', 'file') == 2
-                obj.availableCmaps.inferno = inferno;
-            end
+            % set the string values for the colormaps in the popdown menus.
             
-            obj.cmapStrings = fieldnames(obj.availableCmaps);
+            
+            % from the inputParser, get the initial colormaps
+            if ~contains('Colormap', obj.p.UsingDefaults)
+                % Colormap was used as NVP, this overrules any input from
+                % the 'Contrast' NVP     
+                obj.setInitialColormap(obj.p.Results.Colormap)
+            else
+                % get initial Contrast for the display from InputParser values
+                obj.setInitialContrast()
+            end
             
             set(obj.hPopCm(1), 'String', obj.cmapStrings)
             if obj.nImages == 2
                 set(obj.hPopCm(2), 'String', obj.cmapStrings)
             end
-            
-            % get initial Contrast for the display from InputParser values
-            obj.setInitialContrast()
             
             % make sure width min is vector with [wM wM] for the case of
             % two input images and [wM 0] in the case of one input image
@@ -1210,33 +1195,104 @@ classdef (Abstract) Draw < handle
         end
         
         
-        function isMap = isColormap(~, inputMap)
-            colorMaps = {'parula', 'jet', 'hsv', 'hot', 'cool', 'spring', 'summer', 'autumn', 'winter', 'gray', 'bone', 'copper', 'pink', 'lines', 'colorcube', 'prism', 'flag', 'white'};
-            switch class(inputMap)
-                case 'double'
-                    if ~isequal(size(inputMap,2), 3)
-                        error('Colormap size must be a (N x 3) array');
-                    else
-                        if max(inputMap(:)) > 1 || min(inputMap(:) < 0)
-                            error('Colormap must be in the range [0,1]');
-                        else
-                            isMap = true;
-                        end
+        function prepareColormaps(obj)
+            cmapResolution = 256;
+            obj.availableCmaps.gray    = gray(cmapResolution);
+            obj.availableCmaps.green   = [zeros(cmapResolution,1) linspace(0,1,cmapResolution)' zeros(cmapResolution,1)];;
+            obj.availableCmaps.magenta = [linspace(0,1,cmapResolution)' zeros(cmapResolution,1) linspace(0,1,cmapResolution)'];
+            obj.availableCmaps.hot     = hot(cmapResolution);
+            
+            % check whether colorcet is available
+            if exist('colorcet.m',  'file') == 2
+                % replace hot with fire, maybe add mor cmaps?
+                obj.availableCmaps.fire = colorcet('fire', 'N', cmapResolution);
+                obj.availableCmaps = rmfield(obj.availableCmaps, 'hot');
+                
+                % add some more cmaps
+                obj.availableCmaps.redblue = colorcet('D4', 'N', cmapResolution);
+                obj.availableCmaps.cyclic  = colorcet('C2', 'N', cmapResolution);
+                obj.availableCmaps.isolum  = colorcet('I1', 'N', cmapResolution);
+                obj.availableCmaps.protanopic  = colorcet('CBL2', 'N', cmapResolution);
+                obj.availableCmaps.tritanopic  = colorcet('CBTL1', 'N', cmapResolution);
+            end
+            % check whether certain colormaps are available
+            if exist('viridis.m', 'file') == 2
+                obj.availableCmaps.viridis = viridis;
+            end
+            if exist('inferno.m', 'file') == 2
+                obj.availableCmaps.inferno = inferno;
+            end
+            
+            obj.cmapStrings = fieldnames(obj.availableCmaps);
+        end
+        
+        
+        function setInitialColormap(obj, inputMap)
+            
+            if iscell(inputMap) & numel(inputMap)==1 & obj.nImages==2
+                inputMap{2} = inputMap{1};
+            end
+            
+            % make non-cell input easier to work with
+            if ~iscell(inputMap)
+                inputMap = {inputMap, inputMap};
+            end
+            
+            % set both popdownmenus to 'gray' (such that both cmaps are
+            % defined if only one is provided in case of nImages=2
+            obj.setPopCm(1, 'gray')
+            obj.setPopCm(2, 'gray')
+            
+            % counter for custom colormaps
+            customCtr = 1;
+            for idx = 1:obj.nImages
+                if ischar(inputMap{idx})
+                    % find index in colormap List
+                    if ismember(inputMap{idx}, obj.cmapStrings)
+                        obj.setPopCm(idx, inputMap{idx})
+                        continue
                     end
-                case 'char'
-                    if sum(strcmp(colorMaps, inputMap))
-                        isMap = true;
-                    else
-                        fprintf('ColorMap must be any of the following:\n');
-                        for map = colorMaps
-                            fprintf('%s\n', map{1});
-                        end
-                        error('Choose a valid color map');
+                elseif isnumeric(inputMap{idx})
+                    if size(inputMap{idx}, 2) == 3
+                        obj.availableCmaps.(['custom' num2str(customCtr)]) = inputMap{idx};
+                        obj.cmapStrings = fieldnames(obj.availableCmaps);
+                        obj.setPopCm(idx, ['custom' num2str(customCtr)])
+                        customCtr = customCtr+1;
+                        continue
                     end
-                otherwise
-                    error('Colormap must be numeric or string.');
+                end
+                
+                % input not supported
+                warning('Could not parse input for colormap %d, using gray(256) instead', idx)
             end
         end
+            
+%             colorMaps = {'parula', 'jet', 'hsv', 'hot', 'cool', 'spring', 'summer', 'autumn', 'winter', 'gray', 'bone', 'copper', 'pink', 'lines', 'colorcube', 'prism', 'flag', 'white'};
+%             switch class(inputMap)
+%                 case 'double'
+%                     if ~isequal(size(inputMap,2), 3)
+%                         error('Colormap size must be a (N x 3) array');
+%                     else
+%                         if max(inputMap(:)) > 1 || min(inputMap(:) < 0)
+%                             error('Colormap must be in the range [0,1]');
+%                         else
+%                             isMap = true;
+%                         end
+%                     end
+%                 case 'char'
+%                     if sum(strcmp(colorMaps, inputMap))
+%                         isMap = true;
+%                     else
+%                         fprintf('ColorMap must be any of the following:\n');
+%                         for map = colorMaps
+%                             fprintf('%s\n', map{1});
+%                         end
+%                         error('Choose a valid color map');
+%                     end
+%                 otherwise
+%                     error('Colormap must be numeric or string.');
+%             end
+%         end
         
         
         function setInitialContrast(obj)
