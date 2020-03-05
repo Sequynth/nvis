@@ -1154,7 +1154,7 @@ classdef (Abstract) Draw < handle
             cm = obj.cmapStrings{get(src, 'Value')};
             obj.cmap{idx} = obj.availableCmaps.(cm);
             
-            % 
+            % set UI text colors
             obj.COLOR_m(idx, :) = obj.cmap{idx}(round(size(obj.availableCmaps.(cm), 1) * 0.9), :);
             
             % change color of c/w edit fields
@@ -1162,6 +1162,15 @@ classdef (Abstract) Draw < handle
             set(obj.hEditW(idx), 'ForegroundColor', obj.COLOR_m(idx, :))
             if obj.nImages == 2
                 set(obj.hBtnHide(idx), 'ForegroundColor', obj.COLOR_m(idx, :))
+            end
+                        
+            % change colorbar axes
+            if ~isempty(obj.hAxCb)
+                % many UI elements dont exist when prepare colors is called
+                % the first time
+                colormap(obj.hAxCb(idx), obj.cmap{idx})
+                % recolor the ticks on the colorbars
+            	obj.cw()
             end
             
         end
