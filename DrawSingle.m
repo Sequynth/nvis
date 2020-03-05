@@ -2,6 +2,8 @@ classdef DrawSingle < Draw
     
     % TODO:
     % - RadioGroup Buttons for animated sliders
+    % - overwrite colorbar button in toolbar, dispaly (both) colorbar(s)
+    % and change according to windowing
     
     properties (Access = private)
         t           % interrupt timer
@@ -16,6 +18,7 @@ classdef DrawSingle < Draw
         pImage
         pSlider
         pControls
+        pColorbar
         hBtnShiftL
         hBtnShiftR
         hBtnRotL
@@ -33,8 +36,7 @@ classdef DrawSingle < Draw
         % UI properties
         
         pSliderHeight
-        sliderHeight
-        sliderPadding
+        colorbarWidth
         sliderStartPos
         division
         margin 
@@ -49,7 +51,9 @@ classdef DrawSingle < Draw
         % default figure position and size
         defaultPosition = [ 300, 200, 1000, 800];
         % absolute width of Control panel in pixel
-        controlWidth = 300; % px        
+        controlWidth  = 300; % px        
+        sliderHeight  = 20;  % px 
+        sliderPadding = 4;   % px
     end
     
     methods
@@ -60,6 +64,9 @@ classdef DrawSingle < Draw
             % only one Axis in DrawSingle
             obj.nAxes    = 1;
             obj.activeAx = 1;
+            
+            obj.cbDirection = 'vertical';
+            
             % only show slider for a dimension with a length higher than 1
             if obj.nDims > 2
                 tmp = 3:obj.nDims;
@@ -118,9 +125,12 @@ classdef DrawSingle < Draw
             obj.complexMode         = obj.p.Results.ComplexMode;
             obj.resize              = obj.p.Results.Resize;  
             obj.contrast            = obj.p.Results.Contrast;
-                        
-            obj.prepareColors()
+            obj.overlay             = obj.p.Results.Overlay;
             
+            obj.prepareGUIElements()
+            
+            obj.prepareColors()
+                        
             % which dimensions are shown initially
             obj.showDims = [1 2]; 
             obj.createSelector()            
@@ -150,7 +160,6 @@ classdef DrawSingle < Draw
             
             obj.prepareGUI()
             
-               
             obj.optimizeInitialFigureSize()   
             
             obj.guiResize()
@@ -172,8 +181,7 @@ classdef DrawSingle < Draw
         end
         
         
-        function prepareGUI(obj)
-            
+        function prepareGUI(obj)            
             % adjust figure properties
             
             set(obj.f, ...
@@ -188,10 +196,10 @@ classdef DrawSingle < Draw
                 'WindowButtonUpFcn',    @obj.stopDragFcn, ...
                 'WindowScrollWheelFcn', @obj.scrollSlider);
                         
-            % absolute height of slider panel
-            obj.sliderHeight    = 20; % px 
-            obj.sliderPadding   = 4;  % px
+            % absolute height of slider panel            
             obj.pSliderHeight   = obj.nSlider * (obj.sliderHeight + 2*obj.sliderPadding); % px
+            % colorbar panel is invisible at first
+            obj.colorbarWidth = 0; % px
             obj.setPanelPos()
             
             % create and place panels
@@ -212,6 +220,13 @@ classdef DrawSingle < Draw
             obj.pControls  = uipanel( ...
                 'Units',            'pixels', ...
                 'Position',         obj.panelPos(3, :), ...
+                'BackgroundColor',  obj.COLOR_BG, ...
+                'HighLightColor',   obj.COLOR_BG, ...
+                'ShadowColor',      obj.COLOR_B);
+            
+            obj.pColorbar  = uipanel( ...
+                'Units',            'pixels', ...
+                'Position',         obj.panelPos(4, :), ...
                 'BackgroundColor',  obj.COLOR_BG, ...
                 'HighLightColor',   obj.COLOR_BG, ...
                 'ShadowColor',      obj.COLOR_B);
@@ -300,12 +315,20 @@ classdef DrawSingle < Draw
                     'FontSize',             0.4);
             end
             
-            set(obj.hPopContrast, ...
+            set(obj.hPopCm(1), ...
                 'Parent',               obj.pControls, ...
                 'FontUnits',            'normalized', ...
                 'FontSize',             0.6);
-            if obj.nImages == 1
-                set(obj.hPopContrast, 'visible', 'off')
+            if obj.nImages == 2
+                set(obj.hPopCm(2), ...
+                    'Parent',               obj.pControls, ...
+                    'FontUnits',            'normalized', ...
+                    'FontSize',             0.6);
+                
+                set(obj.hPopOverlay, ...
+                    'Parent',               obj.pControls, ...
+                    'FontUnits',            'normalized', ...
+                    'FontSize',             0.6);
             end
             
             obj.hBtnShiftL = uicontrol( ...
@@ -623,6 +646,8 @@ classdef DrawSingle < Draw
                     'ForegroundColor',  obj.COLOR_F);
             end
             
+            obj.initializeColorbars()
+            
             obj.initializeSliders
             
             obj.initializeAxis(true)
@@ -700,16 +725,47 @@ classdef DrawSingle < Draw
         end
         
         
+        function initializeColorbars(obj)
+            % add axis to display the colorbars
+            for idh = 1:obj.nImages
+                % create the colorbar axis for the colorbarpanel
+                obj.hAxCb(idh)      = axes('Units',            'normal', ...
+                    'Position',         [1/20+(idh-1)/2 1/20 1/4 18/20], ...
+                    'Parent',           obj.pColorbar, ...
+                    'Color',            obj.COLOR_m(idh, :));
+                imagesc(linspace(0, 1, size(obj.cmap{idh}, 1))');
+                colormap(obj.hAxCb(idh), obj.cmap{idh});
+                caxis(obj.hAxCb(idh), [0 1])
+                
+                % change the y direction of the colorbars
+                set(obj.hAxCb(idh), 'YDir', 'normal')
+                set(obj.hAxCb(idh), 'YAxisLocation', 'Right')
+                
+                % remove unnecessary X ticks and labels
+                set(obj.hAxCb(idh), ...
+                    'XTickLabel',   [], ...
+                    'XTick',        []);
+            end
+            
+            % hide colorbar
+            obj.cbShown = true;
+            obj.toggleCb()
+            % change callback of 'colorbar' icon in MATLAB toolbar
+            hToolColorbar = findall(gcf, 'tag', 'Annotation.InsertColorbar');
+            set(hToolColorbar, 'ClickedCallback', {@obj.toggleCb});
+        end
+        
+        
         function setPanelPos(obj)
             % create a 3x4 array that stores the 'Position' information for
-            % the three panels pImage, pSlider, pControl
+            % the four panels pImage, pSlider, pControl and pColorbar
             
             obj.figurePos = get(obj.f, 'Position');
             
             % pImage
             obj.panelPos(1, :) =    [obj.controlWidth ...
                                     obj.pSliderHeight ...
-                                    obj.figurePos(3) - obj.controlWidth ...
+                                    obj.figurePos(3) - obj.controlWidth - obj.colorbarWidth...
                                     obj.figurePos(4) - obj.pSliderHeight];
             % pSlider                    
             obj.panelPos(2, :) =    [obj.controlWidth ...
@@ -721,6 +777,12 @@ classdef DrawSingle < Draw
                                     0 ...
                                     obj.controlWidth ...
                                     obj.figurePos(4)];
+                                
+            % pColorbar                    
+            obj.panelPos(4, :) =    [obj.figurePos(3) - obj.colorbarWidth ...
+                                    obj.pSliderHeight ...
+                                    obj.colorbarWidth ...
+                                    obj.figurePos(4) - obj.pSliderHeight];
         end
         
         
@@ -778,7 +840,7 @@ classdef DrawSingle < Draw
         end
         
         
-        function refreshUI(obj)
+        function refreshUI(obj, ~, ~)
             
             obj.prepareSliceData;            
             set(obj.hImage, 'CData', obj.sliceMixer(1));
@@ -824,7 +886,8 @@ classdef DrawSingle < Draw
         
         
         function mouseButtonAlt(obj, src, evtData)
-            
+            % code executed when the user presses the right mouse button.
+            % currently not implemented.
         end
         
         
@@ -995,6 +1058,36 @@ classdef DrawSingle < Draw
         end
         
         
+        function toggleCb(obj, ~, ~)
+            images = allchild(obj.hAxCb);
+            if ~obj.cbShown
+                obj.colorbarWidth = 150;
+                set(obj.hAxCb,      'Visible', 'on')
+                if obj.nImages == 1
+                    set(images,      'Visible', 'on')
+                else
+                    set([images{:}],    'Visible', 'on')
+                end
+                obj.cbShown = true;
+                % guiResize() must be called before cw(), otherwise tick
+                % labels are not shown
+                obj.guiResize()
+                % run cw() again, to update ticklabels
+                obj.cw();
+            else
+                obj.colorbarWidth = 0;
+                set(obj.hAxCb,      'Visible', 'off')
+                if obj.nImages == 1
+                    set(images,    'Visible', 'off')
+                else
+                    set([images{:}],    'Visible', 'off')
+                end
+                obj.cbShown = false;
+                obj.guiResize()
+            end
+        end
+        
+        
         function rotateView(obj, src, ~)
             % function is called by the two buttons (rotL, rotR)
             switch (src.String)
@@ -1037,7 +1130,7 @@ classdef DrawSingle < Draw
             % cange the figure size such, that the image fill pImage
             % without border
             % no aspect ratio was specified -> the image is a square.
-            % The necessary figure imension is increased to make pImage
+            % The necessary figure dimension is increased to make pImage
             % a square
             addPix = max(obj.pImage.Position(3:4)) - obj.pImage.Position(3:4);
             obj.f.Position(3:4) =  obj.f.Position(3:4) + addPix;
@@ -1063,6 +1156,7 @@ classdef DrawSingle < Draw
             set(obj.pImage,     'Position', obj.panelPos(1, :));
             set(obj.pSlider,    'Position', obj.panelPos(2, :));
             set(obj.pControls,  'Position', obj.panelPos(3, :));
+            set(obj.pColorbar,  'Position', obj.panelPos(4, :));
                   
             % set Slider positions
             RadioBtnWidth = 30; % px 
@@ -1112,9 +1206,15 @@ classdef DrawSingle < Draw
             end
             
             n = n + 1;
-            position = obj.positionN(n, 1);
-            set(obj.hPopContrast, 'Position', position(1, :));
-            
+            if obj.nImages == 1
+                position = obj.positionN(n, 1);
+                set(obj.hPopCm(1), 'Position', position(1, :));
+            else
+                position = obj.divPosition(n);
+                set(obj.hPopOverlay,  'Position', position(1, :));
+                set(obj.hPopCm(1),    'Position', position(2, :));
+                set(obj.hPopCm(2),    'Position', position(3, :));
+            end
             n = n + 1;
             position = obj.divPosition(n);
             set(obj.hBtnRoi(1), 'Position', position(1, :));

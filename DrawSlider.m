@@ -35,6 +35,7 @@ classdef DrawSlider < Draw
         defaultPosition = [ 300, 200, 1000, 800];
         axLabels = 'XYZ';  % displayed planes (names)
         axColors = 'rgb';
+        
     end
     
     
@@ -48,6 +49,8 @@ classdef DrawSlider < Draw
             % one of the following two should be thrown away
             obj.activeAx  = 1;
             obj.activeDim = 1;
+            
+            obj.cbDirection = 'horizontal';
             
             if obj.nDims < 4
                 % TODO: if obj.nDims == 2: open DrawSingle instead
@@ -399,15 +402,8 @@ classdef DrawSlider < Draw
                 colormap(obj.hAxCb(idh), obj.cmap{idh});
                 caxis(obj.hAxCb(idh), [0 1])
                 
-                % get the current tick labeks
-                ticklabels = get(obj.hAxCb(idh), 'XTickLabel');
-                % prepend a color for each tick label
-                ticklabels_new = cell(size(ticklabels));
-                for i = 1:length(ticklabels)
-                    ticklabels_new{i} = [sprintf('\\color[rgb]{%.3f,%.3f,%.3f} ', obj.COLOR_m(idh,  1), obj.COLOR_m(idh,  2), obj.COLOR_m(idh,  3)) ticklabels{i}];
-                end
+                % remove unnecessary Y ticks and labels
                 set(obj.hAxCb(idh), ...
-                    'XTickLabel',   ticklabels_new, ...
                     'YTickLabel',   [], ...
                     'YTick',        []);
             end
@@ -725,6 +721,25 @@ classdef DrawSlider < Draw
         end
         
         
+        function toggleGuides(obj, ~, ~)
+            if strcmp(get(obj.hGuides, 'Visible'), 'on')
+                set(obj.hGuides, 'Visible', 'off');
+            else
+                set(obj.hGuides, 'Visible', 'on');
+            end
+        end
+        
+        
+        function closeRqst(obj, varargin)
+            % closeRqst is called, when the user closes the figure (by 'x' or
+            % 'close'). It stops and deletes the timer, frees up memory taken
+            % by img and closes the figure.
+            
+            delete(obj.f);
+            obj.delete
+        end
+        
+        
         function toggleCb(obj, ~, ~)
             images = allchild(obj.hAxCb);
             if ~obj.cbShown
@@ -746,25 +761,6 @@ classdef DrawSlider < Draw
                 end
                 obj.cbShown = false;
             end
-        end
-        
-        
-        function toggleGuides(obj, ~, ~)
-            if strcmp(get(obj.hGuides, 'Visible'), 'on')
-                set(obj.hGuides, 'Visible', 'off');
-            else
-                set(obj.hGuides, 'Visible', 'on');
-            end
-        end
-        
-        
-        function closeRqst(obj, varargin)
-            % closeRqst is called, when the user closes the figure (by 'x' or
-            % 'close'). It stops and deletes the timer, frees up memory taken
-            % by img and closes the figure.
-            
-            delete(obj.f);
-            obj.delete
         end
         
         
