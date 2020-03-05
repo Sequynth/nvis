@@ -103,8 +103,8 @@ classdef DrawRGB < Draw
             obj.cmap{1}             = obj.p.Results.Colormap;
             obj.fps                 = obj.p.Results.FPS;
             obj.resize              = obj.p.Results.Resize;
-                        
-            obj.prepareColors()
+               
+            obj.prepareGUIElements()
             
             obj.createSelector()            
             
