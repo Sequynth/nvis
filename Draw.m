@@ -339,14 +339,14 @@ classdef (Abstract) Draw < handle
             
             % make sure width min is vector with [wM wM] for the case of
             % two input images and [wM 0] in the case of one input image
-            obj.widthMin = obj.p.Results.widthMin;
+            obj.widthMin = single(obj.p.Results.widthMin);
             obj.widthMin = [obj.widthMin(1) 0];
             for idh = 1:obj.nImages
                 obj.center(idh)	= double(obj.p.Results.CW(idh, 1));
                 obj.width(idh)  = double(obj.p.Results.CW(idh, 2));
                 set(obj.hEditC(idh), 'String', num2sci(obj.center(idh), 'padding', 'right'));
                 set(obj.hEditW(idh), 'String', num2sci(obj.width(idh),  'padding', 'right'));
-                obj.widthMin(idh) = obj.widthMin(1);
+                obj.widthMin(idh) = obj.widthMin(idh);
                 % apply the initial colormaps to the popdown menus
                 obj.setCmap(obj.hPopCm(idh))
             end
