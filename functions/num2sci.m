@@ -5,20 +5,23 @@ function str = num2sci(val, varargin)
 %
 %NAME-VALUE PAIRS
 %
-%   'padding'
-%   parameter that allows to specify, on which side whitespace should be
-%   added for proper alignment of the string.
-%   'left':     whitespace is added to the left side of the string, useful
-%               when the data is aligned left (default).
-%   'right':    whitespace is added to the right side of the string, useful
-%               when the data is aligned right.
-%   'both':     whitespace is added to both sides of the string.
-%   'none':     no whitespace is added, useful when the data is presented
-%               in text.
+% Name--------------Value-------Descripton---------------------------------
+% 'padding'                     parameter that allows to specify, on which
+%                               side whitespace should be added for proper
+%                               alignment of the string.
+%                   'left':     whitespace is added to the left side of the
+%                               string, useful when the data is aligned
+%                               left (default).
+%                   'right':    whitespace is added to the right side of
+%                               the string, useful when the data is aligned
+%                               right.
+%                   'both':     whitespace is added to both sides of the
+%                               string.
+%                   'none':     no whitespace is added, useful when the
+%                               data is presented in text.
 %
-%   'precision'
-%   type: positive whole number
-%   specifies the precision of the outputstring, default is 2
+% 'precision'       numeric     positive whole number, that specifies the
+%                               precision of the outputstring (default: 2)
 %   
 
 %__________________________________________________________________________
