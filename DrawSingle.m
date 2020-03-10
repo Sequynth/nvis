@@ -1,10 +1,53 @@
 classdef DrawSingle < Draw
-    
+	%DrawSingle visualizes 2D slices from higherdimensional data
+	% 	DRAWSINGLE(I) opens a UI that display a 2D slice from the input matrix I with N dimensions (N>2). Sliders allow to navigate thorugh the non-singleton dimensions.
+	% 	The windowing of the colormaps can be dynamically changed by pressing the middle mouse button on the image and moving the mouse up/down (center) or left/right(width). ROIs can be drawn and to measure Signal to Noise ratio in image data.
+	%
+	% 	DRAWSINGLE(I1, I2): Data from the equally sized matrices I1 and I2 are overlaid by adding the RGB values attributed by the individual colormaps. The windowing for the second image can be adjusted by using the left mouse button.
+	%
+	%	Usage
+	%
+	%   Values in the lower left show the array indices of the datapoint under the cursor as well as the matrix-values at that location. In case of complex data, the value is shown in the current complex mode.
+	% 	Colorbar button in the matlab figure-toolbar can be used to show adapting colorbars.
+	%  	<- and -> change the dimensions that are schown along the image dimensions. Initially, dimensions 1 and 2 are shown. By presing <- / -> both are decreased/increased by 1, wrapping where necessary.
+	%   'Run' starts a timer which loops through the image dimension selected by the radio button.
+	%   'SaveImage' save the currently visible image to file
+	%   'SaveVideo' saves the running animation as a video file (.avi or .gif)
+	%
+	%	Name-Value-Pairs
+	%	
+	% 	Name------------Value--------Descripton
+	% 	'CW'		    1x2 double   Initial values for center and width. For two input matrices, Value must be 2x2 matrix, of values are applied to both
+	% 	'Colormap'      Nx3 or char	 initial colormaps for the image. The user can either supply a custom colormap or chose from the available colormaps. Default is gray(256). For two input matrices, value must be 1x2 cell array. Default is {'green', 'magenta'}
+	%   'Contrast'      char         redundant NVP, will be removed in future versions
+	%	'Overlay' 		int 		 inital overlay mode for two input matrices (1: add (default), 2: multiply)
+	%	'ComplexMode'   int 		 For complex data, chooses the initially displayed complex part (1: magnitude (default), 2: phase, 3: real part, 4: imaginary part).
+	% 	'AspectRatio'   'image'      the displayed axes have the same aspect ratio as the input matrix for that slice.
+	% 					'square' 	 The displayed axes always have a square shape.
+	% 	'Resize' 		double       uses 'imresize' to resize the currently displayed slice by the given value.
+	%   'Title' 		char 	     title of the figure window
+	%	'Position',     1x4 int 	 Position of the figure in pixel    
+	%   'Unit'          char         physical unit of the provided image data. For two input matrices, value must be 1x2 cell array, or both are assigned the same unit
+	%	'InitSlice',    1xN-2        set the slice that is shown when the figure is opened.
+	%	'InitialRot',   int   	     initial rotation angle of the displayed image
+	%	'DimLabel',     cell{char}   char arrays to label the individual dimensions in the input data, if provided, must be provided for all dimensions.
+	%	'FPS',          double       defines how many times per second the slider value provided by 'LoopDim' is increased.
+	%	'LoopDim',      int     	 Dimension, along which the slider is incremented 'FPS' times per second
+	%	'ROI_Signal',   XxX 		 vertices polygon that defines a ROI
+	%	'ROI_Noise',    XxX 		 vertices polygon that defines a ROI    
+	%	'SaveImage',    filename     When provided, the image data is prepared according to the other inputs, but no figure is shown. The prepared image data is directly saved to file under filename.
+	%	'SaveVideo',    filename     When provided, the image data is prepared according to the other inputs, but no figure is shown. 'FPS' gives the framerate for the video that is saved under filename. Only '.avi' and '.gif' supported so far. 'LoopDim' can be used to specify the dimension along which the video loops.
+	
+	
+	
     % TODO:
     % - RadioGroup Buttons for animated sliders
-    % - overwrite colorbar button in toolbar, dispaly (both) colorbar(s)
-    % and change according to windowing
-    
+	% - check what happens for arbitrary InitialRot angle inputs
+    % - test InitialSlice input
+	% - test what happens for 'SaveVideo' but no 'FPS' given
+	% - test what happens when 'SaveImage' and 'SaveVideo' are given simultaneously
+    % - make 'SaveVideo' button only active, when timer is running
+	
     properties (Access = private)
         t           % interrupt timer
         fps

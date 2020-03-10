@@ -1,18 +1,16 @@
 classdef (Abstract) Draw < handle
     %Draw Baseclass for Draw. GUIs
-    %   Detailed explanation goes here
-    
-    % TODO: 
-    % - check for installed 'colorcet' box for better colormaps, if not,
-    % allow selection of individual colormaps.
-    % - allow user to chose overlay types (addition, multiply division,
-    % ...)
-    % - make DrawSlider work with new colormap scheme
-    
+    %   This class serves as a base class for the 'Draw...' classes,
+	% 	which are optimized for visualizing multidimensional (complex)
+	% 	matrices. Draw.m provides the building block for the GUI which are placed in the figure by the inheriting classes.
+	%
+	%	Data is visualized as 2D slices from the higherdimensional data,
+	%	The GUI can 	
+   
     properties
         f
     end
-    
+		
     properties (Access = private)
         % DISPLAY PROPERTIES
         layerShown      % which of the images is currently shown?
