@@ -1201,19 +1201,21 @@ classdef (Abstract) Draw < handle
             obj.availableCmaps.green   = [zeros(cmapResolution,1) linspace(0,1,cmapResolution)' zeros(cmapResolution,1)];;
             obj.availableCmaps.magenta = [linspace(0,1,cmapResolution)' zeros(cmapResolution,1) linspace(0,1,cmapResolution)'];
             obj.availableCmaps.hot     = hot(cmapResolution);
+            obj.availableCmaps.parula  = parula(cmapResolution);
             
             % check whether colorcet is available
             if exist('colorcet.m',  'file') == 2
-                % replace hot with fire, maybe add mor cmaps?
+                % replace hot with fire, maybe add more cmaps?
                 obj.availableCmaps.fire = colorcet('fire', 'N', cmapResolution);
                 obj.availableCmaps = rmfield(obj.availableCmaps, 'hot');
                 
                 % add some more cmaps
-                obj.availableCmaps.redblue = colorcet('D4', 'N', cmapResolution);
-                obj.availableCmaps.cyclic  = colorcet('C2', 'N', cmapResolution);
-                obj.availableCmaps.isolum  = colorcet('I1', 'N', cmapResolution);
-                obj.availableCmaps.protanopic  = colorcet('CBL2', 'N', cmapResolution);
-                obj.availableCmaps.tritanopic  = colorcet('CBTL1', 'N', cmapResolution);
+                obj.availableCmaps.redblue      = colorcet('D4', 'N', cmapResolution);
+                obj.availableCmaps.cyclic       = colorcet('C2', 'N', cmapResolution);
+                obj.availableCmaps.isolum       = colorcet('I1', 'N', cmapResolution);
+                obj.availableCmaps.protanopic   = colorcet('CBL2', 'N', cmapResolution);
+                obj.availableCmaps.tritanopic   = colorcet('CBTL1', 'N', cmapResolution);
+                obj.availableCmaps.rainbow      = colorcet('R2', 'N', cmapResolution);
             end
             % check whether certain colormaps are available
             if exist('viridis.m', 'file') == 2
