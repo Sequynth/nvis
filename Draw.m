@@ -235,15 +235,17 @@ classdef (Abstract) Draw < handle
             % Calculates the minimal and maximal value in the upto two
             % input matrices. If there are +-Inf values in the data, a
             % slower, less memory efficient calculation is performed.
-                        
+            
+            % min and max values are cast as doubles, to have their
+            % datatype be independet of the input datatype
             if sum(version('-release') < '2018b')
                 % version is older than 2018b, use slower, but not very
                 % slow max/min calculation implementation.
-                obj.Max = [obj.cleverMax(obj.img{1}), obj.cleverMax(obj.img{2})];
-                obj.Min = [obj.cleverMin(obj.img{1}), obj.cleverMin(obj.img{2})];
+                obj.Max = [double(obj.cleverMax(obj.img{1})), double(obj.cleverMax(obj.img{2}))];
+                obj.Min = [double(obj.cleverMin(obj.img{1})), double(obj.cleverMin(obj.img{2}))];
             else
-                obj.Max = [max(obj.img{1}, [], 'all', 'omitnan'), max(obj.img{2}, [], 'all', 'omitnan')];
-                obj.Min = [min(obj.img{1}, [], 'all', 'omitnan'), min(obj.img{2}, [], 'all', 'omitnan')];
+                obj.Max = [double(max(obj.img{1}, [], 'all', 'omitnan')), double(max(obj.img{2}, [], 'all', 'omitnan'))];
+                obj.Min = [double(min(obj.img{1}, [], 'all', 'omitnan')), double(min(obj.img{2}, [], 'all', 'omitnan'))];
             end
             
             hasInf = obj.Max == Inf;
@@ -255,7 +257,6 @@ classdef (Abstract) Draw < handle
                 obj.Max(2)           = max(obj.img{2}(~isinf(obj.img{2})), [], 'omitnan');
             end
             
-            obj.Min = [min(obj.img{1}, [], 'all', 'omitnan'), min(obj.img{2}, [], 'all', 'omitnan')];            
             hasInf = obj.Min == -Inf;
             if hasInf(1)
                 warning('+Inf values present in input 1. For large input matrices this can cause memory overflow and long startup time.')
@@ -337,16 +338,12 @@ classdef (Abstract) Draw < handle
                 set(obj.hPopCm(2), 'String', obj.cmapStrings)
             end
             
-            % make sure width min is vector with [wM wM] for the case of
-            % two input images and [wM 0] in the case of one input image
             obj.widthMin = obj.p.Results.widthMin;
-            obj.widthMin = [obj.widthMin(1) 0];
             for idh = 1:obj.nImages
                 obj.center(idh)	= double(obj.p.Results.CW(idh, 1));
                 obj.width(idh)  = double(obj.p.Results.CW(idh, 2));
                 set(obj.hEditC(idh), 'String', num2sci(obj.center(idh), 'padding', 'right'));
                 set(obj.hEditW(idh), 'String', num2sci(obj.width(idh),  'padding', 'right'));
-                obj.widthMin(idh) = obj.widthMin(idh);
                 % apply the initial colormaps to the popdown menus
                 obj.setCmap(obj.hPopCm(idh))
             end
