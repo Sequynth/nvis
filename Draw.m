@@ -339,7 +339,7 @@ classdef (Abstract) Draw < handle
             
             % make sure width min is vector with [wM wM] for the case of
             % two input images and [wM 0] in the case of one input image
-            obj.widthMin = single(obj.p.Results.widthMin);
+            obj.widthMin = obj.p.Results.widthMin;
             obj.widthMin = [obj.widthMin(1) 0];
             for idh = 1:obj.nImages
                 obj.center(idh)	= double(obj.p.Results.CW(idh, 1));
