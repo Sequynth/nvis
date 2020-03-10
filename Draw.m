@@ -995,6 +995,21 @@ classdef (Abstract) Draw < handle
         end
         
         
+        function createROI(obj, roiNo, polygon)
+            % when the user provides coordinates for a ROI polygon, create
+            % the UI object
+            
+            obj.rois{roiNo} = images.roi.Polygon(...
+                'Parent',   gca, ...
+                'Color',    obj.COLOR_roi(roiNo, :), ...
+                'Position', polygon);
+            
+            obj.calcROI()
+            addlistener(obj.rois{roiNo}, 'MovingROI', @obj.calcROI);
+            
+        end
+        
+        
         function drawRoi(obj, src, ~)
             % check for signal or noise ROI
             roiNo = find(obj.hBtnRoi == src);

@@ -96,8 +96,8 @@ classdef DrawSingle < Draw
             addParameter(obj.p, 'Position',         obj.defaultPosition,                @(x) isnumeric(x) && numel(x) == 4);
             addParameter(obj.p, 'InitSlice',        round(obj.S(obj.mapSliderToDim)/2), @isnumeric);
             addParameter(obj.p, 'FPS',              0,                                  @isnumeric);
-            addParameter(obj.p, 'ROI_Signal',       [0 0; 0 0; 0 0],                    @isnumeric);
-            addParameter(obj.p, 'ROI_Noise',        [0 0; 0 0; 0 0],                    @isnumeric);
+            addParameter(obj.p, 'ROI_Signal',       [],                                 @isnumeric);
+            addParameter(obj.p, 'ROI_Noise',        [],                                 @isnumeric);
             addParameter(obj.p, 'SaveImage',        '',                                 @ischar);
             addParameter(obj.p, 'SaveVideo',        '',                                 @ischar);
             addParameter(obj.p, 'LoopDimension',    3,                                  @(x) isnumeric(x) && x <= obj.nDims && obj.nDims >= 3);
@@ -126,7 +126,7 @@ classdef DrawSingle < Draw
             obj.resize              = obj.p.Results.Resize;  
             obj.contrast            = obj.p.Results.Contrast;
             obj.overlay             = obj.p.Results.Overlay;
-            
+                        
             obj.prepareGUIElements()
             
             obj.prepareColors()
@@ -164,6 +164,13 @@ classdef DrawSingle < Draw
             
             obj.guiResize()
             set(obj.f, 'Visible', 'on');
+            
+            if ~contains('ROI_Signal', obj.p.UsingDefaults)
+                obj.createROI(1, obj.p.Results.ROI_Signal)
+            end
+            if ~contains('ROI_Noise', obj.p.UsingDefaults)
+                obj.createROI(2, obj.p.Results.ROI_Noise)
+            end
             
             % do not assign to 'ans' when called without assigned variable
             if nargout == 0
