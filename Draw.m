@@ -346,7 +346,7 @@ classdef (Abstract) Draw < handle
                 obj.width(idh)  = double(obj.p.Results.CW(idh, 2));
                 set(obj.hEditC(idh), 'String', num2sci(obj.center(idh), 'padding', 'right'));
                 set(obj.hEditW(idh), 'String', num2sci(obj.width(idh),  'padding', 'right'));
-                obj.widthMin(idh) = obj.widthMin(1);
+                obj.widthMin(idh) = obj.widthMin(idh);
                 % apply the initial colormaps to the popdown menus
                 obj.setCmap(obj.hPopCm(idh))
             end
