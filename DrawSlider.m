@@ -79,12 +79,7 @@ classdef DrawSlider < Draw
             addParameter(obj.p, 'InitSlice',    round(obj.S(1:3)/2),  @isnumeric);
             addParameter(obj.p, 'Crosshair',    1,                    @isnumeric);
 
-            
-            if obj.nImages == 1
-                parse(obj.p, varargin{:});
-            else
-                parse(obj.p, varargin{2:end});
-            end
+            parse(obj.p, obj.varargin{:});
             
             obj.cmap{1}             = obj.p.Results.Colormap;
             obj.complexMode         = obj.p.Results.ComplexMode;
@@ -730,7 +725,7 @@ classdef DrawSlider < Draw
         end
         
         
-        function closeRqst(obj, varargin)
+        function closeRqst(obj, ~, ~)
             % closeRqst is called, when the user closes the figure (by 'x' or
             % 'close'). It stops and deletes the timer, frees up memory taken
             % by img and closes the figure.
@@ -764,7 +759,7 @@ classdef DrawSlider < Draw
         end
         
         
-        function guiResize(obj, varargin)
+        function guiResize(obj, ~, ~)
             obj.setPanelPos()
             obj.genControlPanelGrid()
             

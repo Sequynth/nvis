@@ -41,6 +41,7 @@ classdef (Abstract) Draw < handle
         S               % size of the image(s)
         p               % input parser
         standardTitle   % name of the figure, default depends on inputnames
+        varargin        % member variable varargin
                 
         % DISPLAYING
         % link sliders to image dimensions
@@ -179,23 +180,20 @@ classdef (Abstract) Draw < handle
     methods
         function obj = Draw(in, varargin)
             % CONSTRUCTOR
+            obj.varargin = varargin;
             
-            obj.img{1}      = in;
-            obj.S           = size(in);
-            obj.nDims       = ndims(in);            
+            % check varargin for a sencond input matrix
+            obj.inputCheck(in)
+            
+            % The slider for which dimension is initially active?
             obj.activeDim   = 1;
-            obj.isComplex   = ~isreal(in);
+            
             % necessary for view orientation, already needed when saving image or video
             obj.azimuthAng  = 0;
             
             % set the default value for max Number of letters is locVal
             % section
             obj.maxLetters = 6;
-                        
-            
-            % check varargin for a sencond input matrix
-            obj.secondImageCheck(varargin{:})
-            
             
             % prepare roi parameters
             obj.rois         = {[], []};
@@ -276,17 +274,40 @@ classdef (Abstract) Draw < handle
         end
         
         
-        function secondImageCheck(obj, varargin)
-            % check varargin to see if a second matrix was provided
-            if ~isempty(varargin) && ( isnumeric(varargin{1}) || islogical(varargin{1}) )
-                obj.nImages = 2;
-                obj.img{2}  = varargin{1};
-                obj.layerShown   = [1, 1];
-                obj.isComplex(2) = ~isreal(obj.img{2});
+        function inputCheck(obj, in)
+            
+            if ~isempty(obj.varargin) && ( isnumeric(obj.varargin{1}) || islogical(obj.varargin{1}) )
+                % two input matrices
+                obj.img{1}      = in;
+                obj.img{2}      = obj.varargin{1};
+                obj.varargin(1) = [];
+                isEmpt          = cellfun(@isempty, obj.img);
+                if ~sum( isEmpt )
+                    % neither is empty
+                    obj.nImages     = 2;
+                    obj.isComplex   = ~cellfun(@isreal, obj.img);
+                    obj.layerShown  = [1, 1];
+                elseif sum(isEmpt) == 1
+                    % one input matrix is empty
+                    warning('Input %d is empty! Only non-empty iputs are shown', find(isEmpt))
+                    obj.nImages     = 1;
+                    obj.isComplex   = ~cellfun(@isreal, obj.img);
+                    obj.img(isEmpt) = [];
+                    % for nImages=1, the second cell must be explicitly
+                    % empty
+                    obj.img{2} = [];
+                else
+                    error('Both input matrices are empty')                    
+                end
             else
-                obj.nImages = 1;
-                obj.img{2}  = [];
+                % one input matrix
+                obj.img{1}       = in;
+                obj.img{2}       = [];
+                obj.nImages      = 1;                
+                obj.isComplex    = ~isreal(obj.img{1});
             end
+            obj.S           = size(obj.img{1});
+            obj.nDims       = ndims(obj.img{1}); 
         end
         
         
@@ -337,7 +358,7 @@ classdef (Abstract) Draw < handle
             if obj.nImages == 2
                 set(obj.hPopCm(2), 'String', obj.cmapStrings)
             end
-            
+        
             obj.widthMin = obj.p.Results.widthMin;
             for idh = 1:obj.nImages
                 obj.center(idh)	= double(obj.p.Results.CW(idh, 1));
@@ -947,7 +968,7 @@ classdef (Abstract) Draw < handle
         end
         
         
-        function stopDragFcn(obj, varargin)
+        function stopDragFcn(obj, ~, ~)
             % on realease of middle mouse button, stop tracking mouse movement
             set(obj.f, 'WindowButtonMotionFcn', { @obj.mouseMovement});  %reattach mouse movement function
         end

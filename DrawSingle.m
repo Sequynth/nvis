@@ -104,12 +104,8 @@ classdef DrawSingle < Draw
             addParameter(obj.p, 'DimensionLabel',   strcat(repmat({'Dim'}, 1, numel(obj.S)), ...
                                                     cellfun(@num2str, num2cell(1:obj.nDims), 'UniformOutput', false)), ...
                                                                                         @(x) iscell(x) && numel(x) == obj.nDims);
-                                                                                    
-            if obj.nImages == 1
-                parse(obj.p, varargin{:});
-            else
-                parse(obj.p, varargin{2:end});
-            end
+                    
+            parse(obj.p, obj.varargin{:});
             
             if contains('dimensionLabel', obj.p.UsingDefaults)
                 for ff = 1:obj.nDims
@@ -1056,7 +1052,7 @@ classdef DrawSingle < Draw
         end
         
         
-        function closeRqst(obj, varargin)
+        function closeRqst(obj, ~, ~)
             % closeRqst is called, when the user closes the figure (by 'x' or
             % 'close'). It stops and deletes the timer, frees up memory taken
             % by img and closes the figure.
@@ -1151,7 +1147,7 @@ classdef DrawSingle < Draw
         end
         
         
-        function guiResize(obj, varargin)
+        function guiResize(obj, ~, ~)
             obj.figurePos = get(obj.f, 'Position');
             
             if obj.figurePos(3) < obj.controlWidth
