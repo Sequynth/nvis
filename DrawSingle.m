@@ -49,7 +49,7 @@ classdef DrawSingle < Draw
     properties (Constant, Access = private)
         % UI PROPERTIES
         % default figure position and size
-        defaultPosition = [ 300, 200, 1000, 800];
+        defaultPosition = [ 300, 50, 800, 700];
         % absolute width of Control panel in pixel
         controlWidth  = 300; % px        
         sliderHeight  = 20;  % px 
@@ -1260,14 +1260,12 @@ classdef DrawSingle < Draw
             set(obj.hBtnFFT, 'Position', obj.positionN(n, 1));
             
             n = n + 1;
-            position = obj.positionN(n, 2);
+            position = obj.positionN(n, 4);
             set(obj.hBtnCmplx(1), 'Position', position(1, :))
             set(obj.hBtnCmplx(2), 'Position', position(2, :))
-            n = n+1;
-            position = obj.positionN(n, 2);
-            set(obj.hBtnCmplx(3), 'Position', position(1, :))
-            set(obj.hBtnCmplx(4), 'Position', position(2, :))
-            
+            set(obj.hBtnCmplx(3), 'Position', position(3, :))
+            set(obj.hBtnCmplx(4), 'Position', position(4, :))
+                       
             n = n + 2;
             position = obj.positionN(n, 3);
             set(obj.hBtnRun,    'Position', position(1, :))
