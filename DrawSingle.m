@@ -5,7 +5,7 @@ classdef DrawSingle < Draw
 	% 	the remaining, non-singleton dimensions. The windowing of the
 	% 	colormaps can be dynamically changed by pressing the middle mouse
 	% 	button on the image and moving the mouse up/down (center) or
-	% 	left/right(width). ROIs can be drawn and to measure Signal to Noise
+	% 	left/right(width). ROIs can be drawn to measure Signal to Noise
 	% 	ratio in image data.
 	%
 	% 	DRAWSINGLE(I1, I2): Data from the equally sized matrices I1 and I2
@@ -26,7 +26,7 @@ classdef DrawSingle < Draw
 	%  	/ -> both are decreased/increased by 1, wrapping where necessary.
 	%   'Run' starts a timer which loops through the image dimension
 	%   selected by the radio button. 'SaveImage' save the currently
-	%   visible image to file 'SaveVideo' saves the running animation as a
+	%   visible image to file, 'SaveVideo' saves the running animation as a
 	%   video file (.avi or .gif)
 	%
 	%	Name-Value-Pairs
@@ -58,7 +58,7 @@ classdef DrawSingle < Draw
 	%                               imaginary part).
 	% 	'AspectRatio'   'image'     the displayed axes have the same aspect
 	%                               ratio as the input matrix for that
-	%                               slice.
+	%                               slice, i.e. pixels will be squares.
 	% 					'square' 	The displayed axes always have a square
 	%                               shape.
 	% 	'Resize' 		double      uses 'imresize' to resize the currently
@@ -109,6 +109,7 @@ classdef DrawSingle < Draw
 	% - test what happens for 'SaveVideo' but no 'FPS' given
 	% - test what happens when 'SaveImage' and 'SaveVideo' are given simultaneously
     % - make 'SaveVideo' button only active, when timer is running
+    % - fix: 'Unit' doesnt work with char
 	
     properties (Access = private)
         t           % interrupt timer

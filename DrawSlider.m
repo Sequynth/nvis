@@ -1,6 +1,95 @@
 classdef DrawSlider < Draw
+    %DrawSlider visualizes 2D slices from higherdimensional data
+	% 	DRAWSLIDER(I) opens a UI that displays three orthogonal 2D slices
+	% 	from the input matrix I with N dimensions (N>3). Sliders allow to
+	% 	navigate thorugh the first 3 dimensions. From left to right, the
+	% 	axes show a slice perpendicular to the first, second and third
+	% 	dimension. The windowing of the colormaps can be dynamically
+	% 	changed by pressing the middle mouse button on any image and moving
+	% 	the mouse up/down (center) or left/right(width). ROIs can be drawn
+	% 	to measure Signal to Noise ratio in image data.
+	%
+	% 	DRAWSLIDER(I1, I2): Data from the equally sized matrices I1 and I2
+	% 	are overlaid by adding the RGB values attributed by the individual
+	% 	colormaps. The windowing for the second image can be adjusted by
+	% 	using the left mouse button.
+	%
+	%	Usage
+	%
+	%   Values in the lower right show the array indices of the datapoint
+	%   under the cursor as well as the matrix-values at that location. In
+	%   case of complex data, the value is shown in the current complex
+	%   mode.
+	% 	Colorbar button in the matlab figure-toolbar can be used to show
+	% 	adapting colorbars. 'SaveImage' saves the currently
+	%   visible images to file. 'Guides' switches on and off guidlines that
+	%   show the position of the slices in the other axes.
+	%
+	%	Name-Value-Pairs
+	%	
+	% 	Name------------Value-------Descripton-----------------------------
+    %
+	% 	'CW'            1x2 double  Initial values for center and width.
+	%                               For two input matrices, Value must be
+	%                               2x2 matrix, or values are applied to
+	%                               both.
+    %   'Colormap'      Nx3 | char	initial colormaps for the image. The
+    %                               user can either supply a custom
+    %                               colormap or chose from the available
+    %                               colormaps. Default is gray(256). For
+    %                               two input matrices, value must be 1x2
+    %                               cell array. Default is {'green',
+    %                               'magenta'}. More colormaps are
+    %                               available if 'colorcet.m' is found on
+    %                               the MATLAB path (Peter Kovesi,
+    %                               https://peterkovesi.com/projects/colourmaps/)
+	%   'Contrast'      char        redundant NVP, will be removed in
+	%                               future versions.
+	%	'Overlay' 		int 		inital overlay mode for two input
+	%                               matrices (1: add (default), 2:
+	%                               multiply)
+	%	'ComplexMode'   int 		For complex data, chooses the initially
+	%                               displayed complex part (1: magnitude
+	%                               (default), 2: phase, 3: real part, 4:
+	%                               imaginary part).
+	% 	'AspectRatio'   'image'     the displayed axes have the same aspect
+	%                               ratio as the input matrix for that
+	%                               slice, i.e. pixels will be squares.
+	% 					'square' 	The displayed axes always have a square
+	%                               shape.
+	% 	'Resize' 		double      uses 'imresize' to resize the currently
+	%                               displayed slice by the given value.
+	%   'Title' 		char 	    title of the figure window
+	%	'Position',     1x4 int 	Position of the figure in pixel    
+	%   'Unit'          char        physical unit of the provided image
+	%                               data. For two input matrices, value
+	%                               must be 1x2 cell array, or both are
+	%                               assigned the same unit
+	%	'InitSlice',    1x3         set the slices that are shown when the
+	%                               figure is opened.
+	%	'DimLabel',     cell{char}  char arrays to label the individual
+	%                               dimensions in the input data, if
+	%                               provided, must be provided for all
+	%                               dimensions.
+	%	'ROI_Signal',   Nx2 		vertices polygon that defines a ROI in
+	%                               the initial slice.
+	%	'ROI_Noise',    Nx2 		vertices polygon that defines a ROI in
+	%                               the initial slice.
+	%	'SaveImage',    filename    When provided, the three initial slices
+	%                               are prepared according to the other
+	%                               inputs, but no figure is shown. The
+	%                               three slices are concatenated and saved
+	%                               to file under filename.
+
     
-    % TODO: make axLabels a NVP
+    % TODO:
+    % - make axLabels a NVP
+    % - fix complex data display (Buttons)
+    % - fix: 'Unit' doesnt work with char
+    % - implement DimLabel as in DrawSingle
+    % - implement ROI_Signal nvp
+    % - implement ROI_Noise nvp
+    % - implement SaveImage nvp
     
     properties (Access = private)
         % DISPLAYING
