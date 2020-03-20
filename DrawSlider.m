@@ -84,8 +84,6 @@ classdef DrawSlider < Draw
     
     % TODO:
     % - make axLabels a NVP
-    % - fix complex data display (Buttons)
-    % - fix: 'Unit' doesnt work with char
     % - implement DimLabel as in DrawSingle
     % - implement ROI_Signal nvp
     % - implement ROI_Noise nvp
@@ -181,6 +179,7 @@ classdef DrawSlider < Draw
             obj.cr                  = obj.p.Results.Crosshair;
             obj.contrast            = obj.p.Results.Contrast;
             obj.overlay             = obj.p.Results.Overlay;
+            obj.unit                = obj.p.Results.Unit;
             
             obj.prepareGUIElements()
             
@@ -468,6 +467,42 @@ classdef DrawSlider < Draw
                 'ForegroundColor',      obj.COLOR_F, ...
                 'Callback',             {@obj.toggleGuides});
             
+            set(obj.hBtnCmplx(1), ...
+                'Parent',               obj.pControls, ...
+                'Units',                'pixel',...
+                'Value',                1, ...
+                'FontUnits',            'normalized', ...
+                'FontSize',             0.45);
+            
+            set(obj.hBtnCmplx(2), ...
+                'Parent',               obj.pControls, ...
+                'Units',                'pixel',...
+                'Value',                0, ...
+                'FontUnits',            'normalized', ...
+                'FontSize',             0.45);
+            
+            set(obj.hBtnCmplx(3), ...
+                'Parent',               obj.pControls, ...
+                'Units',                'pixel',...
+                'Value',                0, ...
+                'FontUnits',            'normalized', ...
+                'FontSize',             0.45);
+            
+            set(obj.hBtnCmplx(4), ...
+                'Parent',               obj.pControls, ...
+                'Units',                'pixel',...
+                'Value',                0, ...
+                'FontUnits',            'normalized', ...
+                'FontSize',             0.45);
+            
+            if any(obj.isComplex)% && isempty(obj.img{2})
+                set(obj.hBtnCmplx, 'Visible', 'on');
+            else
+                % when hBtnCmplx are hidden, complexMode must be 3
+                obj.complexMode = 3;
+                set(obj.hBtnCmplx, 'Visible', 'off');
+            end
+            
             obj.locAndVals = annotation(obj.pControls, 'textbox', ...
                 'LineStyle',            'none', ...
                 'Units',                'pixel', ...
@@ -541,11 +576,11 @@ classdef DrawSlider < Draw
         
         
         function genControlPanelGrid(obj)
-            if obj.nImages == 1
-                obj.gridSize = [3 8];
-            else
+%             if obj.nImages == 1
+%                 obj.gridSize = [3 8];
+%             else
                 obj.gridSize = [4 8];
-            end
+%             end
             pos = get(obj.pControls, 'Position');
             
             xPadding = 3;
@@ -749,6 +784,15 @@ classdef DrawSlider < Draw
         function setLocValFunction(obj)
             % sets the function for the locAndVal string depending on the
             % amount of input images
+            
+            % check 'Units' input
+            if ~contains('Unit', obj.p.UsingDefaults)
+                if ischar(obj.unit)
+                    % make it a cell array
+                    obj.unit = {obj.unit, obj.unit};
+                end
+            end
+            
             if obj.nImages == 1
                 obj.locValString = @(dim1L, dim1, dim2L, dim2, dim3L, dim3, val) sprintf('\\color[rgb]{%.2f,%.2f,%.2f}%s:%4d\n%s:%4d\n%s:%4d\n%s:%s', ...
                     obj.COLOR_F, ...
@@ -759,7 +803,7 @@ classdef DrawSlider < Draw
                     dim3L, ...
                     dim3, ...
                     obj.valNames{1}, ...
-                    [num2sci(val) ' ' obj.p.Results.Unit{1}]);
+                    [num2sci(val) ' ' obj.unit{1}]);
             else
                 obj.locValString = @(dim1L, dim1, dim2L, dim2, dim3L, dim3, val1, val2) sprintf('\\color[rgb]{%.2f,%.2f,%.2f}%s:%4d\n%s:%4d\n%s:%4d\n\\color[rgb]{%.2f,%.2f,%.2f}%s:%s\n\\color[rgb]{%.2f,%.2f,%.2f}%s:%s', ...
                     obj.COLOR_F, ...
@@ -771,10 +815,10 @@ classdef DrawSlider < Draw
                     dim3, ...
                     obj.COLOR_m(1, :), ...
                     obj.valNames{1}, ...
-                    [num2sci(val1) obj.p.Results.Unit{1}], ...
+                    [num2sci(val1) obj.unit{1}], ...
                     obj.COLOR_m(2, :), ...
                     obj.valNames{2}, ...
-                    [num2sci(val2) obj.p.Results.Unit{2}]);
+                    [num2sci(val2) obj.unit{2}]);
             end
         end
         
@@ -892,11 +936,19 @@ classdef DrawSlider < Draw
             
             set(obj.hBtnGuides, 'Position', obj.controlPanelPos(1, 4+obj.nImages+1, :));
             
+            set(obj.hBtnCmplx(1), 'Position', obj.controlPanelPos(1, 4+obj.nImages+2, :));
+            set(obj.hBtnCmplx(2), 'Position', obj.controlPanelPos(2, 4+obj.nImages+2, :));
+            set(obj.hBtnCmplx(3), 'Position', obj.controlPanelPos(3, 4+obj.nImages+2, :));
+            set(obj.hBtnCmplx(4), 'Position', obj.controlPanelPos(4, 4+obj.nImages+2, :));
+            
             lavWidth = 250; % px
             set(obj.locAndVals, ...
                 'Position', [obj.panelPos(8, 3)-lavWidth 0 lavWidth obj.panelPos(8, 4)]);
             
         end
+        
+        
+%         function vertPos(obj, N)
     end
 end
     

@@ -71,17 +71,17 @@ classdef DrawSingle < Draw
 	%                               assigned the same unit
 	%	'InitSlice',    1xN-2       set the slice that is shown when the
 	%                               figure is opened.
-	%	'InitialRot',   int   	    initial rotation angle of the displayed
+	%	'InitRot',      int         initial rotation angle of the displayed
 	%                               image
 	%	'DimLabel',     cell{char}  char arrays to label the individual
 	%                               dimensions in the input data, if
 	%                               provided, must be provided for all
 	%                               dimensions.
-	%	'FPS',          double      defines how many times per second the
+	%	'fps',          double      defines how many times per second the
 	%                               slider value provided by 'LoopDim' is
 	%                               increased.
 	%	'LoopDim',      int     	Dimension, along which the slider is
-	%                               incremented 'FPS' times per second
+	%                               incremented 'fps' times per second
 	%	'ROI_Signal',   Nx2 		vertices polygon that defines a ROI in
 	%                               the initial slice.
 	%	'ROI_Noise',    Nx2 		vertices polygon that defines a ROI in
@@ -93,7 +93,7 @@ classdef DrawSingle < Draw
 	%                               under filename.
 	%	'SaveVideo',    filename    When provided, the image data is
 	%                               prepared according to the other inputs,
-	%                               but no figure is shown. 'FPS' gives the
+	%                               but no figure is shown. 'fps' gives the
 	%                               framerate for the video that is saved
 	%                               under filename. Only '.avi' and '.gif'
 	%                               supported so far. 'LoopDim' can be used
@@ -104,12 +104,7 @@ classdef DrawSingle < Draw
 	
     % TODO:
     % - RadioGroup Buttons for animated sliders
-	% - check what happens for arbitrary InitialRot angle inputs
-    % - test InitialSlice input
-	% - test what happens for 'SaveVideo' but no 'FPS' given
-	% - test what happens when 'SaveImage' and 'SaveVideo' are given simultaneously
     % - make 'SaveVideo' button only active, when timer is running
-    % - fix: 'Unit' doesnt work with char
 	
     properties (Access = private)
         t           % interrupt timer
@@ -198,10 +193,10 @@ classdef DrawSingle < Draw
             obj.prepareParser()
             
             % additional parameters
-            addParameter(obj.p, 'InitialRot',       0,                                  @(x) isnumeric(x));
+            addParameter(obj.p, 'InitRot',          0,                                  @(x) isnumeric(x));
             addParameter(obj.p, 'Position',         obj.defaultPosition,                @(x) isnumeric(x) && numel(x) == 4);
             addParameter(obj.p, 'InitSlice',        round(obj.S(obj.mapSliderToDim)/2), @isnumeric);
-            addParameter(obj.p, 'FPS',              0,                                  @isnumeric);
+            addParameter(obj.p, 'fps',              0,                                  @isnumeric);
             addParameter(obj.p, 'ROI_Signal',       [0 0; 0 0; 0 0],                    @isnumeric);
             addParameter(obj.p, 'ROI_Noise',        [0 0; 0 0; 0 0],                    @isnumeric);
             addParameter(obj.p, 'SaveImage',        '',                                 @ischar);
@@ -227,11 +222,12 @@ classdef DrawSingle < Draw
             
             
             obj.cmap{1}             = obj.p.Results.Colormap;
-            obj.fps                 = obj.p.Results.FPS;
+            obj.fps                 = obj.p.Results.fps;
             obj.complexMode         = obj.p.Results.ComplexMode;
             obj.resize              = obj.p.Results.Resize;  
             obj.contrast            = obj.p.Results.Contrast;
             obj.overlay             = obj.p.Results.Overlay;
+            obj.unit                = obj.p.Results.Unit;
             
             obj.prepareGUIElements()
             
@@ -243,19 +239,27 @@ classdef DrawSingle < Draw
             
             obj.interruptedSlider = 1;
             % necessary for view orientation, already needed when saving image or video
-            obj.azimuthAng   = obj.p.Results.InitialRot;
+            obj.azimuthAng   = obj.p.Results.InitRot;
                         
             % when an image or a video is saved, dont create the GUI and
             % terminate the class after finishing
             if ~contains('SaveImage', obj.p.UsingDefaults)
                 obj.saveImage(obj.p.Results.SaveImage);
-                clear obj
-                return
-            end            
+                if contains('SaveVideo', obj.p.UsingDefaults)
+                    % the user does not want a video to be saved at the
+                    % same time so close the figure and delete the object.
+                    clear obj
+                    return
+                end                
+            end
             if ~contains('SaveVideo', obj.p.UsingDefaults)
-                obj.saveVideo(obj.p.Results.SaveVideo);
-                clear obj
-                return
+                if obj.fps == 0
+                    error('Can''t write video file with 0 fps!')
+                else
+                    obj.saveVideo(obj.p.Results.SaveVideo);
+                    clear obj
+                    return
+                end
             end
             
             % overwrite the default value fot maxLetters in locVal section
@@ -758,8 +762,8 @@ classdef DrawSingle < Draw
             
             obj.initializeAxis(true)
             
-            if ~sum(ismember(obj.p.UsingDefaults, 'FPS')) && length(obj.S) > 2
-                obj.fps = obj.p.Results.FPS;
+            if ~sum(ismember(obj.p.UsingDefaults, 'fps')) && length(obj.S) > 2
+                obj.fps = obj.p.Results.fps;
                 set(obj.hBtnRun, 'String', 'Stop')
                 obj.setAndStartTimer
             end
@@ -900,6 +904,14 @@ classdef DrawSingle < Draw
         
         
         function setLocValFunction(obj)
+            % check 'Units' input
+            if ~contains('Unit', obj.p.UsingDefaults)
+                if ischar(obj.unit)
+                    % make it a cell array
+                    obj.unit = {obj.unit, obj.unit};
+                end
+            end
+            
             if obj.nImages == 1
                 obj.locValString = @(dim1L, dim1, dim2L, dim2, val) sprintf('\\color[rgb]{%.2f,%.2f,%.2f}%s:%4d\n%s:%4d\n%s:%s', ...
                     obj.COLOR_F, ...
@@ -908,7 +920,7 @@ classdef DrawSingle < Draw
                     dim2L, ...
                     dim2, ...
                     obj.valNames{1}, ...
-                    [num2sci(val) ' ' obj.p.Results.Unit{1}]);
+                    [num2sci(val) ' ' obj.unit{1}]);
             else
                 obj.locValString = @(dim1L, dim1, dim2L, dim2, val1, val2) sprintf('\\color[rgb]{%.2f,%.2f,%.2f}%s:%4d\n%s:%4d\n\\color[rgb]{%.2f,%.2f,%.2f}%s:%s\n\\color[rgb]{%.2f,%.2f,%.2f}%s:%s', ...
                     obj.COLOR_F, ...
@@ -918,10 +930,10 @@ classdef DrawSingle < Draw
                     dim2, ...
                     obj.COLOR_m(1, :), ...
                     obj.valNames{1}, ...
-                    [num2sci(val1) obj.p.Results.Unit{1}], ...
+                    [num2sci(val1) obj.unit{1}], ...
                     obj.COLOR_m(2, :), ...
                     obj.valNames{2}, ...
-                    [num2sci(val2) obj.p.Results.Unit{2}]);
+                    [num2sci(val2) obj.unit{2}]);
             end
         end
         
@@ -1070,7 +1082,7 @@ classdef DrawSingle < Draw
             
             obj.prepareSliceData;       
             % apply the current azimuthal rotation to the image and save
-            imwrite(rot90(obj.sliceMixer(1), -obj.azimuthAng/90), path);
+            imwrite(rot90(obj.sliceMixer(1), -round(obj.azimuthAng/90)), path);
         end
         
         
@@ -1120,7 +1132,7 @@ classdef DrawSingle < Draw
                 for ii = 1: obj.S(obj.interruptedSlider+2)
                     obj.sel{obj.interruptedSlider+2} = ii;
                     obj.prepareSliceData
-                    imgOut = rot90(obj.sliceMixer(1), -obj.azimuthAng/90);
+                    imgOut = rot90(obj.sliceMixer(1), -round(obj.azimuthAng/90));
                     
                     if gif
                         [gifImg, cm] = rgb2ind(imgOut, 256);
@@ -1349,8 +1361,8 @@ classdef DrawSingle < Draw
             
             n = n + 1;
             position = obj.positionN(n, 2);
-            set(obj.hBtnDelRois,  'Position', position(1, :));
-            set(obj.hBtnSaveRois, 'Position', position(2, :)); 
+            set(obj.hBtnSaveRois,  'Position', position(1, :));
+            set(obj.hBtnDelRois, 'Position', position(2, :)); 
             
             n = n + 1;
             position = obj.positionN(n, 4);
@@ -1359,19 +1371,19 @@ classdef DrawSingle < Draw
             set(obj.hBtnRotR,   'Position', position(3, :));
             set(obj.hBtnShiftR, 'Position', position(4, :));
             
-            n = n + 2;
+            n = n + 1.5;
             set(obj.hBtnFFT, 'Position', obj.positionN(n, 1));
             
             n = n + 1;
             position = obj.positionN(n, 2);
             set(obj.hBtnCmplx(1), 'Position', position(1, :))
             set(obj.hBtnCmplx(2), 'Position', position(2, :))
-            n = n+1;
+            n = n + 1;
             position = obj.positionN(n, 2);
             set(obj.hBtnCmplx(3), 'Position', position(1, :))
             set(obj.hBtnCmplx(4), 'Position', position(2, :))
             
-            n = n + 2;
+            n = n + 1.5;
             position = obj.positionN(n, 3);
             set(obj.hBtnRun,    'Position', position(1, :))
             set(obj.hEditF,     'Position', position(2, :))

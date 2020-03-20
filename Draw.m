@@ -153,6 +153,9 @@ classdef (Abstract) Draw < handle
         inputNames
         valNames
         
+        % units of the input data
+        unit
+        
         % array with ROIs
         rois
         
@@ -325,7 +328,7 @@ classdef (Abstract) Draw < handle
                                                 (obj.Max(2) - obj.Min(2))/2+obj.Min(2), ...
                                                 obj.Max(2)-obj.Min(2)],         @isnumeric);            
             addParameter(obj.p, 'widthMin',     single(0.001*(obj.Max-obj.Min)),@isnumeric);
-            addParameter(obj.p, 'Unit',         {[], []},                       @(x) iscell(x) && numel(x) <= 2);
+            addParameter(obj.p, 'Unit',         {[], []},                       @(x) (iscell(x) && numel(x) <= 2) | ischar(x));
         end
         
         
