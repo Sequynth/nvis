@@ -1,6 +1,93 @@
 classdef DrawSlider < Draw
+    %DrawSlider visualizes 2D slices from higherdimensional data
+	% 	DRAWSLIDER(I) opens a UI that displays three orthogonal 2D slices
+	% 	from the input matrix I with N dimensions (N>3). Sliders allow to
+	% 	navigate thorugh the first 3 dimensions. From left to right, the
+	% 	axes show a slice perpendicular to the first, second and third
+	% 	dimension. The windowing of the colormaps can be dynamically
+	% 	changed by pressing the middle mouse button on any image and moving
+	% 	the mouse up/down (center) or left/right(width). ROIs can be drawn
+	% 	to measure Signal to Noise ratio in image data.
+	%
+	% 	DRAWSLIDER(I1, I2): Data from the equally sized matrices I1 and I2
+	% 	are overlaid by adding the RGB values attributed by the individual
+	% 	colormaps. The windowing for the second image can be adjusted by
+	% 	using the left mouse button.
+	%
+	%	Usage
+	%
+	%   Values in the lower right show the array indices of the datapoint
+	%   under the cursor as well as the matrix-values at that location. In
+	%   case of complex data, the value is shown in the current complex
+	%   mode.
+	% 	Colorbar button in the matlab figure-toolbar can be used to show
+	% 	adapting colorbars. 'SaveImage' saves the currently
+	%   visible images to file. 'Guides' switches on and off guidlines that
+	%   show the position of the slices in the other axes.
+	%
+	%	Name-Value-Pairs
+	%	
+	% 	Name------------Value-------Descripton-----------------------------
+    %
+	% 	'CW'            1x2 double  Initial values for center and width.
+	%                               For two input matrices, Value must be
+	%                               2x2 matrix, or values are applied to
+	%                               both.
+    %   'Colormap'      Nx3 | char	initial colormaps for the image. The
+    %                               user can either supply a custom
+    %                               colormap or chose from the available
+    %                               colormaps. Default is gray(256). For
+    %                               two input matrices, value must be 1x2
+    %                               cell array. Default is {'green',
+    %                               'magenta'}. More colormaps are
+    %                               available if 'colorcet.m' is found on
+    %                               the MATLAB path (Peter Kovesi,
+    %                               https://peterkovesi.com/projects/colourmaps/)
+	%   'Contrast'      char        redundant NVP, will be removed in
+	%                               future versions.
+	%	'Overlay' 		int 		inital overlay mode for two input
+	%                               matrices (1: add (default), 2:
+	%                               multiply)
+	%	'ComplexMode'   int 		For complex data, chooses the initially
+	%                               displayed complex part (1: magnitude
+	%                               (default), 2: phase, 3: real part, 4:
+	%                               imaginary part).
+	% 	'AspectRatio'   'image'     the displayed axes have the same aspect
+	%                               ratio as the input matrix for that
+	%                               slice, i.e. pixels will be squares.
+	% 					'square' 	The displayed axes always have a square
+	%                               shape.
+	% 	'Resize' 		double      uses 'imresize' to resize the currently
+	%                               displayed slice by the given value.
+	%   'Title' 		char 	    title of the figure window
+	%	'Position',     1x4 int 	Position of the figure in pixel    
+	%   'Unit'          char        physical unit of the provided image
+	%                               data. For two input matrices, value
+	%                               must be 1x2 cell array, or both are
+	%                               assigned the same unit
+	%	'InitSlice',    1x3         set the slices that are shown when the
+	%                               figure is opened.
+	%	'DimLabel',     cell{char}  char arrays to label the individual
+	%                               dimensions in the input data, if
+	%                               provided, must be provided for all
+	%                               dimensions.
+	%	'ROI_Signal',   Nx2 		vertices polygon that defines a ROI in
+	%                               the initial slice.
+	%	'ROI_Noise',    Nx2 		vertices polygon that defines a ROI in
+	%                               the initial slice.
+	%	'SaveImage',    filename    When provided, the three initial slices
+	%                               are prepared according to the other
+	%                               inputs, but no figure is shown. The
+	%                               three slices are concatenated and saved
+	%                               to file under filename.
+
     
-    % TODO: make axLabels a NVP
+    % TODO:
+    % - make axLabels a NVP
+    % - implement DimLabel as in DrawSingle
+    % - implement ROI_Signal nvp
+    % - implement ROI_Noise nvp
+    % - implement SaveImage nvp
     
     properties (Access = private)
         % DISPLAYING
@@ -87,6 +174,7 @@ classdef DrawSlider < Draw
             obj.cr                  = obj.p.Results.Crosshair;
             obj.contrast            = obj.p.Results.Contrast;
             obj.overlay             = obj.p.Results.Overlay;
+            obj.unit                = obj.p.Results.Unit;
             
             obj.prepareGUIElements()
             
@@ -374,6 +462,42 @@ classdef DrawSlider < Draw
                 'ForegroundColor',      obj.COLOR_F, ...
                 'Callback',             {@obj.toggleGuides});
             
+            set(obj.hBtnCmplx(1), ...
+                'Parent',               obj.pControls, ...
+                'Units',                'pixel',...
+                'Value',                1, ...
+                'FontUnits',            'normalized', ...
+                'FontSize',             0.45);
+            
+            set(obj.hBtnCmplx(2), ...
+                'Parent',               obj.pControls, ...
+                'Units',                'pixel',...
+                'Value',                0, ...
+                'FontUnits',            'normalized', ...
+                'FontSize',             0.45);
+            
+            set(obj.hBtnCmplx(3), ...
+                'Parent',               obj.pControls, ...
+                'Units',                'pixel',...
+                'Value',                0, ...
+                'FontUnits',            'normalized', ...
+                'FontSize',             0.45);
+            
+            set(obj.hBtnCmplx(4), ...
+                'Parent',               obj.pControls, ...
+                'Units',                'pixel',...
+                'Value',                0, ...
+                'FontUnits',            'normalized', ...
+                'FontSize',             0.45);
+            
+            if any(obj.isComplex)% && isempty(obj.img{2})
+                set(obj.hBtnCmplx, 'Visible', 'on');
+            else
+                % when hBtnCmplx are hidden, complexMode must be 3
+                obj.complexMode = 3;
+                set(obj.hBtnCmplx, 'Visible', 'off');
+            end
+            
             obj.locAndVals = annotation(obj.pControls, 'textbox', ...
                 'LineStyle',            'none', ...
                 'Units',                'pixel', ...
@@ -447,11 +571,11 @@ classdef DrawSlider < Draw
         
         
         function genControlPanelGrid(obj)
-            if obj.nImages == 1
-                obj.gridSize = [3 8];
-            else
+%             if obj.nImages == 1
+%                 obj.gridSize = [3 8];
+%             else
                 obj.gridSize = [4 8];
-            end
+%             end
             pos = get(obj.pControls, 'Position');
             
             xPadding = 3;
@@ -655,6 +779,15 @@ classdef DrawSlider < Draw
         function setLocValFunction(obj)
             % sets the function for the locAndVal string depending on the
             % amount of input images
+            
+            % check 'Units' input
+            if ~contains('Unit', obj.p.UsingDefaults)
+                if ischar(obj.unit)
+                    % make it a cell array
+                    obj.unit = {obj.unit, obj.unit};
+                end
+            end
+            
             if obj.nImages == 1
                 obj.locValString = @(dim1L, dim1, dim2L, dim2, dim3L, dim3, val) sprintf('\\color[rgb]{%.2f,%.2f,%.2f}%s:%4d\n%s:%4d\n%s:%4d\n%s:%s', ...
                     obj.COLOR_F, ...
@@ -665,7 +798,7 @@ classdef DrawSlider < Draw
                     dim3L, ...
                     dim3, ...
                     obj.valNames{1}, ...
-                    [num2sci(val) ' ' obj.p.Results.Unit{1}]);
+                    [num2sci(val) ' ' obj.unit{1}]);
             else
                 obj.locValString = @(dim1L, dim1, dim2L, dim2, dim3L, dim3, val1, val2) sprintf('\\color[rgb]{%.2f,%.2f,%.2f}%s:%4d\n%s:%4d\n%s:%4d\n\\color[rgb]{%.2f,%.2f,%.2f}%s:%s\n\\color[rgb]{%.2f,%.2f,%.2f}%s:%s', ...
                     obj.COLOR_F, ...
@@ -677,10 +810,10 @@ classdef DrawSlider < Draw
                     dim3, ...
                     obj.COLOR_m(1, :), ...
                     obj.valNames{1}, ...
-                    [num2sci(val1) obj.p.Results.Unit{1}], ...
+                    [num2sci(val1) obj.unit{1}], ...
                     obj.COLOR_m(2, :), ...
                     obj.valNames{2}, ...
-                    [num2sci(val2) obj.p.Results.Unit{2}]);
+                    [num2sci(val2) obj.unit{2}]);
             end
         end
         
@@ -798,11 +931,19 @@ classdef DrawSlider < Draw
             
             set(obj.hBtnGuides, 'Position', obj.controlPanelPos(1, 4+obj.nImages+1, :));
             
+            set(obj.hBtnCmplx(1), 'Position', obj.controlPanelPos(1, 4+obj.nImages+2, :));
+            set(obj.hBtnCmplx(2), 'Position', obj.controlPanelPos(2, 4+obj.nImages+2, :));
+            set(obj.hBtnCmplx(3), 'Position', obj.controlPanelPos(3, 4+obj.nImages+2, :));
+            set(obj.hBtnCmplx(4), 'Position', obj.controlPanelPos(4, 4+obj.nImages+2, :));
+            
             lavWidth = 250; % px
             set(obj.locAndVals, ...
                 'Position', [obj.panelPos(8, 3)-lavWidth 0 lavWidth obj.panelPos(8, 4)]);
             
         end
+        
+        
+%         function vertPos(obj, N)
     end
 end
     

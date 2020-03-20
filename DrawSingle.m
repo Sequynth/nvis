@@ -1,10 +1,111 @@
 classdef DrawSingle < Draw
-    
+	%DrawSingle visualizes 2D slices from higherdimensional data
+	% 	DRAWSINGLE(I) opens a UI that displays one 2D slice from the input
+	% 	matrix I with N dimensions (N>2). Sliders allow to navigate thorugh
+	% 	the remaining, non-singleton dimensions. The windowing of the
+	% 	colormaps can be dynamically changed by pressing the middle mouse
+	% 	button on the image and moving the mouse up/down (center) or
+	% 	left/right(width). ROIs can be drawn to measure Signal to Noise
+	% 	ratio in image data.
+	%
+	% 	DRAWSINGLE(I1, I2): Data from the equally sized matrices I1 and I2
+	% 	are overlaid by adding the RGB values attributed by the individual
+	% 	colormaps. The windowing for the second image can be adjusted by
+	% 	using the left mouse button.
+	%
+	%	Usage
+	%
+	%   Values in the lower left show the array indices of the datapoint
+	%   under the cursor as well as the matrix-values at that location. In
+	%   case of complex data, the value is shown in the current complex
+	%   mode.
+	% 	Colorbar button in the matlab figure-toolbar can be used to show
+	% 	adapting colorbars.
+	%  	<- and -> change the dimensions that are schown along the image
+	%  	dimensions. Initially, dimensions 1 and 2 are shown. By presing <-
+	%  	/ -> both are decreased/increased by 1, wrapping where necessary.
+	%   'Run' starts a timer which loops through the image dimension
+	%   selected by the radio button. 'SaveImage' save the currently
+	%   visible image to file, 'SaveVideo' saves the running animation as a
+	%   video file (.avi or .gif)
+	%
+	%	Name-Value-Pairs
+	%	
+	% 	Name------------Value-------Descripton-----------------------------
+    %
+	% 	'CW'            1x2 double  Initial values for center and width.
+	%                               For two input matrices, Value must be
+	%                               2x2 matrix, or values are applied to
+	%                               both.
+    %   'Colormap'      Nx3 | char	initial colormaps for the image. The
+    %                               user can either supply a custom
+    %                               colormap or chose from the available
+    %                               colormaps. Default is gray(256). For
+    %                               two input matrices, value must be 1x2
+    %                               cell array. Default is {'green',
+    %                               'magenta'}. More colormaps are
+    %                               available if 'colorcet.m' is found on
+    %                               the MATLAB path (Peter Kovesi,
+    %                               https://peterkovesi.com/projects/colourmaps/)
+	%   'Contrast'      char        redundant NVP, will be removed in
+	%                               future versions.
+	%	'Overlay' 		int 		inital overlay mode for two input
+	%                               matrices (1: add (default), 2:
+	%                               multiply)
+	%	'ComplexMode'   int 		For complex data, chooses the initially
+	%                               displayed complex part (1: magnitude
+	%                               (default), 2: phase, 3: real part, 4:
+	%                               imaginary part).
+	% 	'AspectRatio'   'image'     the displayed axes have the same aspect
+	%                               ratio as the input matrix for that
+	%                               slice, i.e. pixels will be squares.
+	% 					'square' 	The displayed axes always have a square
+	%                               shape.
+	% 	'Resize' 		double      uses 'imresize' to resize the currently
+	%                               displayed slice by the given value.
+	%   'Title' 		char 	    title of the figure window
+	%	'Position',     1x4 int 	Position of the figure in pixel    
+	%   'Unit'          char        physical unit of the provided image
+	%                               data. For two input matrices, value
+	%                               must be 1x2 cell array, or both are
+	%                               assigned the same unit
+	%	'InitSlice',    1xN-2       set the slice that is shown when the
+	%                               figure is opened.
+	%	'InitRot',      int         initial rotation angle of the displayed
+	%                               image
+	%	'DimLabel',     cell{char}  char arrays to label the individual
+	%                               dimensions in the input data, if
+	%                               provided, must be provided for all
+	%                               dimensions.
+	%	'fps',          double      defines how many times per second the
+	%                               slider value provided by 'LoopDim' is
+	%                               increased.
+	%	'LoopDim',      int     	Dimension, along which the slider is
+	%                               incremented 'fps' times per second
+	%	'ROI_Signal',   Nx2 		vertices polygon that defines a ROI in
+	%                               the initial slice.
+	%	'ROI_Noise',    Nx2 		vertices polygon that defines a ROI in
+	%                               the initial slice.
+	%	'SaveImage',    filename    When provided, the image data is
+	%                               prepared according to the other inputs,
+	%                               but no figure is shown. The prepared
+	%                               image data is directly saved to file
+	%                               under filename.
+	%	'SaveVideo',    filename    When provided, the image data is
+	%                               prepared according to the other inputs,
+	%                               but no figure is shown. 'fps' gives the
+	%                               framerate for the video that is saved
+	%                               under filename. Only '.avi' and '.gif'
+	%                               supported so far. 'LoopDim' can be used
+	%                               to specify the dimension along which
+	%                               the video loops.
+	
+	
+	
     % TODO:
     % - RadioGroup Buttons for animated sliders
-    % - overwrite colorbar button in toolbar, dispaly (both) colorbar(s)
-    % and change according to windowing
-    
+    % - make 'SaveVideo' button only active, when timer is running
+	
     properties (Access = private)
         t           % interrupt timer
         fps
@@ -92,12 +193,12 @@ classdef DrawSingle < Draw
             obj.prepareParser()
             
             % additional parameters
-            addParameter(obj.p, 'InitialRot',       0,                                  @(x) isnumeric(x));
+            addParameter(obj.p, 'InitRot',          0,                                  @(x) isnumeric(x));
             addParameter(obj.p, 'Position',         obj.defaultPosition,                @(x) isnumeric(x) && numel(x) == 4);
             addParameter(obj.p, 'InitSlice',        round(obj.S(obj.mapSliderToDim)/2), @isnumeric);
-            addParameter(obj.p, 'FPS',              0,                                  @isnumeric);
-            addParameter(obj.p, 'ROI_Signal',       [],                                 @isnumeric);
-            addParameter(obj.p, 'ROI_Noise',        [],                                 @isnumeric);
+            addParameter(obj.p, 'fps',              0,                                  @isnumeric);
+            addParameter(obj.p, 'ROI_Signal',       [0 0; 0 0; 0 0],                    @isnumeric);
+            addParameter(obj.p, 'ROI_Noise',        [0 0; 0 0; 0 0],                    @isnumeric);
             addParameter(obj.p, 'SaveImage',        '',                                 @ischar);
             addParameter(obj.p, 'SaveVideo',        '',                                 @ischar);
             addParameter(obj.p, 'LoopDimension',    3,                                  @(x) isnumeric(x) && x <= obj.nDims && obj.nDims >= 3);
@@ -117,12 +218,13 @@ classdef DrawSingle < Draw
             
             
             obj.cmap{1}             = obj.p.Results.Colormap;
-            obj.fps                 = obj.p.Results.FPS;
+            obj.fps                 = obj.p.Results.fps;
             obj.complexMode         = obj.p.Results.ComplexMode;
             obj.resize              = obj.p.Results.Resize;  
             obj.contrast            = obj.p.Results.Contrast;
             obj.overlay             = obj.p.Results.Overlay;
-                        
+            obj.unit                = obj.p.Results.Unit;
+            
             obj.prepareGUIElements()
             
             obj.prepareColors()
@@ -133,19 +235,27 @@ classdef DrawSingle < Draw
             
             obj.interruptedSlider = 1;
             % necessary for view orientation, already needed when saving image or video
-            obj.azimuthAng   = obj.p.Results.InitialRot;
+            obj.azimuthAng   = obj.p.Results.InitRot;
                         
             % when an image or a video is saved, dont create the GUI and
             % terminate the class after finishing
             if ~contains('SaveImage', obj.p.UsingDefaults)
                 obj.saveImage(obj.p.Results.SaveImage);
-                clear obj
-                return
-            end            
+                if contains('SaveVideo', obj.p.UsingDefaults)
+                    % the user does not want a video to be saved at the
+                    % same time so close the figure and delete the object.
+                    clear obj
+                    return
+                end                
+            end
             if ~contains('SaveVideo', obj.p.UsingDefaults)
-                obj.saveVideo(obj.p.Results.SaveVideo);
-                clear obj
-                return
+                if obj.fps == 0
+                    error('Can''t write video file with 0 fps!')
+                else
+                    obj.saveVideo(obj.p.Results.SaveVideo);
+                    clear obj
+                    return
+                end
             end
             
             % overwrite the default value fot maxLetters in locVal section
@@ -655,8 +765,8 @@ classdef DrawSingle < Draw
             
             obj.initializeAxis(true)
             
-            if ~sum(ismember(obj.p.UsingDefaults, 'FPS')) && length(obj.S) > 2
-                obj.fps = obj.p.Results.FPS;
+            if ~sum(ismember(obj.p.UsingDefaults, 'fps')) && length(obj.S) > 2
+                obj.fps = obj.p.Results.fps;
                 set(obj.hBtnRun, 'String', 'Stop')
                 obj.setAndStartTimer
             end
@@ -797,6 +907,14 @@ classdef DrawSingle < Draw
         
         
         function setLocValFunction(obj)
+            % check 'Units' input
+            if ~contains('Unit', obj.p.UsingDefaults)
+                if ischar(obj.unit)
+                    % make it a cell array
+                    obj.unit = {obj.unit, obj.unit};
+                end
+            end
+            
             if obj.nImages == 1
                 obj.locValString = @(dim1L, dim1, dim2L, dim2, val) sprintf('\\color[rgb]{%.2f,%.2f,%.2f}%s:%4d\n%s:%4d\n%s:%s', ...
                     obj.COLOR_F, ...
@@ -805,7 +923,7 @@ classdef DrawSingle < Draw
                     dim2L, ...
                     dim2, ...
                     obj.valNames{1}, ...
-                    [num2sci(val) ' ' obj.p.Results.Unit{1}]);
+                    [num2sci(val) ' ' obj.unit{1}]);
             else
                 obj.locValString = @(dim1L, dim1, dim2L, dim2, val1, val2) sprintf('\\color[rgb]{%.2f,%.2f,%.2f}%s:%4d\n%s:%4d\n\\color[rgb]{%.2f,%.2f,%.2f}%s:%s\n\\color[rgb]{%.2f,%.2f,%.2f}%s:%s', ...
                     obj.COLOR_F, ...
@@ -815,10 +933,10 @@ classdef DrawSingle < Draw
                     dim2, ...
                     obj.COLOR_m(1, :), ...
                     obj.valNames{1}, ...
-                    [num2sci(val1) obj.p.Results.Unit{1}], ...
+                    [num2sci(val1) obj.unit{1}], ...
                     obj.COLOR_m(2, :), ...
                     obj.valNames{2}, ...
-                    [num2sci(val2) obj.p.Results.Unit{2}]);
+                    [num2sci(val2) obj.unit{2}]);
             end
         end
         
@@ -967,7 +1085,7 @@ classdef DrawSingle < Draw
             
             obj.prepareSliceData;       
             % apply the current azimuthal rotation to the image and save
-            imwrite(rot90(obj.sliceMixer(1), -obj.azimuthAng/90), path);
+            imwrite(rot90(obj.sliceMixer(1), -round(obj.azimuthAng/90)), path);
         end
         
         
@@ -1017,7 +1135,7 @@ classdef DrawSingle < Draw
                 for ii = 1: obj.S(obj.interruptedSlider+2)
                     obj.sel{obj.interruptedSlider+2} = ii;
                     obj.prepareSliceData
-                    imgOut = rot90(obj.sliceMixer(1), -obj.azimuthAng/90);
+                    imgOut = rot90(obj.sliceMixer(1), -round(obj.azimuthAng/90));
                     
                     if gif
                         [gifImg, cm] = rgb2ind(imgOut, 256);
@@ -1246,8 +1364,8 @@ classdef DrawSingle < Draw
             
             n = n + 1;
             position = obj.positionN(n, 2);
-            set(obj.hBtnDelRois,  'Position', position(1, :));
-            set(obj.hBtnSaveRois, 'Position', position(2, :)); 
+            set(obj.hBtnSaveRois,  'Position', position(1, :));
+            set(obj.hBtnDelRois, 'Position', position(2, :)); 
             
             n = n + 1;
             position = obj.positionN(n, 4);
@@ -1256,7 +1374,7 @@ classdef DrawSingle < Draw
             set(obj.hBtnRotR,   'Position', position(3, :));
             set(obj.hBtnShiftR, 'Position', position(4, :));
             
-            n = n + 2;
+            n = n + 1.5;
             set(obj.hBtnFFT, 'Position', obj.positionN(n, 1));
             
             n = n + 1;
@@ -1266,7 +1384,7 @@ classdef DrawSingle < Draw
             set(obj.hBtnCmplx(3), 'Position', position(3, :))
             set(obj.hBtnCmplx(4), 'Position', position(4, :))
                        
-            n = n + 2;
+            n = n + 1.5;
             position = obj.positionN(n, 3);
             set(obj.hBtnRun,    'Position', position(1, :))
             set(obj.hEditF,     'Position', position(2, :))

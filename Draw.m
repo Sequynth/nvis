@@ -1,18 +1,17 @@
 classdef (Abstract) Draw < handle
     %Draw Baseclass for Draw. GUIs
-    %   Detailed explanation goes here
-    
-    % TODO: 
-    % - check for installed 'colorcet' box for better colormaps, if not,
-    % allow selection of individual colormaps.
-    % - allow user to chose overlay types (addition, multiply division,
-    % ...)
-    % - make DrawSlider work with new colormap scheme
-    
+    %   This class serves as a base class for the 'Draw...' classes,
+    % 	which are optimized for visualizing multidimensional (complex)
+    % 	matrices. Draw.m provides the building block for the GUI which are
+    % 	placed in the figure by the inheriting classes.
+    %
+    %   Many of the UI features (windowing, colormap overlay,...) are
+    %   handled by Draw member functions. 
+   
     properties
         f
     end
-    
+		
     properties (Access = private)
         % DISPLAY PROPERTIES
         layerShown      % which of the images is currently shown?
@@ -32,7 +31,8 @@ classdef (Abstract) Draw < handle
     end
     
     properties (Access = protected)
-        % INPUT PROPERTIES
+        %% INPUT PROPERTIES
+        
         nImages         % number of images (1 or 2)
         nAxes           % number of displayed image Axes (DrawSingle: 1, DrawSlider: 3)
         img             % cell array in which the input matrices are stored
@@ -43,7 +43,8 @@ classdef (Abstract) Draw < handle
         standardTitle   % name of the figure, default depends on inputnames
         varargin        % member variable varargin
                 
-        % DISPLAYING
+        %% DISPLAYING
+        
         % link sliders to image dimensions
         % mapSliderToDim(2) = 4 means, that slider 2 controls the slice along the
         % 4th dimension.
@@ -98,17 +99,20 @@ classdef (Abstract) Draw < handle
         % colormap for all images as a cell array, containing Nx3 colormaps
         cmap
         
-        % overlay mode
+        % overlay mode (1: add, 2: multiply)
         overlay
         
-        % GUI ELEMENTS
+        %% GUI ELEMENTS
+        
         % array of images displayed in 'ax', the handle to the respective axis can always be obtained via
 		% get(obj.hImage(...), 'Parent')
         hImage
+               
         % array of slider handles to navigate through the slices
+        hSlider
         hTextSlider
         hEditSlider
-        hSlider
+        
         % cw-windowing element arrays
         hTextC
         hTextW
@@ -116,14 +120,19 @@ classdef (Abstract) Draw < handle
         hEditW        
         hBtnHide
         hBtnToggle
-        % select the colormap for each channel
+        
+        % select the colormap for each input image
         hPopCm
+        
         % select the overlay mode
         hPopOverlay
+        
         % buttons array for complex data display
         hBtnCmplx
+        
         % FFT button
         hBtnFFT
+        
         % Roi
         hBtnRoi
         hTextRoi
@@ -134,25 +143,38 @@ classdef (Abstract) Draw < handle
         hBtnDelRois
         hBtnSaveRois
         hLocAndVals
+        
         % colorbars
         hAxCb        
         
-        % GUI ELEMENT PROPERTIES
+        %% GUI ELEMENT PROPERTIES
+        
+        % number of sliders in the UI
         nSlider
         inputNames
         valNames
+        
+        % units of the input data
+        unit
+        
         % array with ROIs
         rois
+        
         % mean in the signal rois
         signal
+        
         % std-deviation in the noie rois
         noise
+        
         % do we see the colorbars?
         cbShown
-        % how are the colorbars oriented
+        
+        % how are the colorbars oriented ('horizontal' or 'vertical')
         cbDirection
+        
         % max number of letters for variable names in the locVal section
         maxLetters
+        
         % colormaps available
         availableCmaps
         cmapStrings
@@ -328,7 +350,7 @@ classdef (Abstract) Draw < handle
                                                 (obj.Max(2) - obj.Min(2))/2+obj.Min(2), ...
                                                 obj.Max(2)-obj.Min(2)],         @isnumeric);            
             addParameter(obj.p, 'widthMin',     single(0.001*(obj.Max-obj.Min)),@isnumeric);
-            addParameter(obj.p, 'Unit',         {[], []},                       @(x) iscell(x) && numel(x) <= 2);
+            addParameter(obj.p, 'Unit',         {[], []},                       @(x) (iscell(x) && numel(x) <= 2) | ischar(x));
         end
         
         
