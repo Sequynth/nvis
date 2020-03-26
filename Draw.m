@@ -120,6 +120,7 @@ classdef (Abstract) Draw < handle
         hEditW        
         hBtnHide
         hBtnToggle
+        hBtnCwCopy
         
         % select the colormap for each input image
         hPopCm
@@ -433,6 +434,12 @@ classdef (Abstract) Draw < handle
                         'Style',                'togglebutton', ...
                         'BackgroundColor',      obj.COLOR_BG, ...
                         'Callback',             {@obj.BtnHideCallback});
+                    
+                    obj.hBtnCwCopy(idh) = uicontrol( ...
+                        'Style',                'pushbutton', ...
+                        'BackgroundColor',      obj.COLOR_BG, ...
+                        'ForegroundColor',      obj.COLOR_F, ...
+                        'Callback',             {@obj.BtnCwCopyCallback});
                 end
             end
             
@@ -825,6 +832,14 @@ classdef (Abstract) Draw < handle
         function BtnHideCallback(obj, src, ~)
             % call the toggle layer fucntion
             obj.toggleLayer( find(obj.hBtnHide == src) );
+        end
+        
+        
+        function BtnCwCopyCallback(obj, src, ~)
+            % copy the CW-values from one image to another
+            obj.center(obj.hBtnCwCopy ~= src) = obj.center(obj.hBtnCwCopy == src);
+            obj.width(obj.hBtnCwCopy ~= src)  = obj.width(obj.hBtnCwCopy == src);
+            obj.cw();
         end
         
         
