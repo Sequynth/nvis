@@ -935,11 +935,11 @@ classdef (Abstract) Draw < handle
                     % zoom in
                     % keep the point below the cursor at its position so
                     % users can zoom exactly to the point they want to
-                    ax.XLim(1) = ax.XLim(1)/obj.zoomInFac + obj.pt(2)*(1-1/obj.zoomInFac);
-                    ax.XLim(2) = ax.XLim(2)/obj.zoomInFac + obj.pt(2)*(1-1/obj.zoomInFac);
+                    ax.XLim(1) = ax.XLim(1)/obj.zoomInFac + obj.resize*obj.pt(2)*(1-1/obj.zoomInFac);
+                    ax.XLim(2) = ax.XLim(2)/obj.zoomInFac + obj.resize*obj.pt(2)*(1-1/obj.zoomInFac);
                     
-                    ax.YLim(1) = ax.YLim(1)/obj.zoomInFac + obj.pt(1)*(1-1/obj.zoomInFac);
-                    ax.YLim(2) = ax.YLim(2)/obj.zoomInFac + obj.pt(1)*(1-1/obj.zoomInFac);                    
+                    ax.YLim(1) = ax.YLim(1)/obj.zoomInFac + obj.resize*obj.pt(1)*(1-1/obj.zoomInFac);
+                    ax.YLim(2) = ax.YLim(2)/obj.zoomInFac + obj.resize*obj.pt(1)*(1-1/obj.zoomInFac);                    
                 elseif evtData.VerticalScrollCount > 0
                     % zoom out
                     % zoom out such, that limits increase independent of
@@ -955,8 +955,8 @@ classdef (Abstract) Draw < handle
                     % make sure not to scroll beyond the limits
                     XLim(1) = max([XLim(1) 0.5]);
                     YLim(1) = max([YLim(1) 0.5]);
-                    XLim(2) = min([XLim(2) size(obj.slice{obj.pt(3)}, 2)+0.5]);
-                    YLim(2) = min([YLim(2) size(obj.slice{obj.pt(3)}, 1)+0.5]);
+                    XLim(2) = min([XLim(2) obj.resize*size(obj.slice{obj.pt(3)}, 2)+0.5]);
+                    YLim(2) = min([YLim(2) obj.resize*size(obj.slice{obj.pt(3)}, 1)+0.5]);
                     
                     ax.XLim = XLim;
                     ax.YLim = YLim;
