@@ -1007,14 +1007,18 @@ classdef DrawSingle < Draw
             
             keyPress@Draw(obj, src)
             
-            % in case of 3D input, the image stack can be scrolled with 1 and 3
-            % on the numpad
+            % in case of input with more than 2 dimensions, the image stack
+            % can be scrolled with 1 and 3 on the numpad
             key = get(src, 'CurrentCharacter');
             switch(key)
                 case '1'
-                    obj.incDecActiveDim(-1);
+                    if obj.nDims > 2
+                        obj.incDecActiveDim(-1);
+                    end
                 case '3'
-                    obj.incDecActiveDim(+1);
+                    if obj.nDims > 2
+                        obj.incDecActiveDim(+1);
+                    end
             end
         end
         
