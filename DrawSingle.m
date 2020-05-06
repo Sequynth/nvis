@@ -285,11 +285,8 @@ classdef DrawSingle < Draw
         
         
         function delete(obj)
-            try
-                stop(obj.t);
-                delete(obj.t);
-            catch
-            end
+        % destructor
+            
         end
         
         
@@ -1200,8 +1197,15 @@ classdef DrawSingle < Draw
             % closeRqst is called, when the user closes the figure (by 'x' or
             % 'close'). It stops and deletes the timer, frees up memory taken
             % by img and closes the figure.
+            
+            try
+                stop(obj.t);
+                delete(obj.t);
+            catch
+            end
+            
             delete(obj.f);
-            obj.delete
+            delete(obj)
         end
         
         
