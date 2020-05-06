@@ -197,8 +197,17 @@ classdef (Abstract) Draw < handle
         BtnTgglKey = 'q';
         
         overlayStrings = {'add', 'multiply'}
-    end
+    end    
     
+    
+    %% abstract methods    
+    methods (Abstract)
+        locVal(obj, axNo)
+        refreshUI(obj)
+        incDecActiveDim(obj, incDec)
+        mouseButtonAlt(src, evtData)
+    end
+        
     
     methods
         function obj = Draw(in, varargin)
@@ -1423,13 +1432,5 @@ classdef (Abstract) Draw < handle
         end
     end
     
-    %% abstract methods
-    
-    methods (Abstract)
-        locVal(obj, axNo)
-        refreshUI(obj)
-        incDecActiveDim(obj, incDec)
-        mouseButtonAlt(src, evtData)
-    end
 end
 
