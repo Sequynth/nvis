@@ -638,6 +638,7 @@ classdef DrawSingle < Draw
                     'ForegroundColor',      obj.COLOR_F, ...
                     'Enable',               'Inactive', ...
                     'FontName',             'FixedWidth', ...
+                    'Tooltip',              'timer precision is 1 ms', ...
                     'ButtonDownFcn',        @obj.removeListener, ...
                     'Callback',             @obj.setFPS);
                 
@@ -1066,8 +1067,12 @@ classdef DrawSingle < Draw
         
         
         function setAndStartTimer(obj)
-            %make sure fps is not higher 100
-            obj.t.Period    = 1/abs(obj.fps) + (abs(obj.fps) > 100)*(1/100-1/abs(obj.fps));
+            % make sure fps is not higher 100
+            period  = 1/abs(obj.fps) + (abs(obj.fps) > 100)*(1/100-1/abs(obj.fps));
+            % provide 1 ms precision to avoid warning
+            period = round(period*1000)/1000;
+            
+            obj.t.Period    = period;
             obj.t.TimerFcn  = @(t, event) obj.interrupt(obj.fps);
             set(obj.hEditF, 'String', num2str(sign(obj.fps)/obj.t.Period));
             start(obj.t)
