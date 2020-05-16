@@ -104,6 +104,7 @@ classdef DrawSingle < Draw
     % TODO:
     % - RadioGroup Buttons for animated sliders
     % - make 'SaveVideo' button only active, when timer is running
+    % - allow specifying values of dim axes (shown in slider index box)
 	
     properties (Access = private)
         t           % interrupt timer
@@ -126,12 +127,20 @@ classdef DrawSingle < Draw
         hBtnRun
         hEditF
         hTextFPS
+        hBtnPlot
         locAndVals
         hBtnSaveImg
         hBtnSaveVid
         
         hBtnG
         hRadioBtnSlider
+        
+        % point for external plots
+        hMarker
+        hPoint
+        
+        % called objects
+        hExtPlot
         
         % UI properties
         
@@ -652,6 +661,17 @@ classdef DrawSingle < Draw
                     'FontSize',             0.6, ...
                     'BackgroundColor',      obj.COLOR_BG, ...
                     'ForegroundColor',      obj.COLOR_F);
+                
+                obj.hBtnPlot = uicontrol( ...
+                    'Parent',               obj.pControls, ...
+                    'Style',                'pushbutton', ...
+                    'Units',                'pixel', ...
+                    'String',               'Plot', ...
+                    'Callback',             {@obj.openExternalPlot}, ...
+                    'FontUnits',            'normalized', ...
+                    'FontSize',             0.45, ...
+                    'BackgroundColor',      obj.COLOR_BG, ...
+                    'ForegroundColor',      obj.COLOR_F);
             end
             
             obj.locAndVals = annotation(obj.pControls, 'textbox', ...
@@ -810,10 +830,21 @@ classdef DrawSingle < Draw
                          
             obj.prepareSliceData;
 
-            ax      = axes('Parent', obj.pImage, 'Units', 'normal', 'Position', [0 0 1 1]);            
-            obj.hImage  = imagesc(obj.sliceMixer(1), 'Parent', ax);  % plot image
-
+            ax = axes(...
+                'Parent',       obj.pImage, ...
+                'Units',        'normal', ...
+                'Position',     [0 0 1 1]);            
+            
+            
+            obj.hImage = imagesc(obj.sliceMixer(1), ...
+                'Parent',       ax);  % plot image
             hold on
+            obj.hMarker = plot([5], [5], ...
+                'Parent',       ax, ...
+                'MarkerSize',   10, ...
+                'LineWidth',    2, ...
+                'Marker',       'o');            
+            
             eval(['axis ', obj.p.Results.AspectRatio]);
             set(ax, ...
                 'XTickLabel',   '', ...
@@ -987,11 +1018,17 @@ classdef DrawSingle < Draw
             set(obj.hImage, 'CData', obj.sliceMixer(1));
             
             for iSlider = 1:obj.nSlider
-                set(obj.hEditSlider(iSlider), 'String', num2str(obj.sel{obj.mapSliderToDim(iSlider)}));
-                set(obj.hSlider(iSlider), 'Value', obj.sel{obj.mapSliderToDim(iSlider)});
+                set(obj.hEditSlider(iSlider),   'String', num2str(obj.sel{obj.mapSliderToDim(iSlider)}));
+                set(obj.hSlider(iSlider),       'Value', obj.sel{obj.mapSliderToDim(iSlider)});
             end
+            
             % update 'val' when changing slice
             obj.mouseMovement();
+            
+            % if existing, update the point in the external plot figure
+            if ~isempty(obj.hExtPlot) && isvalid(obj.hExtPlot)
+                obj.updateExternalPoint()
+            end
             
             
 %             if ~isempty(Sroi) | ~isempty(Nroi)
@@ -1027,12 +1064,6 @@ classdef DrawSingle < Draw
             % check whether the value is too large and take the modulus
             obj.sel{1, obj.activeDim} = mod(obj.sel{1, obj.activeDim}-1, obj.S(obj.activeDim))+1;
             obj.refreshUI();
-        end
-        
-        
-        function mouseButtonAlt(obj, src, evtData)
-            % code executed when the user presses the right mouse button.
-            % currently not implemented.
         end
         
         
@@ -1091,6 +1122,56 @@ classdef DrawSingle < Draw
                 set(obj.hBtnRun, 'String',  'Run');
                 set(obj.hBtnG,   'Visible', 'off');
             end
+        end
+        
+        
+        function mouseBtnNormal(obj, pt)
+            obj.hPoint = round(pt(1, [2 1]));
+            set(obj.hMarker, 'YData', obj.hPoint(1))
+            set(obj.hMarker, 'XData', obj.hPoint(2))
+            if ~isempty(obj.hExtPlot) && isvalid(obj.hExtPlot)
+                obj.updateExternalData()
+                obj.updateExternalPoint()
+            end
+        end
+        
+        
+        function openExternalPlot(obj, ~, ~)
+            % prepare data for external plot
+            externalStruct.ylabel = obj.unit;
+            externalStruct.xlabel = obj.dimensionLabel;
+            externalStruct.sliderVal = obj.sel{obj.interruptedSlider+2};
+            
+            % create and open plot figure
+            obj.hExtPlot = externalPlot(externalStruct);
+            obj.updateExternalData()
+            obj.updateExternalPoint()
+        end
+        
+        
+        function updateExternalPoint(obj)
+            extSel = obj.sel;
+            extSel{obj.showDims(1, 1)} = obj.hPoint(1);
+            extSel{obj.showDims(1, 2)} = obj.hPoint(2);
+            extSelPoint = extSel;
+            
+            set(obj.hExtPlot.hPlotPoint, 'XData', obj.sel{obj.interruptedSlider+2})
+            set(obj.hExtPlot.hPlotPoint, 'YData', squeeze(obj.complexPart(obj.img{1}(extSelPoint{:}))))
+        end
+        
+        
+        function updateExternalData(obj)
+            extSel = obj.sel;
+            extSel{obj.showDims(1, 1)} = obj.hPoint(1);
+            extSel{obj.showDims(1, 2)} = obj.hPoint(2);
+            extSel{obj.interruptedSlider+2} = ':';
+            
+            XData = 1:obj.S(obj.interruptedSlider+2);
+            YData = squeeze(obj.complexPart(obj.img{1}(extSel{:})));
+            
+            % update the external plot
+            set(obj.hExtPlot.hPlot, 'XData', XData)
+            set(obj.hExtPlot.hPlot, 'YData', YData)
         end
         
         
@@ -1304,7 +1385,7 @@ classdef DrawSingle < Draw
             obj.figurePos = get(obj.f, 'Position');
             
             if obj.figurePos(3) < obj.controlWidth
-                % make sure the window is not wide enough
+                % make sure the window is wide enough
                  obj.f.Position(3) = obj.controlWidth;
             end
             
@@ -1432,6 +1513,9 @@ classdef DrawSingle < Draw
                 set(obj.hBtnRun,    'Position', position(1, :))
                 set(obj.hEditF,     'Position', position(2, :))
                 set(obj.hTextFPS,   'Position', position(3, :))
+                n = n + 1.5;
+                position = obj.positionN(n, 3);
+                set(obj.hBtnPlot,   'Position', position(1, :))
             end
         end
             

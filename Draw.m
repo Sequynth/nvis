@@ -205,7 +205,7 @@ classdef (Abstract) Draw < handle
         locVal(obj, axNo)
         refreshUI(obj)
         incDecActiveDim(obj, incDec)
-        mouseButtonAlt(src, evtData)
+        mouseBtnNormal(obj, pt)
     end
         
     
@@ -744,7 +744,7 @@ classdef (Abstract) Draw < handle
             % normalization factor
             obj.nrmFac = [obj.S(find(obj.showDims(imgIdx, :), 1, 'first')) obj.S(find(obj.showDims(imgIdx, :), 1, 'last'))]*obj.resize;
             switch get(gcbf, 'SelectionType')
-                case 'normal'
+                case 'alt'
                     if ~isempty(obj.img{2}) && obj.layerShown(2)
                         sCenter = obj.center;
                         sWidth  = obj.width;
@@ -760,8 +760,8 @@ classdef (Abstract) Draw < handle
                         wStep   = [obj.widthStep(1), 0];
                         obj.f.WindowButtonMotionFcn = {@obj.draggingFcn, callingAx, Pt, sCenter, sWidth, cStep, wStep};
                     end
-                case 'alt'
-                    obj.mouseButtonAlt(src, evtData)
+                case 'normal'
+                    obj.mouseBtnNormal(Pt)
             end
         end
         
@@ -1023,7 +1023,7 @@ classdef (Abstract) Draw < handle
         function mouseMovement(obj, ~, ~)        % display location and value
             for ida = 1:numel(obj.hImage)
 				iteratingAx = get(obj.hImage(ida), 'Parent');
-                pAx = round(get(iteratingAx, 'CurrentPoint')/obj.resize);                
+                pAx = round(get(iteratingAx, 'CurrentPoint')/obj.resize);
                 if obj.inAxis(iteratingAx, pAx(1, 1), pAx(1, 2))
                     pAx = round(pAx);
                     obj.locVal({pAx(1, 2), pAx(1, 1)}, ida);
