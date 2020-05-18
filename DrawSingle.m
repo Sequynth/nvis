@@ -127,6 +127,7 @@ classdef DrawSingle < Draw
         hBtnRun
         hEditF
         hTextFPS
+        hBtnPoint
         hBtnPlot
         locAndVals
         hBtnSaveImg
@@ -662,6 +663,17 @@ classdef DrawSingle < Draw
                     'BackgroundColor',      obj.COLOR_BG, ...
                     'ForegroundColor',      obj.COLOR_F);
                 
+                obj.hBtnPoint = uicontrol( ...
+                    'Parent',               obj.pControls, ...
+                    'Style',                'pushbutton', ...
+                    'Units',                'pixel', ...
+                    'String',               'Point', ...
+                    'Callback',             {@obj.enablePoint}, ...
+                    'FontUnits',            'normalized', ...
+                    'FontSize',             0.45, ...
+                    'BackgroundColor',      obj.COLOR_BG, ...
+                    'ForegroundColor',      obj.COLOR_F);
+                
                 obj.hBtnPlot = uicontrol( ...
                     'Parent',               obj.pControls, ...
                     'Style',                'pushbutton', ...
@@ -1136,11 +1148,15 @@ classdef DrawSingle < Draw
         end
         
         
+        function enablePoint(obj, ~, ~)
+            
+        end
+        
+        
         function openExternalPlot(obj, ~, ~)
             % prepare data for external plot
             externalStruct.ylabel = obj.unit;
-            externalStruct.xlabel = obj.dimensionLabel;
-            externalStruct.sliderVal = obj.sel{obj.interruptedSlider+2};
+            externalStruct.xlabel = obj.dimensionLabel{obj.interruptedSlider+2};
             
             % create and open plot figure
             obj.hExtPlot = externalPlot(externalStruct);
@@ -1168,7 +1184,9 @@ classdef DrawSingle < Draw
             
             XData = 1:obj.S(obj.interruptedSlider+2);
             YData = squeeze(obj.complexPart(obj.img{1}(extSel{:})));
-            
+%             if obj.fftStatus == 1
+%                 YData = fftshift(fftn(fftshift(YData)));
+%             end
             % update the external plot
             set(obj.hExtPlot.hPlot, 'XData', XData)
             set(obj.hExtPlot.hPlot, 'YData', YData)
@@ -1514,8 +1532,9 @@ classdef DrawSingle < Draw
                 set(obj.hEditF,     'Position', position(2, :))
                 set(obj.hTextFPS,   'Position', position(3, :))
                 n = n + 1.5;
-                position = obj.positionN(n, 3);
-                set(obj.hBtnPlot,   'Position', position(1, :))
+                position = obj.positionN(n, 3);                
+                set(obj.hBtnPoint,   'Position', position(1, :))
+                set(obj.hBtnPlot,   'Position', position(2, :))
             end
         end
             

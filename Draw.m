@@ -206,6 +206,7 @@ classdef (Abstract) Draw < handle
         refreshUI(obj)
         incDecActiveDim(obj, incDec)
         mouseBtnNormal(obj, pt)
+        updateExternalData(obj)
     end
         
     
@@ -729,6 +730,7 @@ classdef (Abstract) Draw < handle
             
             obj.cw()
             obj.refreshUI()
+            obj.updateExternalData()
         end
         
         
