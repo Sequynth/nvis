@@ -73,6 +73,9 @@ classdef DrawSingle < Draw
 	%                               figure is opened.
 	%	'InitRot',      int         initial rotation angle of the displayed
 	%                               image
+    %   'InitPoint',    1x2         coordinates along the first 2
+    %                               dimensions of img, where the marker is
+    %                               placed
 	%	'DimLabel',     cell{char}  char arrays to label the individual
 	%                               dimensions in the input data, if
 	%                               provided, must be provided for all
@@ -138,10 +141,12 @@ classdef DrawSingle < Draw
         
         % point for external plots
         hMarker
-        hPoint
+        point
         
         % called objects
         hExtPlot
+        % dimension that is shown in the external plot
+        externalDim
         
         % UI properties
         
@@ -154,6 +159,8 @@ classdef DrawSingle < Draw
         yPadding
         panelPos
         figurePos
+        pointEnabled
+        color_ma
     end
     
     properties (Constant, Access = private)
@@ -176,6 +183,9 @@ classdef DrawSingle < Draw
             obj.activeAx = 1;
             
             obj.cbDirection = 'vertical';
+            
+            % which dimensions are shown initially
+            obj.showDims = [1 2];
             
             % only show slider for a dimension with a length higher than 1
             if obj.nDims > 2
@@ -205,6 +215,8 @@ classdef DrawSingle < Draw
             addParameter(obj.p, 'InitRot',          0,                                  @(x) isnumeric(x));
             addParameter(obj.p, 'Position',         obj.defaultPosition,                @(x) isnumeric(x) && numel(x) == 4);
             addParameter(obj.p, 'InitSlice',        round(obj.S(obj.mapSliderToDim)/2), @isnumeric);
+            addParameter(obj.p, 'InitPoint',        round(obj.S(obj.showDims)/2),       @isnumeric);
+            addParameter(obj.p, 'MarkerColor',      [1 0 0],                            @(x) isnumeric(x) && numel(x) == 3);
             addParameter(obj.p, 'fps',              0,                                  @isnumeric);
             addParameter(obj.p, 'ROI_Signal',       [0 0; 0 0; 0 0],                    @isnumeric);
             addParameter(obj.p, 'ROI_Noise',        [0 0; 0 0; 0 0],                    @isnumeric);
@@ -225,6 +237,12 @@ classdef DrawSingle < Draw
                 obj.dimensionLabel = obj.p.Results.DimensionLabel;
             end
             
+            % if not specified, start with plotpoint disabled
+            if contains('InitPoint', obj.p.UsingDefaults)
+                obj.pointEnabled = 0;
+            else
+                obj.pointEnabled = 1;
+            end
             
             obj.cmap{1}             = obj.p.Results.Colormap;
             obj.fps                 = obj.p.Results.fps;
@@ -233,16 +251,21 @@ classdef DrawSingle < Draw
             obj.contrast            = obj.p.Results.Contrast;
             obj.overlay             = obj.p.Results.Overlay;
             obj.unit                = obj.p.Results.Unit;
+            obj.point               = obj.p.Results.InitPoint;
+            obj.color_ma            = obj.p.Results.MarkerColor;
+            obj.interruptedSlider   = obj.p.Results.LoopDimension - 2;
             
             obj.prepareGUIElements()
             
-            obj.prepareColors()
-                        
-            % which dimensions are shown initially
-            obj.showDims = [1 2]; 
+            obj.prepareColors()                        
+            
+            % requires InitSlice to be set
             obj.createSelector()            
             
-            obj.interruptedSlider = 1;
+            % the first available dimension will be the inital
+            % timer-dimension and dimension to be shown in external plot
+            obj.externalDim = obj.interruptedSlider + 2;
+            
             % necessary for view orientation, already needed when saving image or video
             obj.azimuthAng   = obj.p.Results.InitRot;
                         
@@ -665,10 +688,11 @@ classdef DrawSingle < Draw
                 
                 obj.hBtnPoint = uicontrol( ...
                     'Parent',               obj.pControls, ...
-                    'Style',                'pushbutton', ...
+                    'Style',                'togglebutton', ...
                     'Units',                'pixel', ...
                     'String',               'Point', ...
-                    'Callback',             {@obj.enablePoint}, ...
+                    'Value',                obj.pointEnabled, ...
+                    'Callback',             {@obj.togglePoint}, ...
                     'FontUnits',            'normalized', ...
                     'FontSize',             0.45, ...
                     'BackgroundColor',      obj.COLOR_BG, ...
@@ -684,6 +708,12 @@ classdef DrawSingle < Draw
                     'FontSize',             0.45, ...
                     'BackgroundColor',      obj.COLOR_BG, ...
                     'ForegroundColor',      obj.COLOR_F);
+            end
+            
+            if obj.pointEnabled
+                set(obj.hBtnPlot, 'Enable', 'on')
+            else
+                set(obj.hBtnPlot, 'Enable', 'off')
             end
             
             obj.locAndVals = annotation(obj.pControls, 'textbox', ...
@@ -851,11 +881,13 @@ classdef DrawSingle < Draw
             obj.hImage = imagesc(obj.sliceMixer(1), ...
                 'Parent',       ax);  % plot image
             hold on
-            obj.hMarker = plot([5], [5], ...
+            obj.hMarker = plot(obj.point(1), obj.point(2), ...
                 'Parent',       ax, ...
                 'MarkerSize',   10, ...
                 'LineWidth',    2, ...
-                'Marker',       'o');            
+                'Color',        obj.color_ma, ...
+                'Marker',       'o', ...
+                'Visible',      obj.pointEnabled);            
             
             eval(['axis ', obj.p.Results.AspectRatio]);
             set(ax, ...
@@ -1038,8 +1070,9 @@ classdef DrawSingle < Draw
             obj.mouseMovement();
             
             % if existing, update the point in the external plot figure
-            if ~isempty(obj.hExtPlot) && isvalid(obj.hExtPlot)
+            if ~isempty(obj.hExtPlot) && isvalid(obj.hExtPlot) && obj.pointEnabled
                 obj.updateExternalPoint()
+                obj.updateExternalData()
             end
             
             
@@ -1075,6 +1108,7 @@ classdef DrawSingle < Draw
             obj.sel{1, obj.activeDim} = obj.sel{1, obj.activeDim} + incDec;
             % check whether the value is too large and take the modulus
             obj.sel{1, obj.activeDim} = mod(obj.sel{1, obj.activeDim}-1, obj.S(obj.activeDim))+1;
+            
             obj.refreshUI();
         end
         
@@ -1138,51 +1172,78 @@ classdef DrawSingle < Draw
         
         
         function mouseBtnNormal(obj, pt)
-            obj.hPoint = round(pt(1, [2 1]));
-            set(obj.hMarker, 'YData', obj.hPoint(1))
-            set(obj.hMarker, 'XData', obj.hPoint(2))
-            if ~isempty(obj.hExtPlot) && isvalid(obj.hExtPlot)
-                obj.updateExternalData()
-                obj.updateExternalPoint()
+            if obj.pointEnabled
+                obj.point = round(pt(1, [2 1]));
+                set(obj.hMarker, 'YData', obj.point(1))
+                set(obj.hMarker, 'XData', obj.point(2))
+                if ~isempty(obj.hExtPlot) && isvalid(obj.hExtPlot)
+                    obj.updateExternalData()
+                    obj.updateExternalPoint()
+                end
             end
         end
         
         
-        function enablePoint(obj, ~, ~)
+        function togglePoint(obj, src, ~)
             
+            if src.Value == 0
+                % button is not pressed
+                obj.pointEnabled = 0;
+                set(obj.hBtnPlot, 'Enable', 'off');
+                set(obj.hMarker, 'Visible', 'off');
+            else
+                % button is pressed
+                obj.pointEnabled = 1;
+                set(obj.hBtnPlot, 'Enable', 'on');
+                set(obj.hMarker, 'Visible', 'on');
+            end
+                
         end
         
         
         function openExternalPlot(obj, ~, ~)
             % prepare data for external plot
             externalStruct.ylabel = obj.unit;
-            externalStruct.xlabel = obj.dimensionLabel{obj.interruptedSlider+2};
+            externalStruct.xlabel = obj.dimensionLabel(obj.mapSliderToDim);
             
             % create and open plot figure
             obj.hExtPlot = externalPlot(externalStruct);
             obj.updateExternalData()
             obj.updateExternalPoint()
+            
+            % add listener to react, when plot expect data along a
+            % different dimension
+            addlistener(obj.hExtPlot, 'dimChange', @(src, eventdata) obj.externalDimChange(src, eventdata));
+        end
+        
+        
+        function externalDimChange(obj, src, evtData)
+            % is called when the dimension in the external plot is changed
+            % by the user
+            obj.externalDim = src.hPopDim.Value+2;
+            obj.updateExternalPoint()
+            obj.updateExternalData()
         end
         
         
         function updateExternalPoint(obj)
             extSel = obj.sel;
-            extSel{obj.showDims(1, 1)} = obj.hPoint(1);
-            extSel{obj.showDims(1, 2)} = obj.hPoint(2);
+            extSel{obj.showDims(1, 1)} = obj.point(1);
+            extSel{obj.showDims(1, 2)} = obj.point(2);
             extSelPoint = extSel;
             
-            set(obj.hExtPlot.hPlotPoint, 'XData', obj.sel{obj.interruptedSlider+2})
+            set(obj.hExtPlot.hPlotPoint, 'XData', obj.sel{obj.externalDim})
             set(obj.hExtPlot.hPlotPoint, 'YData', squeeze(obj.complexPart(obj.img{1}(extSelPoint{:}))))
         end
         
         
         function updateExternalData(obj)
             extSel = obj.sel;
-            extSel{obj.showDims(1, 1)} = obj.hPoint(1);
-            extSel{obj.showDims(1, 2)} = obj.hPoint(2);
-            extSel{obj.interruptedSlider+2} = ':';
+            extSel{obj.showDims(1, 1)} = obj.point(1);
+            extSel{obj.showDims(1, 2)} = obj.point(2);
+            extSel{obj.externalDim} = ':';
             
-            XData = 1:obj.S(obj.interruptedSlider+2);
+            XData = 1:obj.S(obj.externalDim);
             YData = squeeze(obj.complexPart(obj.img{1}(extSel{:})));
 %             if obj.fftStatus == 1
 %                 YData = fftshift(fftn(fftshift(YData)));

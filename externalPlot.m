@@ -34,6 +34,10 @@ classdef externalPlot < handle
     end
     
     
+    events
+        dimChange
+    end
+    
     methods
         function obj = externalPlot(in, varargin)
             % CONSTRUCTOR
@@ -83,7 +87,7 @@ classdef externalPlot < handle
             obj.hAx = axes( ...
                 'Parent',               obj.pPlot, ...
                 'Units',                'normalized', ...
-                'Position',             [0.1 0.1 0.85 0.85]);
+                'Position',             [0.1 0.15 0.85 0.80]);
             xlabel(obj.input.xlabel)
             ylabel(obj.input.ylabel)
             hold on
@@ -110,6 +114,15 @@ classdef externalPlot < handle
         function plotPoint(obj, x, y)
             set(obj.hPlotPoint, 'XData', x)
             set(obj.hPlotPoint, 'YData', y)
+        end
+        
+        
+        function changeDim(obj, ~, ~)
+            % call the calling fucntion and request data from a different
+            % dimension
+            
+                notify(obj, 'dimChange')
+            
         end
         
         
