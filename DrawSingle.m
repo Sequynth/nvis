@@ -193,10 +193,12 @@ classdef DrawSingle < Draw
                 obj.mapSliderToDim  = tmp(obj.S(3:end) > 1);
                 obj.nSlider         = numel(obj.mapSliderToDim);
                 obj.activeDim       = obj.mapSliderToDim(1);
+                obj.externalDim = obj.mapSliderToDim(1);
             else
                 % there is no dimension to slide through anyway
                 obj.nSlider   = 0;
                 obj.activeDim = 3;
+                obj.externalDim = [];
             end
             
             obj.mapSliderToImage = num2cell(ones(1, obj.nSlider));
@@ -261,11 +263,7 @@ classdef DrawSingle < Draw
             
             % requires InitSlice to be set
             obj.createSelector()            
-            
-            % the first available dimension will be the inital
-            % timer-dimension and dimension to be shown in external plot
-            obj.externalDim = obj.interruptedSlider + 2;
-            
+                        
             % necessary for view orientation, already needed when saving image or video
             obj.azimuthAng   = obj.p.Results.InitRot;
                         
