@@ -922,7 +922,12 @@ classdef DrawSingle < Draw
         function createSelector(obj)
             % create slice selector
             obj.sel        = repmat({':'}, 1, obj.nDims);
-            obj.sel(ismember(1:obj.nDims, obj.mapSliderToDim)) = num2cell(obj.p.Results.InitSlice);            
+            obj.sel(ismember(1:obj.nDims, obj.mapSliderToDim)) = num2cell(obj.p.Results.InitSlice);
+            % consider singleton dimensions            
+            obj.sel(obj.S == 1) = {1};
+            % obj.sel{obj.S == 1} = 1; does not work here, because the
+            % condition might return an empty array which fails with curly
+            % brackets
         end
         
         
@@ -1257,10 +1262,14 @@ classdef DrawSingle < Draw
         
         
         function shiftDims(obj, src, ~)
+            % this line ignores singleton dimensions, because they dont get
+            % a slider and a boring to look at
             dimArray = [obj.showDims obj.mapSliderToDim];
             switch (src.String)
                 case '->'
-                    shifted = circshift(dimArray, -1);                    
+                    shifted = circshift(dimArray, -1);
+                    % activeDim defines the active slider and cant be one
+                    % of the shown dimensions
                     if ismember(obj.activeDim, shifted(1:2))
                         obj.activeDim = shifted(3);
                     end
@@ -1276,6 +1285,9 @@ classdef DrawSingle < Draw
             % renew slice selector for dimensions 3 and higher
             obj.sel        = repmat({':'}, 1, obj.nDims);
             obj.sel(ismember(1:obj.nDims, obj.mapSliderToDim)) = num2cell(round(obj.S(obj.mapSliderToDim)/2));
+            obj.sel(obj.mapSliderToDim) = num2cell(round(obj.S(obj.mapSliderToDim)/2));
+            % consider singleton dimensions
+            obj.sel(obj.S == 1) = {1};
             
             obj.initializeSliders()
             obj.initializeAxis(false)

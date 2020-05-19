@@ -336,6 +336,7 @@ classdef (Abstract) Draw < handle
                     % empty
                     obj.img{2} = [];
                     obj.S = size(obj.img{1});
+                    obj.ston{1} = [];
                 else
                     error('Both input matrices are empty')                    
                 end
@@ -346,6 +347,7 @@ classdef (Abstract) Draw < handle
                 obj.nImages      = 1;                
                 obj.isComplex    = ~isreal(obj.img{1});
                 obj.S = size(obj.img{1});
+                obj.ston{1} = [];
             end            
             obj.nDims = numel(obj.S);
         end
@@ -391,6 +393,8 @@ classdef (Abstract) Draw < handle
                 obj.S = max(s, [], 1);
             else
                 % both input matrices have exactly the same size
+                obj.ston{1} = [];
+                obj.ston{2} = [];
                 obj.S = size(obj.img{1});
             end
         end
@@ -638,10 +642,23 @@ classdef (Abstract) Draw < handle
                     % selector-value must be adjusted to 1
                     select = obj.sel(iax, :);
                     if ~isempty(obj.ston{iImg})
+                        % this matrix has singleton dimensions where the
+                        % other does not
+                        
+                        % is the matrix singleton along a shown dimension?
+                        isect = intersect(obj.showDims, obj.ston{iImg});
+                        % if the matrix is singleton along one of the shown
+                        % image dimensions, use repmat
+                        repDims = ones(1, obj.nDims);
+                        repDims(isect) = obj.S(isect);
+                        
+                        % set selector along singleton dimensions to 1
                         select(obj.ston{iImg}) = {1};
+                        obj.slice{iax, iImg} = squeeze(repmat(obj.img{iImg}(select{:}), repDims));
+                    else
+                        obj.slice{iax, iImg} = squeeze(obj.img{iImg}(obj.sel{iax, :}));
                     end
                     
-                    obj.slice{iax, iImg} = squeeze(obj.img{iImg}(select{:}));
                     if obj.fftStatus == 1
                         % if chosen by the user, perform a 2D fft on the
                         % Data
