@@ -107,7 +107,8 @@ classdef DrawSingle < Draw
     % TODO:
     % - RadioGroup Buttons for animated sliders
     % - make 'SaveVideo' button only active, when timer is running
-    % - allow specifying values of dim axes (shown in slider index box)
+    % - make clear that externalPlot does not work when fft button is
+    % pressed (would require fft of the whole stack)
 	
     properties (Access = private)
         t           % interrupt timer
