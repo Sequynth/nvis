@@ -37,6 +37,7 @@ classdef (Abstract) Draw < handle
         nAxes           % number of displayed image Axes (DrawSingle: 1, DrawSlider: 3)
         img             % cell array in which the input matrices are stored
         nDims           % number of image dimensions
+        ston            % dimensions where a matrix is the only singleton
         isComplex       % is one of the inputs complex
         S               % size of the image(s)
         p               % input parser
@@ -63,7 +64,9 @@ classdef (Abstract) Draw < handle
         showDims
         
         % cell array that stores the location information in the input data
-        % of each currently shown slice
+        % of each currently shown slice.
+        % obj.sel{2, :} contains the subscripts to obtain the image shown
+        % in axis 2
         sel
         
         % cell array containing the current slice image information
@@ -311,7 +314,10 @@ classdef (Abstract) Draw < handle
             if ~isempty(obj.varargin) && ( isnumeric(obj.varargin{1}) || islogical(obj.varargin{1}) )
                 % two input matrices
                 obj.img{1}      = in;
+                % get second matrix from varargin
                 obj.img{2}      = obj.varargin{1};
+                % remove second matrix from varargin, should only contain
+                % NVPs now
                 obj.varargin(1) = [];
                 isEmpt          = cellfun(@isempty, obj.img);
                 if ~sum( isEmpt )
@@ -319,6 +325,7 @@ classdef (Abstract) Draw < handle
                     obj.nImages     = 2;
                     obj.isComplex   = ~cellfun(@isreal, obj.img);
                     obj.layerShown  = [1, 1];
+                    obj.checkSize()
                 elseif sum(isEmpt) == 1
                     % one input matrix is empty
                     warning('Input %d is empty! Only non-empty iputs are shown', find(isEmpt))
@@ -328,6 +335,7 @@ classdef (Abstract) Draw < handle
                     % for nImages=1, the second cell must be explicitly
                     % empty
                     obj.img{2} = [];
+                    obj.S = size(obj.img{1});
                 else
                     error('Both input matrices are empty')                    
                 end
@@ -337,9 +345,54 @@ classdef (Abstract) Draw < handle
                 obj.img{2}       = [];
                 obj.nImages      = 1;                
                 obj.isComplex    = ~isreal(obj.img{1});
+                obj.S = size(obj.img{1});
+            end            
+            obj.nDims = numel(obj.S);
+        end
+        
+        
+        function checkSize(obj)
+            
+            % get the image sizes
+            s1 = size(obj.img{1});
+            s2 = size(obj.img{2});
+            if numel(s1) ~= numel(s2)
+                % and image dimensions (trailing singleton dimensions are not
+                % considered by size)
+                d1 = ndims(obj.img{1});
+                d2 = ndims(obj.img{2});
+                if d1 > d2
+                    s2 = [s2 ones(1, d1-d2)];
+                else
+                    s1 = [s1 ones(1, d2-d1)];
+                end
             end
-            obj.S           = size(obj.img{1});
-            obj.nDims       = ndims(obj.img{1}); 
+            
+            if any(s1 ~= s2)
+                % there are dimensions, in wich both matrices have different
+                % sizes
+                
+                % combine the sizes into one array
+                s = [s1; s2];
+                
+                % check that for those dimensions, where the size differs,
+                % one is equal to 1
+                if any(min(s(:, s1~=s2),[], 1) ~= 1)
+                    % there are dimensions where the size differs and
+                    % neither of the matrices has a size of one along that
+                    % dimension
+                    error('Matrix dimensions must agree.')
+                else
+                    % find unique singleton dimensions in matrices
+                    obj.ston{1} = find((s1 ~= s2) & s1 == 1);
+                    obj.ston{2} = find((s1 ~= s2) & s2 == 1);
+                end
+                
+                obj.S = max(s, [], 1);
+            else
+                % both input matrices have exactly the same size
+                obj.S = size(obj.img{1});
+            end
         end
         
         
@@ -580,7 +633,15 @@ classdef (Abstract) Draw < handle
                 for iax = 1:obj.nAxes
                     % get the image information of the current slice(s)
                     % from the input matrices
-                    obj.slice{iax, iImg} = squeeze(obj.img{iImg}(obj.sel{iax, :}));
+                    
+                    % for dimensions where one matrix is singleton, the
+                    % selector-value must be adjusted to 1
+                    select = obj.sel(iax, :);
+                    if ~isempty(obj.ston{iImg})
+                        select(obj.ston{iImg}) = {1};
+                    end
+                    
+                    obj.slice{iax, iImg} = squeeze(obj.img{iImg}(select{:}));
                     if obj.fftStatus == 1
                         % if chosen by the user, perform a 2D fft on the
                         % Data
