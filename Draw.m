@@ -209,6 +209,7 @@ classdef (Abstract) Draw < handle
         refreshUI(obj)
         incDecActiveDim(obj, incDec)
         mouseButtonAlt(src, evtData)
+        setLocValFunction(obj)
     end
         
     
@@ -1299,6 +1300,7 @@ classdef (Abstract) Draw < handle
             obj.refreshUI()
         end
         
+        
         function setCmap(obj, src, ~)            
             % which colormap is selected
             idx = find(src == obj.hPopCm);
@@ -1323,8 +1325,9 @@ classdef (Abstract) Draw < handle
                 % recolor the ticks on the colorbars
             	obj.cw()
             end
-            
+            obj.setLocValFunction()
         end
+        
         
         function changeCmap(obj, src, ~)
             
