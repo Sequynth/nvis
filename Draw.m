@@ -209,7 +209,7 @@ classdef (Abstract) Draw < handle
         refreshUI(obj)
         incDecActiveDim(obj, incDec)
         mouseButtonAlt(src, evtData)
-        setLocValFunction(obj)
+        recolor(obj)
     end
         
     
@@ -235,6 +235,9 @@ classdef (Abstract) Draw < handle
             obj.rois         = {[], []};
             obj.signal       = NaN(1, obj.nImages);
             obj.noise        = NaN(1, obj.nImages);
+            
+            % initialize UI colors
+            obj.COLOR_m = [obj.COLOR_F; obj.COLOR_F];
             
             % set the correct default value for complexMode
             if any(obj.isComplex)
@@ -1308,15 +1311,15 @@ classdef (Abstract) Draw < handle
             obj.cmap{idx} = obj.availableCmaps.(cm);
             
             % set UI text colors
-            obj.COLOR_m(idx, :) = obj.cmap{idx}(round(size(obj.availableCmaps.(cm), 1) * 0.9), :);
-            
-            % change color of c/w edit fields
-            set(obj.hEditC(idx), 'ForegroundColor', obj.COLOR_m(idx, :))
-            set(obj.hEditW(idx), 'ForegroundColor', obj.COLOR_m(idx, :))
-            if obj.nImages == 2
+                obj.COLOR_m(idx, :) = obj.cmap{idx}(round(size(obj.availableCmaps.(cm), 1) * 0.9), :);
+                
+                % change color of c/w edit fields
+                set(obj.hEditC(idx), 'ForegroundColor', obj.COLOR_m(idx, :))
+                set(obj.hEditW(idx), 'ForegroundColor', obj.COLOR_m(idx, :))
+                if obj.nImages == 2
                 set(obj.hBtnHide(idx), 'ForegroundColor', obj.COLOR_m(idx, :))
-            end
-                        
+                end
+                
             % change colorbar axes
             if ~isempty(obj.hAxCb)
                 % many UI elements dont exist when prepare colors is called
@@ -1325,7 +1328,14 @@ classdef (Abstract) Draw < handle
                 % recolor the ticks on the colorbars
             	obj.cw()
             end
-            obj.setLocValFunction()
+            
+            if obj.nImages == 2 && get(obj.f, 'Visible')
+                % the first time setCmap is called, not all UI Elements are
+                % created yet, so we wait until obj.f is actually shown to
+                % the user
+                                
+                obj.recolor()
+            end
         end
         
         

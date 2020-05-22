@@ -861,6 +861,28 @@ classdef DrawSingle < Draw
         end
         
         
+        function recolor(obj)
+            % this function is callen, when the user changes a colormap in
+            % the GUI. To keep the colors consistent an easier
+            % attribuateble ti each in put, the colors in the GUI need to
+            % be adapted. Specifically in the locValString and the slider
+            % indices in the case of uniquely singleton dimensions.
+            
+            obj.setLocValFunction()
+            
+            % reset color to standard foreground color
+            set(obj.hEditSlider, 'ForegroundColor', obj.COLOR_F)
+            
+            % if necessary, change color for unique singleton
+            % dimensions
+            for iImg = 1:obj.nImages
+                stonSliderDims = ismember(obj.mapSliderToDim, obj.ston{iImg});
+                set(obj.hEditSlider(stonSliderDims), ...
+                    'ForegroundColor', obj.COLOR_m(mod(iImg, 2)+1, :))
+            end
+        end
+                
+        
         function initializeColorbars(obj)
             % add axis to display the colorbars
             for idh = 1:obj.nImages
@@ -1312,9 +1334,9 @@ classdef DrawSingle < Draw
             % consider singleton dimensions
             obj.sel(obj.S == 1) = {1};
             
-            obj.setLocValFunction()
             obj.initializeSliders()
-            obj.initializeAxis(false)            
+            obj.initializeAxis(false)
+            obj.recolor()
         end
         
         
