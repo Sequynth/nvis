@@ -659,6 +659,12 @@ classdef (Abstract) Draw < handle
                         obj.slice{iax, iImg} = squeeze(obj.img{iImg}(obj.sel{iax, :}));
                     end
                     
+                    if any(diff(obj.showDims) < 0)
+                        % the dimensions are not sorted in ascending order
+                        [~, I] = sort(obj.showDims);
+                        obj.slice{iax, iImg} = permute(obj.slice{iax, iImg}, I);
+                    end
+                    
                     if obj.fftStatus == 1
                         % if chosen by the user, perform a 2D fft on the
                         % Data

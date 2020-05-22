@@ -940,6 +940,10 @@ classdef DrawSingle < Draw
                 end
             end
             
+            % check the currently shown dimensions for necessity of color
+            % indication, if one input is singleton along dimension
+           
+            
             if obj.nImages == 1
                 obj.locValString = @(dim1L, dim1, dim2L, dim2, val) sprintf('\\color[rgb]{%.2f,%.2f,%.2f}%s:%4d\n%s:%4d\n%s:%s', ...
                     obj.COLOR_F, ...
@@ -950,11 +954,28 @@ classdef DrawSingle < Draw
                     obj.valNames{1}, ...
                     [num2sci(val) ' ' obj.unit{1}]);
             else
-                obj.locValString = @(dim1L, dim1, dim2L, dim2, val1, val2) sprintf('\\color[rgb]{%.2f,%.2f,%.2f}%s:%4d\n%s:%4d\n\\color[rgb]{%.2f,%.2f,%.2f}%s:%s\n\\color[rgb]{%.2f,%.2f,%.2f}%s:%s', ...
+                % check the currently shown dimensions for necessity of color
+                % indication, if one input is singleton along dimension
+                
+                adjColorStr = {'', ''};
+                for iImg = 1:obj.nImages
+                    match = ismember(obj.showDims, obj.ston{iImg});
+                    if any(match)
+                        % set color to different dimensions color
+                        adjColorStr{match} = sprintf('\\color[rgb]{%.2f,%.2f,%.2f}', obj.COLOR_m(mod(iImg, 2)+1, :));
+                    end
+                end
+                
+                
+                
+                obj.locValString = @(dim1L, dim1, dim2L, dim2, val1, val2) sprintf('\\color[rgb]{%.2f,%.2f,%.2f}%s:%s%4d\n\\color[rgb]{%.2f,%.2f,%.2f}%s:%s%4d\n\\color[rgb]{%.2f,%.2f,%.2f}%s:%s\n\\color[rgb]{%.2f,%.2f,%.2f}%s:%s', ...
                     obj.COLOR_F, ...
                     dim1L, ...
+                    adjColorStr{1}, ...
                     dim1, ...
+                    obj.COLOR_F, ...
                     dim2L, ...
+                    adjColorStr{2}, ...
                     dim2, ...
                     obj.COLOR_m(1, :), ...
                     obj.valNames{1}, ...
@@ -1284,13 +1305,14 @@ classdef DrawSingle < Draw
                         
             % renew slice selector for dimensions 3 and higher
             obj.sel        = repmat({':'}, 1, obj.nDims);
-            obj.sel(ismember(1:obj.nDims, obj.mapSliderToDim)) = num2cell(round(obj.S(obj.mapSliderToDim)/2));
+            %obj.sel(ismember(1:obj.nDims, obj.mapSliderToDim)) = num2cell(round(obj.S(obj.mapSliderToDim)/2));
             obj.sel(obj.mapSliderToDim) = num2cell(round(obj.S(obj.mapSliderToDim)/2));
             % consider singleton dimensions
             obj.sel(obj.S == 1) = {1};
             
+            obj.setLocValFunction()
             obj.initializeSliders()
-            obj.initializeAxis(false)
+            obj.initializeAxis(false)            
         end
         
         
