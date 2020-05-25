@@ -271,6 +271,9 @@ classdef DrawSingle < Draw
             obj.optimizeInitialFigureSize()   
             
             obj.guiResize()
+            
+            obj.recolor()
+            
             set(obj.f, 'Visible', 'on');
             
             if ~contains('ROI_Signal', obj.p.UsingDefaults)
@@ -985,10 +988,12 @@ classdef DrawSingle < Draw
                 adjColorStr = {'', ''};
                 for iImg = 1:obj.nImages
                     match = ismember(obj.showDims, obj.ston{iImg});
-                    if any(match)
+                    
+                    for iDim = find(match)
                         % set color to different dimensions color
-                        adjColorStr(match) = repmat({sprintf('\\color[rgb]{%.2f,%.2f,%.2f}', obj.COLOR_m(mod(iImg, 2)+1, :))}, [1,sum(match)]);
+                        adjColorStr{iDim} = sprintf('\\color[rgb]{%.2f,%.2f,%.2f}', obj.COLOR_m(mod(iImg, 2)+1, :));
                     end
+                    
                 end
                 
                 obj.locValString = @(dim1L, dim1, dim2L, dim2, val1, val2) ...

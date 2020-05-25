@@ -195,6 +195,9 @@ classdef DrawSlider < Draw
             obj.refreshUI()
             
             obj.guiResize()
+            
+            obj.recolor()
+            
             set(obj.f, 'Visible', 'on');
             
             % do not assign to 'ans' when called without assigned variable
@@ -669,8 +672,15 @@ classdef DrawSlider < Draw
             end
             
             for iSlider = 1:obj.nSlider
-                set(obj.hEditSlider(iSlider), 'String', num2str(obj.sel{obj.mapSliderToDim(iSlider), obj.mapSliderToDim(iSlider)}));
-                set(obj.hSlider(iSlider), 'Value', obj.sel{obj.mapSliderToDim(iSlider), obj.mapSliderToDim(iSlider)});
+                
+                if obj.mapSliderToImage{iSlider}  == ':'
+                    val = obj.sel{1, iSlider};
+                else
+                    val = obj.sel{obj.mapSliderToDim(iSlider), obj.mapSliderToDim(iSlider)};
+                end
+                
+                set(obj.hEditSlider(iSlider), 'String', num2str(val));
+                set(obj.hSlider(iSlider), 'Value', val);
             end
             % update 'val' when changing slice
             obj.mouseMovement();
@@ -776,6 +786,28 @@ classdef DrawSlider < Draw
         end
                 
         
+        function recolor(obj)
+            % this function is callen, when the user changes a colormap in
+            % the GUI. To keep the colors consistent an easier
+            % attribuateble ti each in put, the colors in the GUI need to
+            % be adapted. Specifically in the locValString and the slider
+            % indices in the case of uniquely singleton dimensions.
+            
+            obj.setLocValFunction()
+            
+            % reset color to standard foreground color
+            set(obj.hEditSlider, 'ForegroundColor', obj.COLOR_F)
+            
+            % if necessary, change color for unique singleton
+            % dimensions
+            for iImg = 1:obj.nImages
+                stonSliderDims = ismember(obj.mapSliderToDim, obj.ston{iImg});
+                set(obj.hEditSlider(stonSliderDims), ...
+                    'ForegroundColor', obj.COLOR_m(mod(iImg, 2)+1, :))
+            end
+        end
+        
+        
         function setLocValFunction(obj)
             % sets the function for the locAndVal string depending on the
             % amount of input images
@@ -800,13 +832,33 @@ classdef DrawSlider < Draw
                     obj.valNames{1}, ...
                     [num2sci(val) ' ' obj.unit{1}]);
             else
-                obj.locValString = @(dim1L, dim1, dim2L, dim2, dim3L, dim3, val1, val2) sprintf('\\color[rgb]{%.2f,%.2f,%.2f}%s:%4d\n%s:%4d\n%s:%4d\n\\color[rgb]{%.2f,%.2f,%.2f}%s:%s\n\\color[rgb]{%.2f,%.2f,%.2f}%s:%s', ...
+                % check the currently shown dimensions for necessity of color
+                % indication, if one input is singleton along dimension
+                
+                adjColorStr = {'', '', ''};
+                for iImg = 1:obj.nImages
+                    % in DrawSlider, always the first three dimensions are
+                    % shown
+                    match = ismember([1 2 3], obj.ston{iImg});
+                    for iDim = find(match)
+                        % set color to different dimensions color
+                        adjColorStr{iDim} = sprintf('\\color[rgb]{%.2f,%.2f,%.2f}', obj.COLOR_m(mod(iImg, 2)+1, :));
+                    end
+                end
+                
+                obj.locValString = @(dim1L, dim1, dim2L, dim2, dim3L, dim3, val1, val2) ...
+                    sprintf('\\color[rgb]{%.2f,%.2f,%.2f}%s:%s%4d\n\\color[rgb]{%.2f,%.2f,%.2f}%s:%s%4d\n\\color[rgb]{%.2f,%.2f,%.2f}%s:%s%4d\n\\color[rgb]{%.2f,%.2f,%.2f}%s:%s\n\\color[rgb]{%.2f,%.2f,%.2f}%s:%s', ...
                     obj.COLOR_F, ...
                     dim1L, ...
+                    adjColorStr{1}, ...
                     dim1, ...
+                    obj.COLOR_F, ...
                     dim2L, ...
+                    adjColorStr{2}, ...
                     dim2, ...
+                    obj.COLOR_F, ...
                     dim3L, ...
+                    adjColorStr{3}, ...
                     dim3, ...
                     obj.COLOR_m(1, :), ...
                     obj.valNames{1}, ...

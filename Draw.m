@@ -650,7 +650,7 @@ classdef (Abstract) Draw < handle
                         % other does not
                         
                         % is the matrix singleton along a shown dimension?
-                        isect = intersect(obj.showDims, obj.ston{iImg});
+                        isect = intersect(obj.showDims(iax, :), obj.ston{iImg});
                         % if the matrix is singleton along one of the shown
                         % image dimensions, use repmat
                         repDims = ones(1, obj.nDims);
@@ -665,7 +665,7 @@ classdef (Abstract) Draw < handle
                     
                     if any(diff(obj.showDims) < 0)
                         % the dimensions are not sorted in ascending order
-                        [~, I] = sort(obj.showDims);
+                        [~, I] = sort(obj.showDims(iax, :));
                         obj.slice{iax, iImg} = permute(obj.slice{iax, iImg}, I);
                     end
                     
@@ -1328,8 +1328,8 @@ classdef (Abstract) Draw < handle
                 % recolor the ticks on the colorbars
             	obj.cw()
             end
-            
-            if obj.nImages == 2 && get(obj.f, 'Visible')
+                                  
+            if obj.nImages == 2 && strcmp(get(obj.f, 'Visible'), 'on')
                 % the first time setCmap is called, not all UI Elements are
                 % created yet, so we wait until obj.f is actually shown to
                 % the user
@@ -1344,7 +1344,7 @@ classdef (Abstract) Draw < handle
             obj.setCmap(src)
             
             % reclaculate the shown image with the new colormap
-            obj.refreshUI
+            obj.refreshUI()
         end
         
         
