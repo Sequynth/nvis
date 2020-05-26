@@ -720,7 +720,8 @@ classdef DrawSingle < Draw
                 'ForegroundColor',      obj.COLOR_F, ...
                 'ShadowColor',          obj.COLOR_B, ...
                 'HighLightColor',       obj.COLOR_BG, ...
-                'SelectionChangedFcn',  @(bg, event) obj.BtnGselection(bg, event));
+                'SelectionChangedFcn',  @(bg, event) obj.btnGselection(bg, event), ...
+                'Visible',              'on');
             
             % create and position the sliders
             for iSlider = 1:obj.nSlider
@@ -1033,6 +1034,14 @@ classdef DrawSingle < Draw
         function mouseButtonAlt(obj, src, evtData)
             % code executed when the user presses the right mouse button.
             % currently not implemented.
+        end
+        
+        
+        function btnGselection(obj, ~, evtData)
+           % the radio buttons are enumerated in their 'Tag' property, get
+           % the 'Tag' from the now selected radio button, which is the new
+           % value for the interrupted slider.
+            obj.interruptedSlider = str2double(evtData.NewValue.Tag);
         end
         
         
