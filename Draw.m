@@ -37,7 +37,7 @@ classdef (Abstract) Draw < handle
         nAxes           % number of displayed image Axes (DrawSingle: 1, DrawSlider: 3)
         img             % cell array in which the input matrices are stored
         nDims           % number of image dimensions
-        ston            % dimensions where a matrix is the only singleton
+        ston            % cell array for dimensions where a matrix is the only singleton
         isComplex       % is one of the inputs complex
         S               % size of the image(s)
         p               % input parser
