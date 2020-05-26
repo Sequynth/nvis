@@ -373,6 +373,11 @@ classdef DrawSlider < Draw
                     'ForegroundColor',      obj.COLOR_m(idh, :), ...
                     'Enable',               'Inactive');
                 
+                set(obj.hPopCm(idh), ...
+                    'Parent',               obj.pControls, ...
+                    'FontUnits',            'normalized', ...
+                    'FontSize',             0.6);
+                
                 if obj.nImages == 2
                     set(obj.hBtnHide(idh), ...
                         'Parent',               obj.pControls, ...
@@ -910,7 +915,9 @@ classdef DrawSlider < Draw
                 set(obj.hEditW(ii), 'Position', obj.controlPanelPos(2, 1+ii, :));
             end
             
-            if obj.nImages == 2
+            if obj.nImages == 1
+                set(obj.hPopCm(1),   'Position', obj.controlPanelPos(3, 2, :));
+            else
                 set(obj.hBtnToggle,  'Position', obj.controlPanelPos(3, 1, :));
                 set(obj.hBtnHide(1), 'Position', obj.controlPanelPos(3, 2, :));
                 set(obj.hBtnHide(2), 'Position', obj.controlPanelPos(3, 3, :));
