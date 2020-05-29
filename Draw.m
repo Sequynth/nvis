@@ -660,13 +660,13 @@ classdef (Abstract) Draw < handle
                         select(obj.ston{iImg}) = {1};
                         obj.slice{iax, iImg} = squeeze(repmat(obj.img{iImg}(select{:}), repDims));
                     else
-                        obj.slice{iax, iImg} = squeeze(obj.img{iImg}(obj.sel{iax, :}));
-                    end
-                    
-                    if any(diff(obj.showDims) < 0)
-                        % the dimensions are not sorted in ascending order
-                        [~, I] = sort(obj.showDims(iax, :));
-                        obj.slice{iax, iImg} = permute(obj.slice{iax, iImg}, I);
+                        % use permute instead of squeeze, because squeeze
+                        % reduces a matrix of  size 1, 1, 100 to 100, 1
+                        % instead of 1, 100
+                        permDims = 1:obj.nDims;
+                        permDims(obj.showDims(iax, :)) = [];
+                        permDims = [obj.showDims(iax, :) permDims];
+                        obj.slice{iax, iImg} = permute(obj.img{iImg}(obj.sel{iax, :}), permDims);
                     end
                     
                     if obj.fftStatus == 1
@@ -677,7 +677,7 @@ classdef (Abstract) Draw < handle
                 end
             end
             
-            if any(~cellfun(@isreal, obj.slice))
+            if any(~cellfun(@isreal, obj.slice(:)))
                 % at least one of the slices has complex values, that
                 % means:
                 % show the complex Buttons
