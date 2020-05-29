@@ -8,10 +8,12 @@ classdef DrawSingle < Draw
 	% 	left/right(width). ROIs can be drawn to measure Signal to Noise
 	% 	ratio in image data.
 	%
-	% 	DRAWSINGLE(I1, I2): Data from the equally sized matrices I1 and I2
-	% 	are overlaid by adding the RGB values attributed by the individual
+	% 	DRAWSINGLE(I1, I2): Data from the matrices I1 and I2 are overlaid
+	% 	by adding (default) the RGB values attributed by the individual
 	% 	colormaps. The windowing for the second image can be adjusted by
-	% 	using the left mouse button.
+	% 	using the left mouse button. Image sizes must not be identical, but
+	% 	for dimensions, where the size is different, one matrix must be of
+	% 	size one.
 	%
 	%	Usage
 	%
