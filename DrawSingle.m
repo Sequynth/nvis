@@ -8,10 +8,12 @@ classdef DrawSingle < Draw
 	% 	left/right(width). ROIs can be drawn to measure Signal to Noise
 	% 	ratio in image data.
 	%
-	% 	DRAWSINGLE(I1, I2): Data from the equally sized matrices I1 and I2
-	% 	are overlaid by adding the RGB values attributed by the individual
+	% 	DRAWSINGLE(I1, I2): Data from the matrices I1 and I2 are overlaid
+	% 	by adding (default) the RGB values attributed by the individual
 	% 	colormaps. The windowing for the second image can be adjusted by
-	% 	using the left mouse button.
+	% 	using the left mouse button. Image sizes must not be identical, but
+	% 	for dimensions, where the size is different, one matrix must be of
+	% 	size one.
 	%
 	%	Usage
 	%
@@ -271,6 +273,9 @@ classdef DrawSingle < Draw
             obj.optimizeInitialFigureSize()   
             
             obj.guiResize()
+            
+            obj.recolor()
+            
             set(obj.f, 'Visible', 'on');
             
             if ~contains('ROI_Signal', obj.p.UsingDefaults)
@@ -862,6 +867,28 @@ classdef DrawSingle < Draw
         end
         
         
+        function recolor(obj)
+            % this function is callen, when the user changes a colormap in
+            % the GUI. To keep the colors consistent an easier
+            % attribuateble ti each in put, the colors in the GUI need to
+            % be adapted. Specifically in the locValString and the slider
+            % indices in the case of uniquely singleton dimensions.
+            
+            obj.setLocValFunction()
+            
+            % reset color to standard foreground color
+            set(obj.hEditSlider, 'ForegroundColor', obj.COLOR_F)
+            
+            % if necessary, change color for unique singleton
+            % dimensions
+            for iImg = 1:obj.nImages
+                stonSliderDims = ismember(obj.mapSliderToDim, obj.ston{iImg});
+                set(obj.hEditSlider(stonSliderDims), ...
+                    'ForegroundColor', obj.COLOR_m(mod(iImg, 2)+1, :))
+            end
+        end
+                
+        
         function initializeColorbars(obj)
             % add axis to display the colorbars
             for idh = 1:obj.nImages
@@ -926,7 +953,12 @@ classdef DrawSingle < Draw
         function createSelector(obj)
             % create slice selector
             obj.sel        = repmat({':'}, 1, obj.nDims);
-            obj.sel(ismember(1:obj.nDims, obj.mapSliderToDim)) = num2cell(obj.p.Results.InitSlice);            
+            obj.sel(ismember(1:obj.nDims, obj.mapSliderToDim)) = num2cell(obj.p.Results.InitSlice);
+            % consider singleton dimensions            
+            obj.sel(obj.S == 1) = {1};
+            % obj.sel{obj.S == 1} = 1; does not work here, because the
+            % condition might return an empty array which fails with curly
+            % brackets
         end
         
         
@@ -939,6 +971,10 @@ classdef DrawSingle < Draw
                 end
             end
             
+            % check the currently shown dimensions for necessity of color
+            % indication, if one input is singleton along dimension
+           
+            
             if obj.nImages == 1
                 obj.locValString = @(dim1L, dim1, dim2L, dim2, val) sprintf('\\color[rgb]{%.2f,%.2f,%.2f}%s:%4d\n%s:%4d\n%s:%s', ...
                     obj.COLOR_F, ...
@@ -949,11 +985,29 @@ classdef DrawSingle < Draw
                     obj.valNames{1}, ...
                     [num2sci(val) ' ' obj.unit{1}]);
             else
-                obj.locValString = @(dim1L, dim1, dim2L, dim2, val1, val2) sprintf('\\color[rgb]{%.2f,%.2f,%.2f}%s:%4d\n%s:%4d\n\\color[rgb]{%.2f,%.2f,%.2f}%s:%s\n\\color[rgb]{%.2f,%.2f,%.2f}%s:%s', ...
+                % check the currently shown dimensions for necessity of color
+                % indication, if one input is singleton along dimension
+                
+                adjColorStr = {'', ''};
+                for iImg = 1:obj.nImages
+                    match = ismember(obj.showDims, obj.ston{iImg});
+                    
+                    for iDim = find(match)
+                        % set color to different dimensions color
+                        adjColorStr{iDim} = sprintf('\\color[rgb]{%.2f,%.2f,%.2f}', obj.COLOR_m(mod(iImg, 2)+1, :));
+                    end
+                    
+                end
+                
+                obj.locValString = @(dim1L, dim1, dim2L, dim2, val1, val2) ...
+                    sprintf('\\color[rgb]{%.2f,%.2f,%.2f}%s:%s%4d\n\\color[rgb]{%.2f,%.2f,%.2f}%s:%s%4d\n\\color[rgb]{%.2f,%.2f,%.2f}%s:%s\n\\color[rgb]{%.2f,%.2f,%.2f}%s:%s', ...
                     obj.COLOR_F, ...
                     dim1L, ...
+                    adjColorStr{1}, ...
                     dim1, ...
+                    obj.COLOR_F, ...
                     dim2L, ...
+                    adjColorStr{2}, ...
                     dim2, ...
                     obj.COLOR_m(1, :), ...
                     obj.valNames{1}, ...
@@ -1269,10 +1323,14 @@ classdef DrawSingle < Draw
         
         
         function shiftDims(obj, src, ~)
+            % this line ignores singleton dimensions, because they dont get
+            % a slider and a boring to look at
             dimArray = [obj.showDims obj.mapSliderToDim];
             switch (src.String)
                 case '->'
-                    shifted = circshift(dimArray, -1);                    
+                    shifted = circshift(dimArray, -1);
+                    % activeDim defines the active slider and cant be one
+                    % of the shown dimensions
                     if ismember(obj.activeDim, shifted(1:2))
                         obj.activeDim = shifted(3);
                     end
@@ -1287,10 +1345,14 @@ classdef DrawSingle < Draw
                         
             % renew slice selector for dimensions 3 and higher
             obj.sel        = repmat({':'}, 1, obj.nDims);
-            obj.sel(ismember(1:obj.nDims, obj.mapSliderToDim)) = num2cell(round(obj.S(obj.mapSliderToDim)/2));
+            %obj.sel(ismember(1:obj.nDims, obj.mapSliderToDim)) = num2cell(round(obj.S(obj.mapSliderToDim)/2));
+            obj.sel(obj.mapSliderToDim) = num2cell(round(obj.S(obj.mapSliderToDim)/2));
+            % consider singleton dimensions
+            obj.sel(obj.S == 1) = {1};
             
             obj.initializeSliders()
             obj.initializeAxis(false)
+            obj.recolor()
         end
         
         

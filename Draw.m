@@ -37,6 +37,7 @@ classdef (Abstract) Draw < handle
         nAxes           % number of displayed image Axes (DrawSingle: 1, DrawSlider: 3)
         img             % cell array in which the input matrices are stored
         nDims           % number of image dimensions
+        ston            % cell array for dimensions where a matrix is the only singleton
         isComplex       % is one of the inputs complex
         S               % size of the image(s)
         p               % input parser
@@ -63,7 +64,9 @@ classdef (Abstract) Draw < handle
         showDims
         
         % cell array that stores the location information in the input data
-        % of each currently shown slice
+        % of each currently shown slice.
+        % obj.sel{2, :} contains the subscripts to obtain the image shown
+        % in axis 2
         sel
         
         % cell array containing the current slice image information
@@ -206,6 +209,7 @@ classdef (Abstract) Draw < handle
         refreshUI(obj)
         incDecActiveDim(obj, incDec)
         mouseButtonAlt(src, evtData)
+        recolor(obj)
     end
         
     
@@ -231,6 +235,9 @@ classdef (Abstract) Draw < handle
             obj.rois         = {[], []};
             obj.signal       = NaN(1, obj.nImages);
             obj.noise        = NaN(1, obj.nImages);
+            
+            % initialize UI colors
+            obj.COLOR_m = [obj.COLOR_F; obj.COLOR_F];
             
             % set the correct default value for complexMode
             if any(obj.isComplex)
@@ -311,7 +318,10 @@ classdef (Abstract) Draw < handle
             if ~isempty(obj.varargin) && ( isnumeric(obj.varargin{1}) || islogical(obj.varargin{1}) )
                 % two input matrices
                 obj.img{1}      = in;
+                % get second matrix from varargin
                 obj.img{2}      = obj.varargin{1};
+                % remove second matrix from varargin, should only contain
+                % NVPs now
                 obj.varargin(1) = [];
                 isEmpt          = cellfun(@isempty, obj.img);
                 if ~sum( isEmpt )
@@ -319,6 +329,7 @@ classdef (Abstract) Draw < handle
                     obj.nImages     = 2;
                     obj.isComplex   = ~cellfun(@isreal, obj.img);
                     obj.layerShown  = [1, 1];
+                    obj.checkSize()
                 elseif sum(isEmpt) == 1
                     % one input matrix is empty
                     warning('Input %d is empty! Only non-empty iputs are shown', find(isEmpt))
@@ -328,6 +339,8 @@ classdef (Abstract) Draw < handle
                     % for nImages=1, the second cell must be explicitly
                     % empty
                     obj.img{2} = [];
+                    obj.S = size(obj.img{1});
+                    obj.ston{1} = [];
                 else
                     error('Both input matrices are empty')                    
                 end
@@ -337,9 +350,57 @@ classdef (Abstract) Draw < handle
                 obj.img{2}       = [];
                 obj.nImages      = 1;                
                 obj.isComplex    = ~isreal(obj.img{1});
+                obj.S = size(obj.img{1});
+                obj.ston{1} = [];
+            end            
+            obj.nDims = numel(obj.S);
+        end
+        
+        
+        function checkSize(obj)
+            
+            % get the image sizes
+            s1 = size(obj.img{1});
+            s2 = size(obj.img{2});
+            if numel(s1) ~= numel(s2)
+                % and image dimensions (trailing singleton dimensions are not
+                % considered by size)
+                d1 = ndims(obj.img{1});
+                d2 = ndims(obj.img{2});
+                if d1 > d2
+                    s2 = [s2 ones(1, d1-d2)];
+                else
+                    s1 = [s1 ones(1, d2-d1)];
+                end
             end
-            obj.S           = size(obj.img{1});
-            obj.nDims       = ndims(obj.img{1}); 
+            
+            if any(s1 ~= s2)
+                % there are dimensions, in wich both matrices have different
+                % sizes
+                
+                % combine the sizes into one array
+                s = [s1; s2];
+                
+                % check that for those dimensions, where the size differs,
+                % one is equal to 1
+                if any(min(s(:, s1~=s2),[], 1) ~= 1)
+                    % there are dimensions where the size differs and
+                    % neither of the matrices has a size of one along that
+                    % dimension
+                    error('Matrix dimensions must agree.')
+                else
+                    % find unique singleton dimensions in matrices
+                    obj.ston{1} = find((s1 ~= s2) & s1 == 1);
+                    obj.ston{2} = find((s1 ~= s2) & s2 == 1);
+                end
+                
+                obj.S = max(s, [], 1);
+            else
+                % both input matrices have exactly the same size
+                obj.ston{1} = [];
+                obj.ston{2} = [];
+                obj.S = size(obj.img{1});
+            end
         end
         
         
@@ -580,7 +641,34 @@ classdef (Abstract) Draw < handle
                 for iax = 1:obj.nAxes
                     % get the image information of the current slice(s)
                     % from the input matrices
-                    obj.slice{iax, iImg} = squeeze(obj.img{iImg}(obj.sel{iax, :}));
+                    
+                    % for dimensions where one matrix is singleton, the
+                    % selector-value must be adjusted to 1
+                    select = obj.sel(iax, :);
+                    if ~isempty(obj.ston{iImg})
+                        % this matrix has singleton dimensions where the
+                        % other does not
+                        
+                        % is the matrix singleton along a shown dimension?
+                        isect = intersect(obj.showDims(iax, :), obj.ston{iImg});
+                        % if the matrix is singleton along one of the shown
+                        % image dimensions, use repmat
+                        repDims = ones(1, obj.nDims);
+                        repDims(isect) = obj.S(isect);
+                        
+                        % set selector along singleton dimensions to 1
+                        select(obj.ston{iImg}) = {1};
+                        obj.slice{iax, iImg} = squeeze(repmat(obj.img{iImg}(select{:}), repDims));
+                    else
+                        % use permute instead of squeeze, because squeeze
+                        % reduces a matrix of  size 1, 1, 100 to 100, 1
+                        % instead of 1, 100
+                        permDims = 1:obj.nDims;
+                        permDims(obj.showDims(iax, :)) = [];
+                        permDims = [obj.showDims(iax, :) permDims];
+                        obj.slice{iax, iImg} = permute(obj.img{iImg}(obj.sel{iax, :}), permDims);
+                    end
+                    
                     if obj.fftStatus == 1
                         % if chosen by the user, perform a 2D fft on the
                         % Data
@@ -589,7 +677,7 @@ classdef (Abstract) Draw < handle
                 end
             end
             
-            if any(~cellfun(@isreal, obj.slice))
+            if any(~cellfun(@isreal, obj.slice(:)))
                 % at least one of the slices has complex values, that
                 % means:
                 % show the complex Buttons
@@ -1215,6 +1303,7 @@ classdef (Abstract) Draw < handle
             obj.refreshUI()
         end
         
+        
         function setCmap(obj, src, ~)            
             % which colormap is selected
             idx = find(src == obj.hPopCm);
@@ -1222,15 +1311,15 @@ classdef (Abstract) Draw < handle
             obj.cmap{idx} = obj.availableCmaps.(cm);
             
             % set UI text colors
-            obj.COLOR_m(idx, :) = obj.cmap{idx}(round(size(obj.availableCmaps.(cm), 1) * 0.9), :);
-            
-            % change color of c/w edit fields
-            set(obj.hEditC(idx), 'ForegroundColor', obj.COLOR_m(idx, :))
-            set(obj.hEditW(idx), 'ForegroundColor', obj.COLOR_m(idx, :))
-            if obj.nImages == 2
+                obj.COLOR_m(idx, :) = obj.cmap{idx}(round(size(obj.availableCmaps.(cm), 1) * 0.9), :);
+                
+                % change color of c/w edit fields
+                set(obj.hEditC(idx), 'ForegroundColor', obj.COLOR_m(idx, :))
+                set(obj.hEditW(idx), 'ForegroundColor', obj.COLOR_m(idx, :))
+                if obj.nImages == 2
                 set(obj.hBtnHide(idx), 'ForegroundColor', obj.COLOR_m(idx, :))
-            end
-                        
+                end
+                
             % change colorbar axes
             if ~isempty(obj.hAxCb)
                 % many UI elements dont exist when prepare colors is called
@@ -1239,15 +1328,23 @@ classdef (Abstract) Draw < handle
                 % recolor the ticks on the colorbars
             	obj.cw()
             end
-            
+                                  
+            if obj.nImages == 2 && strcmp(get(obj.f, 'Visible'), 'on')
+                % the first time setCmap is called, not all UI Elements are
+                % created yet, so we wait until obj.f is actually shown to
+                % the user
+                                
+                obj.recolor()
+            end
         end
+        
         
         function changeCmap(obj, src, ~)
             
             obj.setCmap(src)
             
             % reclaculate the shown image with the new colormap
-            obj.refreshUI
+            obj.refreshUI()
         end
         
         
