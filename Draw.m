@@ -645,6 +645,8 @@ classdef (Abstract) Draw < handle
                     % for dimensions where one matrix is singleton, the
                     % selector-value must be adjusted to 1
                     select = obj.sel(iax, :);
+                    select(obj.ston{iImg}) = {1};
+                    
                     if ~isempty(obj.ston{iImg})
                         % this matrix has singleton dimensions where the
                         % other does not
@@ -655,19 +657,20 @@ classdef (Abstract) Draw < handle
                         % image dimensions, use repmat
                         repDims = ones(1, obj.nDims);
                         repDims(isect) = obj.S(isect);
-                        
-                        % set selector along singleton dimensions to 1
-                        select(obj.ston{iImg}) = {1};
-                        obj.slice{iax, iImg} = squeeze(repmat(obj.img{iImg}(select{:}), repDims));
                     else
-                        % use permute instead of squeeze, because squeeze
-                        % reduces a matrix of  size 1, 1, 100 to 100, 1
-                        % instead of 1, 100
-                        permDims = 1:obj.nDims;
-                        permDims(obj.showDims(iax, :)) = [];
-                        permDims = [obj.showDims(iax, :) permDims];
-                        obj.slice{iax, iImg} = permute(obj.img{iImg}(obj.sel{iax, :}), permDims);
+                        % no unique singleton dimensions, no repetition
+                        % necessary
+                        repDims = ones(1, obj.nDims);
                     end
+                    
+                    % use permute instead of squeeze, because squeeze
+                    % reduces a matrix of  size 1, 1, 100 to 100, 1
+                    % instead of 1, 100
+                    permDims = 1:obj.nDims;
+                    permDims(obj.showDims(iax, :)) = [];
+                    permDims = [obj.showDims(iax, :) permDims];
+                    
+                    obj.slice{iax, iImg} = permute(repmat(obj.img{iImg}(select{:}), repDims), permDims);
                     
                     if obj.fftStatus == 1
                         % if chosen by the user, perform a 2D fft on the
