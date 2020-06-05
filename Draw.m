@@ -670,6 +670,8 @@ classdef (Abstract) Draw < handle
                     permDims(obj.showDims(iax, :)) = [];
                     permDims = [obj.showDims(iax, :) permDims];
                     
+                    % repeat along singleton if necessary, then permute to
+                    % get orientation right
                     obj.slice{iax, iImg} = permute(repmat(obj.img{iImg}(select{:}), repDims), permDims);
                     
                     if obj.fftStatus == 1

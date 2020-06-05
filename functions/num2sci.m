@@ -59,21 +59,28 @@ end
 
 if isnan(val) | isinf(val)
     str = [' ' num2str(val)];
-elseif val == 0
-    str = sprintf('%1$+*2$.*3$f', 0, 5+precision, precision);
-elseif(isnumeric(val))
-    % value of the exponent
-    expon = floor(log10(abs(val)));
-    % value of the factor
-    factor = val/10^expon;
-    
-    r = mod(expon, 3);
-    
-    % new exponent
-    exponNew = expon - r;
-    
-    % new factor
-    factorNew = factor * 10^r;
+else
+    if val == 0
+        str = sprintf('%1$+*2$.*3$f', 0, 5+precision, precision);
+        exponNew  = 0;
+        factorNew = 0;
+    elseif isnumeric(val)
+        % value of the exponent
+        expon = floor(log10(abs(val)));
+        % value of the factor
+        factor = val/10^expon;
+        
+        r = mod(expon, 3);
+        
+        % new exponent
+        exponNew = expon - r;
+        
+        % new factor
+        factorNew = factor * 10^r;
+    else
+        str = 'unknown';
+        return;
+    end
     
     if exponNew ~= 0
         % the following line creates a string that is 7 characters long and
@@ -110,9 +117,6 @@ elseif(isnumeric(val))
                 % do nothing
             otherwise
                 error('padding must be one of the following: left, right, both, none')
-        end
-        
+        end        
     end
-else
-    str = 'unknown';
 end
