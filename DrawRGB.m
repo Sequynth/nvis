@@ -910,5 +910,10 @@ classdef DrawRGB < Draw
             
             pos(:, 1) = xPos;
         end
+        
+        
+        function recolor(obj)
+            % is never called in DrawRGB
+        end
     end
 end
