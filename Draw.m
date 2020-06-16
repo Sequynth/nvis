@@ -17,6 +17,7 @@ classdef (Abstract) Draw < handle
         layerShown      % which of the images is currently shown?
         fftStatus       % keeps track of fft-button status
         
+        
         % WINDOWING PROPERTIES
         Max             % maximum value in both images
         Min             % minimum value in both images
@@ -104,6 +105,12 @@ classdef (Abstract) Draw < handle
         
         % overlay mode (1: add, 2: multiply)
         overlay
+        
+        % label for each dimension
+        dimLabel
+        
+        % values for each dimension
+        dimVal
         
         %% GUI ELEMENTS
         
@@ -422,6 +429,9 @@ classdef (Abstract) Draw < handle
                                                 obj.Max(2)-obj.Min(2)],         @isnumeric);            
             addParameter(obj.p, 'widthMin',     single(0.001*(obj.Max-obj.Min)),@isnumeric);
             addParameter(obj.p, 'Unit',         {[], []},                       @(x) (iscell(x) && numel(x) <= 2) | ischar(x));
+            addParameter(obj.p, 'DimLabel',     strcat(repmat({}, 1, numel(obj.S))), @(x) iscell(x) && numel(x) == obj.nDims);
+            addParameter(obj.p, 'DimVal',       cellfun(@(x) 1:x, num2cell(obj.S), 'UniformOutput', false), @iscell);     
+
         end
         
         
@@ -632,7 +642,33 @@ classdef (Abstract) Draw < handle
                 'Callback',             {@obj.toggleComplex},...
                 'BackgroundColor',      obj.COLOR_BG, ...
                 'ForegroundColor',      obj.COLOR_F);
-        end        
+        end
+        
+        
+        function parseDimLabelsVals(obj)
+            % dimension labels
+            
+            % set default labels
+            obj.dimLabel = strcat(repmat({'Dim'}, 1, numel(obj.S)), cellfun(@num2str, num2cell(1:obj.nDims), 'UniformOutput', false));
+            if ~contains('DimLabel', obj.p.UsingDefaults)
+               % if cell entry is empty, use default value
+               emptyCell = cellfun(@isempty, obj.p.Results.DimLabel);
+               obj.dimLabel(~emptyCell) = obj.p.Results.DimLabel(~emptyCell);
+            end
+            
+            % dimension values
+            
+            % set default values via size of each dimension
+            obj.dimVal = cellfun(@(x) 1:x, num2cell(obj.S), 'UniformOutput', false);
+            
+            if ~contains('DimVal', obj.p.UsingDefaults)
+                % if cell entry is empty, use default value
+               emptyCell = cellfun(@isempty, obj.p.Results.DimVal);
+               obj.dimVal(~emptyCell) = obj.p.Results.DimVal(~emptyCell);
+            end
+            
+            obj.dimVal = valsToString(obj.dimVal);
+        end
         
         
         function prepareSliceData(obj)
@@ -1533,6 +1569,23 @@ classdef (Abstract) Draw < handle
             end
         end
     end
-    
 end
 
+
+function str = valsToString(valCell)
+	% makes sure all entries in dimVals are strings
+    
+    % initialize output
+    str = valCell;
+    
+    % find numeric arrays
+    numArray = cellfun(@isnumeric, valCell);
+    if any(numArray)
+        % convert matrix to cell
+        str(numArray) = cellfun(@num2cell, valCell(numArray), 'UniformOutput', 0);
+        % convert numbers to strings
+        for ii = find(numArray)
+            str{ii} = cellfun(@num2str, str{ii}, 'UniformOutput', 0);
+        end
+    end
+end
