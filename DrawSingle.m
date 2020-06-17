@@ -188,17 +188,11 @@ classdef DrawSingle < Draw
                 obj.inputNames{1} = inputname(1);
                 obj.standardTitle = inputname(1);
             end
-            
-            % default figure position and size. is adapdet to actual screensize
-            % and is separated from top/bottom by 10% of up/down screensize
-            screenS = get(0, 'ScreenSize');
-            defaultPosition = [ 300, round(0.1*screenS(4)), 800, round(0.8*screenS(4))];
-            
+                 
             obj.prepareParser()
             
             % additional parameters
             addParameter(obj.p, 'InitRot',          0,                                  @(x) isnumeric(x));
-            addParameter(obj.p, 'Position',         defaultPosition,                    @(x) isnumeric(x) && numel(x) == 4);
             addParameter(obj.p, 'InitSlice',        round(obj.S(obj.mapSliderToDim)/2), @isnumeric);
             addParameter(obj.p, 'fps',              0,                                  @isnumeric);
             addParameter(obj.p, 'ROI_Signal',       [0 0; 0 0; 0 0],                    @isnumeric);

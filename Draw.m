@@ -406,9 +406,15 @@ classdef (Abstract) Draw < handle
         
         function prepareParser(obj)
             
+            % default figure position and size. is adapted to actual screensize
+            % and is separated from top/bottom by 10% of up/down screensize
+            screenS = get(0, 'ScreenSize');
+            defaultPosition = [ 300, round(0.1*screenS(4)), 800, round(0.8*screenS(4))];
+
             obj.p = inputParser;
             isboolean = @(x) x == 1 || x == 0;
             % add parameters to the input parser
+            addParameter(obj.p, 'Position',     defaultPosition,                @(x) isnumeric(x) && numel(x) == 4);
             addParameter(obj.p, 'Overlay',      1,                              @(x) floor(x)==x && x >= 1); %is integer greater 1
             addParameter(obj.p, 'Colormap',     gray(256),                      @(x) iscell(x) | isnumeric(x) | ischar(x));
             addParameter(obj.p, 'Contrast',     'green-magenta',                @(x) obj.isContrast(x));

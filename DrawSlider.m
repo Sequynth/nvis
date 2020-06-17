@@ -164,7 +164,6 @@ classdef DrawSlider < Draw
             obj.prepareParser()
             
             % definer additional Prameters
-            addParameter(obj.p, 'Position',     obj.defaultPosition,  @(x) isnumeric(x) && numel(x) == 4);
             addParameter(obj.p, 'InitSlice',    round(obj.S(1:3)/2),  @isnumeric);
             addParameter(obj.p, 'Crosshair',    1,                    @isnumeric);
 
