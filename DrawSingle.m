@@ -220,6 +220,9 @@ classdef DrawSingle < Draw
             obj.overlay             = obj.p.Results.Overlay;
             obj.unit                = obj.p.Results.Unit;
             
+            % set default values for dimLabel
+            obj.dimLabel = strcat(repmat({'Dim'}, 1, numel(obj.S)), cellfun(@num2str, num2cell(1:obj.nDims), 'UniformOutput', false));
+            
             obj.parseDimLabelsVals()
             
             obj.prepareGUIElements()

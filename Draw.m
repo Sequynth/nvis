@@ -648,8 +648,6 @@ classdef (Abstract) Draw < handle
         function parseDimLabelsVals(obj)
             % dimension labels
             
-            % set default labels
-            obj.dimLabel = strcat(repmat({'Dim'}, 1, numel(obj.S)), cellfun(@num2str, num2cell(1:obj.nDims), 'UniformOutput', false));
             if ~contains('DimLabel', obj.p.UsingDefaults)
                % if cell entry is empty, use default value
                emptyCell = cellfun(@isempty, obj.p.Results.DimLabel);
