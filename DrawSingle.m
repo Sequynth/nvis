@@ -76,12 +76,12 @@ classdef DrawSingle < Draw
 	%	'InitRot',      int         initial rotation angle of the displayed
 	%                               image
 	%	'DimLabel',     cell{char}  char arrays to label the individual
-	%                               dimensions in the input data, if
-	%                               provided, must be provided for all
-	%                               dimensions.
-    %	'DimVal',       cell{char}  char arrays containing the axis-values
+	%                               dimensions in the input data. Cell
+	%                               entries can be empty to use default
+	%                               label.
+    %	'DimVal', cell{cell{char}}  char arrays containing the axis-values
     %                or cell{int}   for each dimension. Cell entries can be
-    %                               empty to use default enumberation. Vals
+    %                               empty to use default enumeration. Vals
     %                               must not be char, but is encouraged.
 	%	'fps',          double      defines how many times per second the
 	%                               slider value provided by 'LoopDim' is

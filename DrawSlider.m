@@ -70,9 +70,13 @@ classdef DrawSlider < Draw
 	%	'InitSlice',    1x3         set the slices that are shown when the
 	%                               figure is opened.
 	%	'DimLabel',     cell{char}  char arrays to label the individual
-	%                               dimensions in the input data, if
-	%                               provided, must be provided for all
-	%                               dimensions.
+	%                               dimensions in the input data. Cell
+	%                               entries can be empty to use default
+	%                               label.
+    %	'DimVal', cell{cell{char}}  char arrays containing the axis-values
+    %                or cell{int}   for each dimension. Cell entries can be
+    %                               empty to use default enumeration. Vals
+    %                               must not be char, but is encouraged.
 	%	'ROI_Signal',   Nx2 		vertices polygon that defines a ROI in
 	%                               the initial slice.
 	%	'ROI_Noise',    Nx2 		vertices polygon that defines a ROI in
