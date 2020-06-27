@@ -124,6 +124,9 @@ classdef (Abstract) Draw < handle
         hBtnHide
         hBtnToggle
         hBtnCwCopy
+        hBtnCwHome
+        hBtnCwSlice
+        hBtnCwLink
         
         % select the colormap for each input image
         hPopCm
@@ -934,6 +937,29 @@ classdef (Abstract) Draw < handle
                     set(obj.hAxCb(idi), TickLabel, ticks_new);
                 end
             end
+        end
+        
+        
+        function BtnCwHomeCallback(obj, src, ~)
+            % set center and width to the initial values
+            iImg = (obj.hBtnCwHome == src);
+            obj.center(iImg) = obj.p.Results.CW(iImg, 1);
+            obj.width(iImg) = obj.p.Results.CW(iImg, 2);
+            % apply changes to center and width
+            obj.cw();
+        end
+        
+        
+        function BtnCwSliceCallback(obj, src, ~)
+            % set center and width to optimize display of the current slice
+            iImg = (obj.hBtnCwSlice == src);
+            
+            % calculate cw values for the slice
+            obj.center(iImg) = (obj.cleverMax(obj.slice{iImg})+obj.cleverMin(obj.slice{iImg})) / 2;
+            obj.width(iImg)  = obj.cleverMax(obj.slice{iImg})-obj.cleverMin(obj.slice{iImg});
+            
+            % apply changes to center and width
+            obj.cw();
         end
         
         
