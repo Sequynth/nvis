@@ -500,14 +500,16 @@ classdef (Abstract) Draw < handle
                     'BackgroundColor',      obj.COLOR_BG, ...
                     'Enable',               'Inactive', ...
                     'ButtonDownFcn',        @obj.removeListener, ...
-                    'Callback',             @obj.setCW);
+                    'Callback',             @obj.setCW, ...
+                    'TooltipString',        'center value for applied colormap');
                 
                 obj.hEditW(idh) = uicontrol( ...
                     'Style',                'edit', ...
                     'BackgroundColor',      obj.COLOR_BG, ...
                     'Enable',               'Inactive', ...
                     'ButtonDownFcn',        @obj.removeListener, ...
-                    'Callback',             @obj.setCW);
+                    'Callback',             @obj.setCW, ...
+                    'TooltipString',        'width value for applied colormap');
                 
                 if obj.nImages == 2
                     obj.hBtnHide(idh) = uicontrol( ...
@@ -515,11 +517,12 @@ classdef (Abstract) Draw < handle
                         'BackgroundColor',      obj.COLOR_BG, ...
                         'Callback',             {@obj.BtnHideCallback});
                     
+                    num = {'second', 'first'};
                     obj.hBtnCwCopy(idh) = uicontrol( ...
                         'Style',                'pushbutton', ...
                         'BackgroundColor',      obj.COLOR_BG, ...
                         'ForegroundColor',      obj.COLOR_F, ...
-                        'Callback',             {@obj.BtnCwCopyCallback});
+                        'TooltipString',        ['copy CW values to '   num{idh} ' second image']);
                 end
             end
             
@@ -648,7 +651,13 @@ classdef (Abstract) Draw < handle
         function parseDimLabelsVals(obj)
             % dimension labels
             
+            
+            
             if ~contains('DimLabel', obj.p.UsingDefaults)
+                % check number of input labels equals dimensions of image
+                if numel(obj.p.Results.DimLabel) ~= obj.nDims
+                    error('Number of DimLabel must equal the number of image dimensions.')
+                end
                % if cell entry is empty, use default value
                emptyCell = cellfun(@isempty, obj.p.Results.DimLabel);
                obj.dimLabel(~emptyCell) = obj.p.Results.DimLabel(~emptyCell);
@@ -660,9 +669,18 @@ classdef (Abstract) Draw < handle
             obj.dimVal = cellfun(@(x) 1:x, num2cell(obj.S), 'UniformOutput', false);
             
             if ~contains('DimVal', obj.p.UsingDefaults)
+                % check number of value arrays equals dimensions of image
+                if numel(obj.p.Results.DimVal) ~= obj.nDims
+                    error('Number of elements in DimVal must equal the number of image dimensions.')
+                end
                 % if cell entry is empty, use default value
-               emptyCell = cellfun(@isempty, obj.p.Results.DimVal);
-               obj.dimVal(~emptyCell) = obj.p.Results.DimVal(~emptyCell);
+                emptyCell = cellfun(@isempty, obj.p.Results.DimVal);
+                obj.dimVal(~emptyCell) = obj.p.Results.DimVal(~emptyCell);
+                
+                % value array for each dimension must have obj.S entries
+                if ~isequal(obj.S, cellfun(@numel, obj.dimVal))
+                    error('Number of elements in DimVal for dimension(s) %s do not match image size', mat2str(find(obj.S ~= cellfun(@numel, obj.dimVal))))
+                end
             end
             
             obj.dimVal = valsToString(obj.dimVal);
@@ -1585,5 +1603,12 @@ function str = valsToString(valCell)
         for ii = find(numArray)
             str{ii} = cellfun(@num2str, str{ii}, 'UniformOutput', 0);
         end
+    end
+    
+    % find char arrays
+    charArray = cellfun(@ischar, valCell);
+    if any(charArray)
+        % convert char to cell
+        str(charArray) = cellfun(@(x) {x}, valCell(charArray), 'UniformOutput', 0);
     end
 end
