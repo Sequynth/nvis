@@ -360,12 +360,38 @@ classdef DrawSingle < Draw
                 textFont        = 0.4;
             end
             
+            for ii = 1:obj.nImages
+            obj.hBtnCwHome(ii) = uicontrol( ...
+                'Style',                'pushbutton', ...
+                'BackgroundColor',      obj.COLOR_BG, ...
+                'ForegroundColor',      obj.COLOR_F, ...
+                'Callback',             {@obj.BtnCwHomeCallback}, ...
+                'Parent',               obj.pControls, ...
+                'Units',                'pixel', ...
+                'String',               char(8962), ...
+                'FontUnits',            'normalized', ...
+                'FontSize',             0.6, ...
+                'HorizontalAlignment',  'left');
+            
+            obj.hBtnCwSlice(ii) = uicontrol( ...
+                'Style',                'pushbutton', ...
+                'BackgroundColor',      obj.COLOR_BG, ...
+                'ForegroundColor',      obj.COLOR_F, ...
+                'Callback',             {@obj.BtnCwSliceCallback}, ...
+                'Parent',               obj.pControls, ...
+                'Units',                'pixel', ...
+                'String',               char(9633), ...
+                'FontUnits',            'normalized', ...
+                'FontSize',             0.6, ...
+                'HorizontalAlignment',  'left');
+            end
+            
             % place cw windowing elements
             if obj.nImages == 2
                 set(obj.hBtnCwCopy(1), ...
                     'Parent',               obj.pControls, ...
                     'Units',                'pixel', ...
-                    'String',               '->', ...
+                    'String',               char(8594), ...
                     'FontUnits',            'normalized', ...
                     'FontSize',             0.6, ...
                     'HorizontalAlignment',  'left');
@@ -373,7 +399,7 @@ classdef DrawSingle < Draw
                 set(obj.hBtnCwCopy(2), ...
                     'Parent',               obj.pControls, ...
                     'Units',                'pixel', ...
-                    'String',               '<-', ...
+                    'String',               char(8592), ...
                     'FontUnits',            'normalized', ...
                     'FontSize',             0.6, ...
                     'HorizontalAlignment',  'left');
@@ -1404,21 +1430,30 @@ classdef DrawSingle < Draw
             end
             
             n = 0.5;
-            if obj.nImages == 2
-                position = obj.divPosition(n, 0.5);
-                set(obj.hBtnCwCopy(1), 'Position', position(2, :));
-                set(obj.hBtnCwCopy(2), 'Position', position(3, :));
+            if obj.nImages == 1
+                position = obj.positionN(n, 2, obj.division, 0.5);
+                set(obj.hBtnCwHome,  'Position', position(1, :));
+                set(obj.hBtnCwSlice, 'Position', position(2, :));
+            else
+                position = obj.positionN(n, 7, obj.division, 0.5);
+                set(obj.hBtnCwHome(1),  'Position', position(1, :));
+                set(obj.hBtnCwSlice(1), 'Position', position(2, :));
+                set(obj.hBtnCwCopy(1),  'Position', position(3, :));
+                set(obj.hBtnCwCopy(2),  'Position', position(5, :));
+                set(obj.hBtnCwSlice(2), 'Position', position(6, :));
+                set(obj.hBtnCwHome(2),  'Position', position(7, :));
+                
             end
             
             n = n + 1;
-            position = obj.divPosition(n);
+            position = obj.divPosition(n, obj.nImages);
             set(obj.hTextC, 'Position', position(1, :));
             for ii = 1:obj.nImages
                 set(obj.hEditC(ii), 'Position', position(ii+1, :));
             end
             
             n = n + 1;
-            position = obj.divPosition(n);
+            position = obj.divPosition(n, obj.nImages);
             set(obj.hTextW, 'Position', position(1, :));
             for ii = 1:obj.nImages
                 set(obj.hEditW(ii), 'Position', position(ii+1, :));
@@ -1426,7 +1461,7 @@ classdef DrawSingle < Draw
             
             if obj.nImages == 2
                 n = n + 1;
-                position = obj.divPosition(n);
+                position = obj.divPosition(n, obj.nImages);
                 set(obj.hBtnToggle,   'Position', position(1, :));
                 set(obj.hBtnHide(1),  'Position', position(2, :));
                 set(obj.hBtnHide(2),  'Position', position(3, :));
@@ -1443,21 +1478,21 @@ classdef DrawSingle < Draw
                 set(obj.hPopCm(2),    'Position', position(3, :));
             end
             n = n + 1;
-            position = obj.divPosition(n);
+            position = obj.divPosition(n, obj.nImages);
             set(obj.hBtnRoi(1), 'Position', position(1, :));
             for ii = 1:obj.nImages
                 set(obj.hTextRoi(1, ii), 'Position', position(ii+1, :));
             end
             
             n = n + 1;
-            position = obj.divPosition(n);
+            position = obj.divPosition(n, obj.nImages);
             set(obj.hBtnRoi(2), 'Position', position(1, :));
             for ii = 1:obj.nImages
                 set(obj.hTextRoi(2, ii), 'Position', position(ii+1, :));
             end
             
             n = n + 1;
-            position = obj.divPosition(n);
+            position = obj.divPosition(n, obj.nImages);
             set(obj.hTextSNR, 'Position', position(1, :));
             for ii = 1:obj.nImages
                 set(obj.hTextSNRvals(ii), 'Position', position(ii+1, :));
@@ -1500,64 +1535,44 @@ classdef DrawSingle < Draw
         end
             
         
-        function pos = divPosition(obj, N, hF)
-            if nargin == 2
+        function pos = divPosition(obj, h, n, hF)
+            % one element before a 'division, one or two elements after the
+            % division (depending on number of images)
+            % h: heigth value
+            % n: number of equally spaced horitonzal elements
+            % hF: multiplier of the height of the elements.
+            
+            if nargin == 3
                 % set the height changing factor to 1
                 hF = 1;
             end
             
-            yPos = ceil(obj.figurePos(4)-obj.margin-(N)*obj.height-(N-1)*obj.yPadding);
-            if obj.nImages == 1
-                pos = [obj.margin ...
-                    yPos ...
-                    obj.division-2*obj.margin ...
-                    obj.height*hF; ...
-                    obj.division+obj.margin/2 ...
-                    yPos ...
-                    (obj.controlWidth-obj.division)-obj.margin ...
-                    obj.height*hF];
-            else
-                pos = [obj.margin/2 ...
-                    yPos ...
-                    obj.division-3/4*obj.margin ...
-                    obj.height*hF; ...
-                    obj.division+obj.margin/4 ...
-                    yPos ...
-                    (obj.controlWidth-obj.division)/2-5/4*obj.margin ...
-                    obj.height*hF; ...
-                    obj.division+obj.margin/2+((obj.controlWidth-obj.division)/2-3/4*obj.margin) ...
-                    yPos ...
-                    (obj.controlWidth-obj.division)/2-5/4*obj.margin ...
-                    obj.height*hF];
-            end
+            yPos = ceil(obj.figurePos(4)-obj.margin-h*obj.height-(h-1)*obj.yPadding);
+            
+            pos = [obj.margin/2 yPos obj.division-3/4*obj.margin obj.height*hF];
+            pos = [pos; obj.positionN(h, n, obj.division, hF)];
         end
         
-        
-        function pos = divPosition3(obj, N)
-            yPos = ceil(obj.figurePos(4)-obj.margin-N*obj.height-(N-1)*obj.yPadding);
-            pos = [obj.division+obj.margin/2 ...
-                yPos ...
-                (obj.controlWidth-obj.division-7/2*obj.margin)/3 ...
-                obj.height; ...
-                obj.division+1/2*obj.margin+(obj.controlWidth-obj.division-1/2*obj.margin)/3 ...
-                yPos ...
-                (obj.controlWidth-obj.division-7/2*obj.margin)/3 ...
-                obj.height; ...
-                obj.division+1/2*obj.margin+2*(obj.controlWidth-obj.division-1/2*obj.margin)/3 ...
-                yPos ...
-                (obj.controlWidth-obj.division-7/2*obj.margin)/3 ...
-                obj.height];
-        end
-        
-        
-        function pos = positionN(obj, h, n)
+          
+        function pos = positionN(obj, h, n, x0, hF)
+            % euqally space elements in the GUI in a row
             % h: heigth value
             % n: number of equally spaced horitonzal elements
-            yPos  = ceil(obj.figurePos(4)-obj.margin-h*obj.height-(h-1)*obj.yPadding);
-            width =(obj.controlWidth-(n+1)*obj.margin)/n;
+            % x0: startpoint from left side (default: 0)
+            % hF: multiplier of the height of the elements.
             
-            pos   = repmat([0 yPos width obj.height], [n, 1]);
-            xPos  = (0:(n-1)) * (width+ obj.margin) + obj.margin;
+            if nargin == 3
+                x0 = 0;
+                hF = 1;                
+            elseif nargin == 4
+                hF = 1;                
+            end
+            
+            yPos  = ceil(obj.figurePos(4)-obj.margin-h*obj.height-(h-1)*obj.yPadding);
+            width =(obj.controlWidth-x0-(n+1)*obj.margin)/n;
+            
+            pos   = repmat([0 yPos width obj.height*hF], [n, 1]);
+            xPos  = x0 + (0:(n-1)) * (width+ obj.margin) + obj.margin;
             
             pos(:, 1) = xPos;
         end
