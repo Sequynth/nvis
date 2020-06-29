@@ -76,9 +76,13 @@ classdef DrawSingle < Draw
 	%	'InitRot',      int         initial rotation angle of the displayed
 	%                               image
 	%	'DimLabel',     cell{char}  char arrays to label the individual
-	%                               dimensions in the input data, if
-	%                               provided, must be provided for all
-	%                               dimensions.
+	%                               dimensions in the input data. Cell
+	%                               entries can be empty to use default
+	%                               label.
+    %	'DimVal', cell{cell{char}}  char arrays containing the axis-values
+    %                or cell{int}   for each dimension. Cell entries can be
+    %                               empty to use default enumeration. Vals
+    %                               must not be char, but is encouraged.
 	%	'fps',          double      defines how many times per second the
 	%                               slider value provided by 'LoopDim' is
 	%                               increased.
@@ -114,7 +118,6 @@ classdef DrawSingle < Draw
         % DISPLAYING
         interruptedSlider
         locValString
-        dimensionLabel
         
         % UI Elements
         pImage
@@ -200,20 +203,8 @@ classdef DrawSingle < Draw
             addParameter(obj.p, 'SaveImage',        '',                                 @ischar);
             addParameter(obj.p, 'SaveVideo',        '',                                 @ischar);
             addParameter(obj.p, 'LoopDimension',    3,                                  @(x) isnumeric(x) && x <= obj.nDims && obj.nDims >= 3);
-            addParameter(obj.p, 'DimensionLabel',   strcat(repmat({'Dim'}, 1, numel(obj.S)), ...
-                                                    cellfun(@num2str, num2cell(1:obj.nDims), 'UniformOutput', false)), ...
-                                                                                        @(x) iscell(x) && numel(x) == obj.nDims);
-                    
+                  
             parse(obj.p, obj.varargin{:});
-            
-            if contains('dimensionLabel', obj.p.UsingDefaults)
-                for ff = 1:obj.nDims
-                    obj.dimensionLabel{ff} = [obj.p.Results.DimensionLabel{ff} num2str(ff)];
-                end
-            else
-                obj.dimensionLabel = obj.p.Results.DimensionLabel;
-            end
-            
             
             obj.cmap{1}             = obj.p.Results.Colormap;
             obj.fps                 = obj.p.Results.fps;
@@ -222,6 +213,11 @@ classdef DrawSingle < Draw
             obj.contrast            = obj.p.Results.Contrast;
             obj.overlay             = obj.p.Results.Overlay;
             obj.unit                = obj.p.Results.Unit;
+            
+            % set default values for dimLabel
+            obj.dimLabel = strcat(repmat({'Dim'}, 1, numel(obj.S)), cellfun(@num2str, num2cell(1:obj.nDims), 'UniformOutput', false));
+            
+            obj.parseDimLabelsVals()
             
             obj.prepareGUIElements()
             
@@ -833,7 +829,7 @@ classdef DrawSingle < Draw
         function initializeSliders(obj)
             % get the size, dimensionNo, and labels only for the sliders
             s = obj.S(obj.mapSliderToDim);
-            labels = obj.dimensionLabel(obj.mapSliderToDim);
+            labels = obj.dimLabel(obj.mapSliderToDim);
             
             
             for iSlider = 1:obj.nSlider
@@ -856,7 +852,7 @@ classdef DrawSingle < Draw
                         'Enable',       'off');
                 end
                 
-                set(obj.hEditSlider(iSlider), 'String', num2str(obj.sel{obj.mapSliderToDim(iSlider)}));
+                set(obj.hEditSlider(iSlider), 'String', obj.dimVal{obj.mapSliderToDim(iSlider)}{obj.sel{obj.mapSliderToDim(iSlider)}});
             end
         end
         
@@ -970,7 +966,7 @@ classdef DrawSingle < Draw
            
             
             if obj.nImages == 1
-                obj.locValString = @(dim1L, dim1, dim2L, dim2, val) sprintf('\\color[rgb]{%.2f,%.2f,%.2f}%s:%4d\n%s:%4d\n%s:%s', ...
+                obj.locValString = @(dim1L, dim1, dim2L, dim2, val) sprintf('\\color[rgb]{%.2f,%.2f,%.2f}%s:%s\n%s:%s\n%s:%s', ...
                     obj.COLOR_F, ...
                     dim1L, ...
                     dim1, ...
@@ -994,7 +990,7 @@ classdef DrawSingle < Draw
                 end
                 
                 obj.locValString = @(dim1L, dim1, dim2L, dim2, val1, val2) ...
-                    sprintf('\\color[rgb]{%.2f,%.2f,%.2f}%s:%s%4d\n\\color[rgb]{%.2f,%.2f,%.2f}%s:%s%4d\n\\color[rgb]{%.2f,%.2f,%.2f}%s:%s\n\\color[rgb]{%.2f,%.2f,%.2f}%s:%s', ...
+                    sprintf('\\color[rgb]{%.2f,%.2f,%.2f}%s:%s%s\n\\color[rgb]{%.2f,%.2f,%.2f}%s:%s%s\n\\color[rgb]{%.2f,%.2f,%.2f}%s:%s\n\\color[rgb]{%.2f,%.2f,%.2f}%s:%s', ...
                     obj.COLOR_F, ...
                     dim1L, ...
                     adjColorStr{1}, ...
@@ -1018,14 +1014,14 @@ classdef DrawSingle < Draw
                 if obj.nImages == 1
                     val = obj.slice{1, 1}(point{:});
                     set(obj.locAndVals, 'String', obj.locValString(...
-                        obj.dimensionLabel{obj.showDims(1)}, point{1}, ...
-                        obj.dimensionLabel{obj.showDims(2)}, point{2}, val));
+                        obj.dimLabel{obj.showDims(1)}, obj.dimVal{obj.showDims(1)}{point{1}}, ...
+                        obj.dimLabel{obj.showDims(2)}, obj.dimVal{obj.showDims(2)}{point{2}}, val));
                 else
                     val1 = obj.slice{1, 1}(point{:});
                     val2 = obj.slice{1, 2}(point{:});
                     set(obj.locAndVals, 'String', obj.locValString(...
-                        obj.dimensionLabel{obj.showDims(1)}, point{1}, ...
-                        obj.dimensionLabel{obj.showDims(2)}, point{2}, val1, val2));
+                        obj.dimLabel{obj.showDims(1)}, obj.dimVal{obj.showDims(1)}{point{1}}, ...
+                        obj.dimLabel{obj.showDims(2)}, obj.dimVal{obj.showDims(2)}{point{2}}, val1, val2));
                 end
             else
                 set(obj.locAndVals, 'String', '');
@@ -1039,7 +1035,7 @@ classdef DrawSingle < Draw
             set(obj.hImage, 'CData', obj.sliceMixer(1));
             
             for iSlider = 1:obj.nSlider
-                set(obj.hEditSlider(iSlider), 'String', num2str(obj.sel{obj.mapSliderToDim(iSlider)}));
+                set(obj.hEditSlider(iSlider), 'String', obj.dimVal{obj.mapSliderToDim(iSlider)}{obj.sel{obj.mapSliderToDim(iSlider)}});
                 set(obj.hSlider(iSlider), 'Value', obj.sel{obj.mapSliderToDim(iSlider)});
             end
             % update 'val' when changing slice

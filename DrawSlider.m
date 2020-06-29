@@ -70,9 +70,13 @@ classdef DrawSlider < Draw
 	%	'InitSlice',    1x3         set the slices that are shown when the
 	%                               figure is opened.
 	%	'DimLabel',     cell{char}  char arrays to label the individual
-	%                               dimensions in the input data, if
-	%                               provided, must be provided for all
-	%                               dimensions.
+	%                               dimensions in the input data. Cell
+	%                               entries can be empty to use default
+	%                               label.
+    %	'DimVal', cell{cell{char}}  char arrays containing the axis-values
+    %                or cell{int}   for each dimension. Cell entries can be
+    %                               empty to use default enumeration. Vals
+    %                               must not be char, but is encouraged.
 	%	'ROI_Signal',   Nx2 		vertices polygon that defines a ROI in
 	%                               the initial slice.
 	%	'ROI_Noise',    Nx2 		vertices polygon that defines a ROI in
@@ -85,8 +89,6 @@ classdef DrawSlider < Draw
 
     
     % TODO:
-    % - make axLabels a NVP
-    % - implement DimLabel as in DrawSingle
     % - implement ROI_Signal nvp
     % - implement ROI_Noise nvp
     % - implement SaveImage nvp
@@ -122,7 +124,6 @@ classdef DrawSlider < Draw
         % UI PROPERTIES
         % default figure position and size
         defaultPosition = [ 300, 200, 1000, 800];
-        axLabels = 'XYZ';  % displayed planes (names)
         axColors = 'rgb';
         
     end
@@ -167,7 +168,7 @@ classdef DrawSlider < Draw
             addParameter(obj.p, 'InitSlice',    round(obj.S(1:3)/2),  @isnumeric);
             addParameter(obj.p, 'Crosshair',    1,                    @isnumeric);
 
-            parse(obj.p, obj.varargin{:});
+            parse(obj.p, obj.varargin{:});            
             
             obj.cmap{1}             = obj.p.Results.Colormap;
             obj.complexMode         = obj.p.Results.ComplexMode;
@@ -176,6 +177,14 @@ classdef DrawSlider < Draw
             obj.contrast            = obj.p.Results.Contrast;
             obj.overlay             = obj.p.Results.Overlay;
             obj.unit                = obj.p.Results.Unit;
+            
+            % set default values for dimLabel
+            obj.dimLabel = {'X', 'Y', 'Z'};
+            if obj.nDims == 4
+                obj.dimLabel{4} = 't';
+            end
+            
+            obj.parseDimLabelsVals()
             
             obj.prepareGUIElements()
             
@@ -297,7 +306,7 @@ classdef DrawSlider < Draw
                     'Style',            'text', ...
                     'Units',            'normalized', ...
                     'Position',         [0.01 1/8 0.04 6/8], ...
-                    'String',           [obj.axLabels(iSlider) ':'], ...
+                    'String',           [obj.dimLabel{iSlider} ':'], ...
                     'FontUnits',        'normalized', ...
                     'FontSize',         0.8, ...
                     'BackgroundColor',  obj.COLOR_BG, ...
@@ -308,7 +317,7 @@ classdef DrawSlider < Draw
                     'Style',            'edit', ...
                     'Units',            'normalized', ...
                     'Position',         [0.07 1/8 0.1 6/8], ...
-                    'String',           num2str(obj.sel{iSlider, iSlider}), ...
+                    'String',           obj.dimVal{iSlider}{obj.sel{iSlider, iSlider}}, ...
                     'FontUnits',        'normalized', ...
                     'FontSize',         0.8, ...
                     'Enable',           'Inactive', ...
@@ -668,11 +677,14 @@ classdef DrawSlider < Draw
         
         
         function refreshUI(obj)
+            % fill obj.slice
             obj.prepareSliceData;
             
             for iim = 1:obj.nAxes
+                % update the images
                 set(obj.hImage(iim), 'CData', obj.sliceMixer(iim));
                 
+                % set position of guides
                 if true % guides visible
                     guidePos = obj.calcGuidePos();
                     set(obj.hGuides(iim, 1), ...
@@ -691,14 +703,18 @@ classdef DrawSlider < Draw
             end
             
             for iSlider = 1:obj.nSlider
-                
+                % update the values is the edit fields
                 if obj.mapSliderToImage{iSlider}  == ':'
                     val = obj.sel{1, iSlider};
                 else
                     val = obj.sel{obj.mapSliderToDim(iSlider), obj.mapSliderToDim(iSlider)};
                 end
                 
-                set(obj.hEditSlider(iSlider), 'String', num2str(val));
+                if iSlider < 4
+                    set(obj.hEditSlider(iSlider), 'String', obj.dimVal{iSlider}{obj.sel{iSlider, iSlider}});
+                else
+                    set(obj.hEditSlider(iSlider), 'String', obj.dimVal{iSlider}{obj.sel{1, iSlider}});
+                end
                 set(obj.hSlider(iSlider), 'Value', val);
             end
             % update 'val' when changing slice
@@ -840,7 +856,7 @@ classdef DrawSlider < Draw
             end
             
             if obj.nImages == 1
-                obj.locValString = @(dim1L, dim1, dim2L, dim2, dim3L, dim3, val) sprintf('\\color[rgb]{%.2f,%.2f,%.2f}%s:%4d\n%s:%4d\n%s:%4d\n%s:%s', ...
+                obj.locValString = @(dim1L, dim1, dim2L, dim2, dim3L, dim3, val) sprintf('\\color[rgb]{%.2f,%.2f,%.2f}%s:%s\n%s:%s\n%s:%s\n%s:%s', ...
                     obj.COLOR_F, ...
                     dim1L, ...
                     dim1, ...
@@ -866,7 +882,7 @@ classdef DrawSlider < Draw
                 end
                 
                 obj.locValString = @(dim1L, dim1, dim2L, dim2, dim3L, dim3, val1, val2) ...
-                    sprintf('\\color[rgb]{%.2f,%.2f,%.2f}%s:%s%4d\n\\color[rgb]{%.2f,%.2f,%.2f}%s:%s%4d\n\\color[rgb]{%.2f,%.2f,%.2f}%s:%s%4d\n\\color[rgb]{%.2f,%.2f,%.2f}%s:%s\n\\color[rgb]{%.2f,%.2f,%.2f}%s:%s', ...
+                    sprintf('\\color[rgb]{%.2f,%.2f,%.2f}%s:%s%s\n\\color[rgb]{%.2f,%.2f,%.2f}%s:%s%s\n\\color[rgb]{%.2f,%.2f,%.2f}%s:%s%s\n\\color[rgb]{%.2f,%.2f,%.2f}%s:%s\n\\color[rgb]{%.2f,%.2f,%.2f}%s:%s', ...
                     obj.COLOR_F, ...
                     dim1L, ...
                     adjColorStr{1}, ...
@@ -903,16 +919,16 @@ classdef DrawSlider < Draw
                 if obj.nImages == 1
                     val = obj.slice{axNo}(point{obj.showDims(axNo, :)});
                     set(obj.locAndVals, 'String', obj.locValString(...
-                        obj.axLabels(1), point{1}, ...
-                        obj.axLabels(2), point{2}, ...
-                        obj.axLabels(3), point{3}, val));
+                        obj.dimLabel{1}, obj.dimVal{1}{point{1}}, ...
+                        obj.dimLabel{2}, obj.dimVal{2}{point{2}}, ...
+                        obj.dimLabel{3}, obj.dimVal{3}{point{3}}, val));
                 else
                     val1 = obj.slice{axNo, 1}(point{obj.showDims(axNo, :)});
                     val2 = obj.slice{axNo, 2}(point{obj.showDims(axNo, :)});
                     set(obj.locAndVals, 'String', obj.locValString(...
-                        obj.axLabels(1), point{1}, ...
-                        obj.axLabels(2), point{2}, ...
-                        obj.axLabels(3), point{3}, val1, val2));
+                        obj.dimLabel{1}, obj.dimVal{1}{point{1}}, ...
+                        obj.dimLabel{2}, obj.dimVal{2}{point{2}}, ...
+                        obj.dimLabel{3}, obj.dimVal{3}{point{3}}, val1, val2));
                 end
             else
                 set(obj.locAndVals, 'String', '');
