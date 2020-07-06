@@ -1472,7 +1472,7 @@ classdef DrawSingle < Draw
                 position = obj.positionN(n, 1);
                 set(obj.hPopCm(1), 'Position', position(1, :));
             else
-                position = obj.divPosition(n);
+                position = obj.divPosition(n, 2);
                 set(obj.hPopOverlay,  'Position', position(1, :));
                 set(obj.hPopCm(1),    'Position', position(2, :));
                 set(obj.hPopCm(2),    'Position', position(3, :));
