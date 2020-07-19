@@ -1476,12 +1476,15 @@ classdef (Abstract) Draw < handle
         function interrupt(obj, ~, ~)
             % this function is called for every interrupt of the timer and
             % increments/decrements the slider value.
+            
+            % what dimension to adjust
+            interDim = obj.mapSliderToDim(obj.interruptedSlider);
             if obj.fps > 0
-                obj.sel{1, obj.interruptedSlider+2} = obj.sel{1, obj.interruptedSlider+2} + 1;
+                obj.sel{1, interDim} = obj.sel{1, interDim} + 1;
             elseif obj.fps < 0
-                obj.sel{1, obj.interruptedSlider+2} = obj.sel{1, obj.interruptedSlider+2} - 1;
+                obj.sel{1, interDim} = obj.sel{1, interDim} - 1;
             end
-                obj.sel{1, obj.interruptedSlider+2} = mod(obj.sel{1, obj.interruptedSlider+2}-1, obj.S(obj.interruptedSlider+2))+1;
+                obj.sel{1, interDim} = mod(obj.sel{1, interDim}-1, obj.S(interDim))+1;
             obj.refreshUI();
         end
         
@@ -1532,8 +1535,8 @@ classdef (Abstract) Draw < handle
             % select the looping slices that are currently shown in the DrawSingle
             % window, resize image, apply the colormap and rotate according
             % to the azimuthal angle of the view.
-            for ii = 1: obj.S(obj.interruptedSlider+2)
-                obj.sel{obj.interruptedSlider+2} = ii;
+            for ii = 1:obj.S(obj.mapSliderToDim(obj.interruptedSlider))
+                obj.sel{obj.mapSliderToDim(obj.interruptedSlider)} = ii;
                 obj.prepareSliceData
                 imgOut = rot90(obj.sliceMixer(), -round(obj.azimuthAng/90));
                 
