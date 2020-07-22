@@ -1413,14 +1413,19 @@ classdef (Abstract) Draw < handle
         function saveRois(obj, ~, ~)
             % function is called by the 'Save ROIs' button and saves the
             % vertices of the current ROIs to the base workspace.
+            
+            % TODO: write code that finds the axes for both rois
+            % hard fix:
+            axNo = 1;
+            
             if ~isempty(obj.rois{1})
-                assignin('base', 'ROI_Signal', obj.rois{1}.Position);
+                assignin('base', 'ROI_Signal', obj.rois{1}.createMask);
                 fprintf('ROI_Signal saved to workspace\n');
             else
                 fprintf('ROI_Signal not found\n');
             end
             if ~isempty(obj.rois{2})
-                assignin('base', 'ROI_Noise', obj.rois{2}.Position);
+                assignin('base', 'ROI_Noise', obj.rois{2}.createMask);
                 fprintf('ROI_Noise saved to workspace\n');
             else
                 fprintf('ROI_Noise not found\n');
