@@ -80,6 +80,14 @@ classdef (Abstract) Draw < handle
         % index of the currently active ax element
         activeAx
         
+        % timer
+        t
+        % index of the slider that is inc- or decremented by the timer
+        % interrupt
+        interruptedSlider
+        % framerate of timer
+        fps
+        
         % stores the current complex representation mode
         complexMode
         
@@ -161,6 +169,15 @@ classdef (Abstract) Draw < handle
         % colorbars
         hAxCb        
         
+        % animation elements
+        hBtnRun
+        hEditF
+        hTextFPS
+        
+        % saving images and videos
+        hBtnSaveImg
+        hBtnSaveVid
+        
         %% GUI ELEMENT PROPERTIES
         
         % number of sliders in the UI
@@ -220,6 +237,7 @@ classdef (Abstract) Draw < handle
         incDecActiveDim(obj, incDec)
         mouseButtonAlt(src, evtData)
         recolor(obj)
+        saveImgBtn(obj)
     end
         
     
@@ -266,9 +284,6 @@ classdef (Abstract) Draw < handle
             
             % prepare the colormaps
             obj.prepareColormaps()
-            
-            % create GUI elements for cw windowing
-            % obj.prepareGUIElements()
             
         end
         
@@ -439,7 +454,11 @@ classdef (Abstract) Draw < handle
             addParameter(obj.p, 'widthMin',     single(0.001*(obj.Max-obj.Min)),@isnumeric);
             addParameter(obj.p, 'Unit',         {[], []},                       @(x) (iscell(x) && numel(x) <= 2) | ischar(x));
             addParameter(obj.p, 'DimLabel',     strcat(repmat({}, 1, numel(obj.S))), @(x) iscell(x) && numel(x) == obj.nDims);
-            addParameter(obj.p, 'DimVal',       cellfun(@(x) 1:x, num2cell(obj.S), 'UniformOutput', false), @iscell);     
+            addParameter(obj.p, 'DimVal',       cellfun(@(x) 1:x, num2cell(obj.S), 'UniformOutput', false), @iscell);
+            addParameter(obj.p, 'SaveImage',    '',                                 @ischar);
+            addParameter(obj.p, 'SaveVideo',    '',                                 @ischar);
+            addParameter(obj.p, 'fps',          0,                              @isnumeric);
+            addParameter(obj.p, 'LoopCount',    Inf,                            @isnumeric);
 
         end
         
@@ -568,6 +587,10 @@ classdef (Abstract) Draw < handle
                     'Callback',             {@obj.changeCmap});
             end
             
+            %--
+            % regions of interest
+            %--
+            
             % uicontrols must be initialized alone, cannot be done without
             % loop (i guess...)
             for iHdl = 1:2
@@ -620,6 +643,9 @@ classdef (Abstract) Draw < handle
                 'BackgroundColor',      obj.COLOR_BG, ...
                 'ForegroundColor',      obj.COLOR_F);            
             
+            %--
+            % FFT and complex mode display
+            %--
             obj.hBtnFFT = uicontrol( ...
                 'Style',                'pushbutton', ...
                 'String',               'FFT', ...
@@ -654,6 +680,62 @@ classdef (Abstract) Draw < handle
                 'Callback',             {@obj.toggleComplex},...
                 'BackgroundColor',      obj.COLOR_BG, ...
                 'ForegroundColor',      obj.COLOR_F);
+            
+            %--
+            % animation
+            %--
+            if obj.nDims > 2
+                obj.hBtnRun = uicontrol( ...
+                    'Style',                'pushbutton', ...
+                    'Units',                'pixel', ...
+                    'String',               'Run', ...
+                    'Callback',             { @obj.toggleTimer}, ...
+                    'BackgroundColor',      obj.COLOR_BG, ...
+                    'ForegroundColor',      obj.COLOR_F);
+                
+                obj.hEditF = uicontrol( ...
+                    'Style',                'edit', ...
+                    'Units',                'pixel', ...
+                    'String',               sprintf('%.2f', obj.fps), ...
+                    'BackgroundColor',      obj.COLOR_BG, ...
+                    'ForegroundColor',      obj.COLOR_F, ...
+                    'Enable',               'Inactive', ...
+                    'Tooltip',              'timer precision is 1 ms', ...
+                    'ButtonDownFcn',        @obj.removeListener, ...
+                    'Callback',             @obj.setFPS);
+                
+                obj.hTextFPS = uicontrol( ...
+                    'Style',                'text', ...
+                    'Units',                'pixel', ...
+                    'String',               sprintf('fps'), ...
+                    'BackgroundColor',      obj.COLOR_BG, ...
+                    'ForegroundColor',      obj.COLOR_F);
+            end
+            %--
+            % saving
+            %--
+            obj.hBtnSaveImg = uicontrol( ...
+                'Style',                'pushbutton', ...
+                'String',               'Save Image', ...
+                'Callback',             {@obj.saveImgBtn}, ...
+                'BackgroundColor',      obj.COLOR_BG, ...
+                'ForegroundColor',      obj.COLOR_F);
+            
+            obj.hBtnSaveVid = uicontrol( ...
+                'Style',                'pushbutton', ...
+                'String',               'Save Video', ...
+                'Callback',             {@obj.saveVidBtn}, ...
+                'BackgroundColor',      obj.COLOR_BG, ...
+                'ForegroundColor',      obj.COLOR_F);
+            
+            obj.t = timer(...
+                'BusyMode',         'queue', ...
+                'ExecutionMode',    'fixedRate', ...
+                'Period',           1, ...
+                'StartDelay',       0, ...
+                'TimerFcn',         @(t, event) obj.interrupt, ...
+                'TasksToExecute',   Inf);
+            
         end
         
         
@@ -1346,6 +1428,148 @@ classdef (Abstract) Draw < handle
         end
                 
         
+        function setFPS(obj, src, ~)
+            % called by the center and width edit fields
+            s = get(src, 'String');
+            %turn "," into "."
+            s(s == ',') = '.';
+            
+            obj.fps = str2double(s);
+            % set(src, 'String', num2str(obj.fps));
+            stop(obj.t)
+            set(obj.hBtnRun, 'String', 'Run');
+            if obj.fps ~= 0
+                obj.setAndStartTimer;
+                set(obj.hBtnRun, 'String', 'Stop');
+            end
+        end
+        
+        
+        function setAndStartTimer(obj)
+            % make sure fps is not higher 100
+            period  = 1/abs(obj.fps) + (abs(obj.fps) > 100)*(1/100-1/abs(obj.fps));
+            % provide 1 ms precision to avoid warning
+            period = round(period*1000)/1000;
+            
+            obj.t.Period    = period;
+            obj.t.TimerFcn  = @(t, event) obj.interrupt(obj.fps);
+            set(obj.hEditF, 'String', num2str(sign(obj.fps)/obj.t.Period));
+            start(obj.t)
+        end
+        
+        
+        function toggleTimer(obj, ~, ~)
+            %called by the 'Run'/'Stop' button and controls the state of the
+            %timer
+            if strcmp(get(obj.t, 'Running'), 'off') && obj.fps ~= 0
+                obj.setAndStartTimer;
+                set(obj.hBtnRun, 'String',  'Stop');
+%                 set(obj.hBtnG,   'Visible', 'on');
+            else
+                stop(obj.t)
+                set(obj.hBtnRun, 'String',  'Run');
+%                 set(obj.hBtnG,   'Visible', 'off');
+            end
+        end
+        
+        
+        function interrupt(obj, ~, ~)
+            % this function is called for every interrupt of the timer and
+            % increments/decrements the slider value.
+            
+            % what dimension to adjust
+            interDim = obj.mapSliderToDim(obj.interruptedSlider);
+            if obj.fps > 0
+                obj.sel{1, interDim} = obj.sel{1, interDim} + 1;
+            elseif obj.fps < 0
+                obj.sel{1, interDim} = obj.sel{1, interDim} - 1;
+            end
+                obj.sel{1, interDim} = mod(obj.sel{1, interDim}-1, obj.S(interDim))+1;
+            obj.refreshUI();
+        end
+        
+        
+        function saveVidBtn(obj, ~, ~)
+            % get the filepath from a UI and call saveVideo funciton to save
+            % the video or gif
+            [filename, filepath] = uiputfile({'*.avi', 'AVI-file (*.avi)'; ...
+                '*.gif', 'gif-Animation (*.gif)'}, ...
+                'Save video', '.avi');
+            
+            if filepath == 0
+                return
+            else
+                if strcmp(filename(end-2:end), 'avi') || strcmp(filename(end-2:end), 'gif')
+                obj.saveVideo([filepath, filename])
+                else
+                    warning('Invalid filename! Data was not saved. Choose ''.gif'' or ''.avi'' as filetype.');
+                end
+            end
+        end
+        
+        
+        function saveVideo(obj, path)
+            % save video of matrix with current windowing and each frame being
+            % one slice along the dimension connectoed to the interrupted slider.
+            
+            if ~isempty(obj.t)
+                % get the state of the timer
+                bRunning = strcmp(obj.t.Running, 'on');
+                % stop the interrupt, to get control over the data shown.
+                if bRunning
+                    stop(obj.t)
+                end
+            end
+            
+            
+            if  strcmp(path(end-2:end), 'gif')
+                gif = 1;
+            else
+                gif = 0;
+                % start the video writer
+                v           = VideoWriter(path);
+                v.FrameRate = obj.fps;
+                v.Quality   = 100;
+                open(v);
+            end
+            % select the looping slices that are currently shown in the DrawSingle
+            % window, resize image, apply the colormap and rotate according
+            % to the azimuthal angle of the view.
+            for ii = 1:obj.S(obj.mapSliderToDim(obj.interruptedSlider))
+                obj.sel{obj.mapSliderToDim(obj.interruptedSlider)} = ii;
+                obj.prepareSliceData
+                imgOut = rot90(obj.sliceMixer(), -round(obj.azimuthAng/90));
+                
+                if gif
+                    [gifImg, cm] = rgb2ind(imgOut, 256);
+                    if ii == 1
+                        imwrite(gifImg, cm, path, 'gif', ...
+                            'WriteMode',    'overwrite', ...
+                            'DelayTime',    1/obj.fps, ...
+                            'LoopCount',    obj.p.Results.LoopCount);
+                    else
+                        imwrite(gifImg, cm, path, 'gif', ...
+                            'WriteMode',    'append',...
+                            'DelayTime',    1/obj.fps);
+                    end
+                else
+                    writeVideo(v, imgOut);
+                end
+            end
+            
+            if ~gif
+                close(v)
+            end
+            
+            if ~isempty(obj.t)
+                % restart the timer if it was running before
+                if bRunning
+                    start(obj.t)
+                end
+            end
+        end
+        
+        
         function setValNames(obj)
             
             for ii = 1:obj.nImages
@@ -1497,8 +1721,7 @@ classdef (Abstract) Draw < handle
         end
         
         
-        function setInitialColormap(obj, inputMap)
-            
+        function setInitialColormap(obj, inputMap)            
             if iscell(inputMap) & numel(inputMap)==1 & obj.nImages==2
                 inputMap{2} = inputMap{1};
             end
@@ -1571,6 +1794,7 @@ classdef (Abstract) Draw < handle
            
            set(obj.hPopCm(idx), 'Value', idxValue);            
         end
+        
         
         function tmp = cleverMax(~, in)
             % this function is called by MATLAB versions older than R2018a

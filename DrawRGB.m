@@ -1,11 +1,8 @@
 classdef DrawRGB < Draw
     
     properties (Access = private)
-        t           % interrupt timer
-        fps
         
         % DISPLAYING
-        interruptedSlider
         locValString
         dimensionLabel
         
@@ -17,12 +14,7 @@ classdef DrawRGB < Draw
         hBtnShiftR
         hBtnRotL
         hBtnRotR
-        hBtnRun
-        hEditF
-        hTextFPS
         locAndVals
-        hBtnSaveImg
-        hBtnSaveVid
         
         hBtnG
         hRadioBtnSlider
@@ -78,13 +70,7 @@ classdef DrawRGB < Draw
             obj.prepareParser()
             
             % additional parameters
-            addParameter(obj.p, 'Position',         obj.defaultPosition,                @(x) isnumeric(x) && numel(x) == 4);
             addParameter(obj.p, 'InitSlice',        round(obj.S(3:end)/2),              @isnumeric);
-            addParameter(obj.p, 'FPS',              0,                                  @isnumeric);
-            addParameter(obj.p, 'ROI_Signal',       [0 0; 0 0; 0 0],                    @isnumeric);
-            addParameter(obj.p, 'ROI_Noise',        [0 0; 0 0; 0 0],                    @isnumeric);
-            addParameter(obj.p, 'SaveImage',        '',                                 @ischar);
-            addParameter(obj.p, 'SaveVideo',        '',                                 @ischar);
             addParameter(obj.p, 'LoopDimension',    3,                                  @(x) isnumeric(x) && x <= obj.nDims && obj.nDims >= 3);
             addParameter(obj.p, 'DimensionLabel',   strcat(repmat({'Dim'}, 1, numel(obj.S)), ...
                                                     cellfun(@num2str, num2cell(1:obj.nDims), 'UniformOutput', false)), ...
@@ -101,7 +87,7 @@ classdef DrawRGB < Draw
             end
                         
             obj.cmap{1}             = obj.p.Results.Colormap;
-            obj.fps                 = obj.p.Results.FPS;
+            obj.fps                 = obj.p.Results.fps;
             obj.resize              = obj.p.Results.Resize;
                
             obj.prepareGUIElements()
@@ -245,42 +231,25 @@ classdef DrawRGB < Draw
                 'BackgroundColor',      obj.COLOR_BG, ...
                 'ForegroundColor',      obj.COLOR_F);
             
-            obj.hBtnRun = uicontrol( ...
-                'Parent',               obj.pControls, ...
-                'Style',                'pushbutton', ...
-                'Units',                'pixel', ...
-                'String',               'Run', ...
-                'Callback',             { @obj.toggleTimer}, ...
-                'FontUnits',            'normalized', ...
-                'FontSize',             0.45, ...
-                'BackgroundColor',      obj.COLOR_BG, ...
-                'ForegroundColor',      obj.COLOR_F);
-            
-            obj.hEditF = uicontrol( ...
-                'Parent',               obj.pControls, ...
-                'Style',                'edit', ...
-                'Units',                'pixel', ...
-                'String',               sprintf('%.2f', obj.fps), ...
-                'HorizontalAlignment',  'left', ...
-                'FontUnits',            'normalized', ...
-                'FontSize',             0.6, ...
-                'BackgroundColor',      obj.COLOR_BG, ...
-                'ForegroundColor',      obj.COLOR_F, ...
-                'Enable',               'Inactive', ...
-                'FontName',             'FixedWidth', ...
-                'ButtonDownFcn',        @obj.removeListener, ...
-                'Callback',             @obj.setFPS);
-            
-            obj.hTextFPS = uicontrol( ...
-                'Parent',               obj.pControls, ...
-                'Style',                'text', ...
-                'Units',                'pixel', ...
-                'String',               sprintf('fps'), ...
-                'HorizontalAlignment',  'left', ...
-                'FontUnits',            'normalized', ...
-                'FontSize',             0.6, ...
-                'BackgroundColor',      obj.COLOR_BG, ...
-                'ForegroundColor',      obj.COLOR_F);
+            if obj.nDims > 2
+                set(obj.hBtnRun, ...
+                    'Parent',               obj.pControls, ...
+                    'FontUnits',            'normalized', ...
+                    'FontSize',             0.45);
+                
+                set(obj.hEditF, ...
+                    'Parent',               obj.pControls, ...
+                    'HorizontalAlignment',  'left', ...
+                    'FontUnits',            'normalized', ...
+                    'FontSize',             0.6, ...
+                    'FontName',             'FixedWidth');
+                
+                set(obj.hTextFPS, ...
+                    'Parent',               obj.pControls, ...
+                    'HorizontalAlignment',  'left', ...
+                    'FontUnits',            'normalized', ...
+                    'FontSize',             0.6);
+            end
             
             obj.locAndVals = annotation(obj.pControls, 'textbox', ...
                 'LineStyle',            'none', ...
@@ -297,43 +266,26 @@ classdef DrawRGB < Draw
                 'BackgroundColor',      obj.COLOR_BG, ...
                 'Interpreter',          'Tex');
             
-            obj.hBtnSaveImg = uicontrol( ...
+            set(obj.hBtnSaveImg, ...
                 'Parent',               obj.pControls, ...
-                'Style',                'pushbutton', ...
                 'Units',                'pixel', ...
                 'Position',             [obj.margin ...
                                         obj.margin ...
                                         (obj.controlWidth-3*obj.margin)/2 ...
                                         obj.height], ...
                 'String',               'Save Image', ...
-                'Callback',             { @obj.saveImgBtn}, ...
                 'FontUnits',            'normalized', ...
-                'FontSize',             0.45, ...
-                'BackgroundColor',      obj.COLOR_BG, ...
-                'ForegroundColor',      obj.COLOR_F);
+                'FontSize',             0.45);
             
-            obj.hBtnSaveVid = uicontrol( ...
+            set(obj.hBtnSaveVid, ...
                 'Parent',               obj.pControls, ...
-                'Style',                'pushbutton', ...
                 'Units',                'pixel', ...
                 'Position',             [(obj.controlWidth+obj.margin)/2 ...
                                         obj.margin ...
                                         (obj.controlWidth-3*obj.margin)/2 ...
                                         obj.height], ...
-                'String',               'Save Video', ...
-                'Callback',             { @obj.saveVidBtn}, ...
                 'FontUnits',            'normalized', ...
-                'FontSize',             0.45, ...
-                'BackgroundColor',      obj.COLOR_BG, ...
-                'ForegroundColor',      obj.COLOR_F);
-            
-            obj.t = timer(...
-                'BusyMode',         'queue', ...
-                'ExecutionMode',    'fixedRate', ...
-                'Period',           1, ...
-                'StartDelay',       0, ...
-                'TimerFcn',         @(t, event) obj.interrupt, ...
-                'TasksToExecute',   Inf);
+                'FontSize',             0.45);
             
             % create uibuttongroup
             obj.hBtnG = uibuttongroup( ...
@@ -421,8 +373,7 @@ classdef DrawRGB < Draw
             
             obj.initializeAxis(true)
             
-            if ~sum(ismember(obj.p.UsingDefaults, 'FPS')) && length(obj.S) > 2
-                obj.fps = obj.p.Results.FPS;
+            if ~sum(ismember(obj.p.UsingDefaults, 'fps')) && length(obj.S) > 2
                 set(obj.hBtnRun, 'String', 'Stop')
                 obj.setAndStartTimer
             end
@@ -646,60 +597,6 @@ classdef DrawRGB < Draw
         end
         
         
-        function interrupt(obj, ~, ~)
-            % this function is called for every interrupt of the timer and
-            % increments/decrements the slider value.
-            if obj.fps > 0
-                obj.sel{1, obj.interruptedSlider+2} = obj.sel{1, obj.interruptedSlider+2} + 1;
-            elseif obj.fps < 0
-                obj.sel{1, obj.interruptedSlider+2} = obj.sel{1, obj.interruptedSlider+2} - 1;
-            end
-                obj.sel{1, obj.interruptedSlider+2} = mod(obj.sel{1, obj.interruptedSlider+2}-1, obj.S(obj.interruptedSlider+2))+1;
-            obj.refreshUI();
-        end
-        
-        
-        function setFPS(obj, src, ~)
-            % called by the center and width edit fields
-            s = get(src, 'String');
-            %turn "," into "."
-            s(s == ',') = '.';
-            
-            obj.fps = str2double(s);
-            % set(src, 'String', num2str(obj.fps));
-            stop(obj.t)
-            set(obj.hBtnRun, 'String', 'Run');
-            if obj.fps ~= 0
-                obj.setAndStartTimer;
-                set(obj.hBtnRun, 'String', 'Stop');
-            end
-        end
-        
-        
-        function setAndStartTimer(obj)
-            %make sure fps is not higher 100
-            obj.t.Period    = 1/abs(obj.fps) + (abs(obj.fps) > 100)*(1/100-1/abs(obj.fps));
-            obj.t.TimerFcn  = @(t, event) obj.interrupt(obj.fps);
-            set(obj.hEditF, 'String', num2str(sign(obj.fps)/obj.t.Period));
-            start(obj.t)
-        end
-        
-        
-        function toggleTimer(obj, ~, ~)
-            %called by the 'Run'/'Stop' button and controls the state of the
-            %timer
-            if strcmp(get(obj.t, 'Running'), 'off') && obj.fps ~= 0
-                obj.setAndStartTimer;
-                set(obj.hBtnRun, 'String',  'Stop');
-                set(obj.hBtnG,   'Visible', 'on');
-            else
-                stop(obj.t)
-                set(obj.hBtnRun, 'String',  'Run');
-                set(obj.hBtnG,   'Visible', 'off');
-            end
-        end
-        
-        
         function saveImgBtn(obj, ~, ~)
             % get the filepath from a UI and call saveImage funciton to save
             % the image
@@ -722,82 +619,7 @@ classdef DrawRGB < Draw
             imwrite(rot90(obj.sliceMixer(), -obj.azimuthAng/90), path);
         end
         
-        
-        function saveVidBtn(obj, ~, ~)
-            % get the filepath from a UI and call saveVideo funciton to save
-            % the video or gif
-            [filename, filepath] = uiputfile({'*.avi', 'AVI-file (*.avi)'; ...
-                '*.gif', 'gif-Animation (*.gif)'}, ...
-                'Save video', '.avi');
-            if filepath == 0
-                return
-            else
-                obj.saveVideo([filepath, filename])
-            end
-        end
-        
-        
-        function saveVideo(obj, path)
-            % save video of matrix with current windowing and each frame being
-            % one slice in the 3rd dimension.
-            
-            % get the state of the timer
-            bRunning = strcmp(obj.t.Running, 'on');
-            % stop the interrupt, to get control over the data shown.
-            if bRunning
-                stop(obj.t)
-            end
-            
-            if strcmp(path(end-2:end), 'avi') || strcmp(path(end-2:end), 'gif')
-                
-                if  strcmp(path(end-2:end), 'gif')
-                    gif = 1;
-                else
-                    gif = 0;
-                    % start the video writer
-                    v           = VideoWriter(path);
-                    v.FrameRate = obj.fps;
-                    v.Quality   = 100;
-                    open(v);
-                end
-                % select the looping slices that are currently shown in the DrawSingle
-                % window, resize image, apply the colormap and rotate according
-                % to the azimuthal angle of the view.
-                for ii = 1: obj.S(obj.interruptedSlider+2)
-                    obj.sel{obj.interruptedSlider+2} = ii;
-                    obj.prepareSliceData
-                    imgOut = rot90(obj.sliceMixer(), -obj.azimuthAng/90);
-                    
-                    if gif
-                        [gifImg, cm] = rgb2ind(imgOut, 256);
-                        if ii == 1
-                            imwrite(gifImg, cm, path, 'gif', ...
-                                'WriteMode',    'overwrite', ...
-                                'DelayTime',    1/obj.fps, ...
-                                'LoopCount',    Inf);
-                        else
-                            imwrite(gifImg, cm, path, 'gif', ...
-                                'WriteMode',    'append',...
-                                'DelayTime',    1/obj.fps);
-                        end
-                    else
-                        writeVideo(v, imgOut);
-                    end
-                end
-            else
-                warning('Invalid filename! Data was not saved.');
-            end
-            
-            if ~gif
-                close(v)
-            end
-            % restart the timer if it was running before
-            if bRunning
-                start(obj.t)
-            end
-        end
-        
-        
+         
         function closeRqst(obj, varargin)
             % closeRqst is called, when the user closes the figure (by 'x' or
             % 'close'). It stops and deletes the timer, frees up memory taken
