@@ -307,10 +307,10 @@ classdef (Abstract) Draw < handle
             hasInf = obj.Min == -Inf;
             if hasInf(1)
                 warning('+Inf values present in input 1. For large input matrices this can cause memory overflow and long startup time.')
-                obj.Min(1)           = [min(obj.img{1}(~isinf(obj.img{1})), [], 'omitnan'), 0];
+                obj.Min(1)           = min(obj.img{1}(~isinf(obj.img{1})), [], 'omitnan');
             elseif obj.nImages == 2 && hasInf(2)
                 warning('-Inf values present in input 2. For large input matrices this can cause memory overflow and long startup time.')
-                obj.Min(2)           = [min(obj.img{2}(~isinf(obj.img{2})), [], 'omitnan'), 0];
+                obj.Min(2)           = min(obj.img{2}(~isinf(obj.img{2})), [], 'omitnan');
             end
             
             if obj.nImages == 1
