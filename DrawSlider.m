@@ -106,8 +106,6 @@ classdef DrawSlider < Draw
         pSlider
         pControls
         locAndVals
-        hBtnSaveImg
-        hBtnSaveVid
         hGuides         % RGB plot guides in the axes
         hBtnGuides
         
@@ -942,6 +940,11 @@ classdef DrawSlider < Draw
             else
                 set(obj.hGuides, 'Visible', 'on');
             end
+        end
+        
+        
+        function saveImgBtn(obj)
+            fprinf('Functionality currently not implemented')
         end
         
         
