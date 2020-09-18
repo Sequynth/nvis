@@ -306,6 +306,7 @@ classdef (Abstract) Draw < handle
                 % slow max/min calculation implementation.
                 obj.Max = [double(obj.cleverMax(obj.img{1})), double(obj.cleverMax(obj.img{2}))];
                 obj.Min = [double(obj.cleverMin(obj.img{1})), double(obj.cleverMin(obj.img{2}))];
+                obj.Std = obj.Max - obj.Min;
             else
                 obj.Max = [double(max(obj.img{1}, [], 'all', 'omitnan')), double(max(obj.img{2}, [], 'all', 'omitnan'))];
                 obj.Min = [double(min(obj.img{1}, [], 'all', 'omitnan')), double(min(obj.img{2}, [], 'all', 'omitnan'))];
