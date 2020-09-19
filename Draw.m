@@ -21,6 +21,7 @@ classdef (Abstract) Draw < handle
         % WINDOWING PROPERTIES
         Max             % maximum value in both images
         Min             % minimum value in both images
+        Std             % standard deviation in both images
         center          % current value mapped to the center of the colormap
         width           % width of values mapped to the colormap, around center
         widthMin        % minimalWidth of the colormap, prevents division by 0
@@ -305,18 +306,20 @@ classdef (Abstract) Draw < handle
                 % slow max/min calculation implementation.
                 obj.Max = [double(obj.cleverMax(obj.img{1})), double(obj.cleverMax(obj.img{2}))];
                 obj.Min = [double(obj.cleverMin(obj.img{1})), double(obj.cleverMin(obj.img{2}))];
+                obj.Std = obj.Max - obj.Min;
             else
                 obj.Max = [double(max(obj.img{1}, [], 'all', 'omitnan')), double(max(obj.img{2}, [], 'all', 'omitnan'))];
                 obj.Min = [double(min(obj.img{1}, [], 'all', 'omitnan')), double(min(obj.img{2}, [], 'all', 'omitnan'))];
+                obj.Std = [double(std(obj.img{1}, 1, 'all', 'omitnan')), double(std(obj.img{2}, 1, 'all', 'omitnan'))];
             end
             
             hasInf = obj.Max == Inf;
             if hasInf(1)
                 warning('+Inf values present in input 1. For large input matrices this can cause memory overflow and long startup time.')
-                obj.Max(1)           = max(obj.img{1}(~isinf(obj.img{1})), [], 'omitnan');
+                obj.Max(1)           = double(max(obj.img{1}(~isinf(obj.img{1})), [], 'omitnan'));
             elseif obj.nImages == 2 && hasInf(2)
                 warning('-Inf values present in input 2. For large input matrices this can cause memory overflow and long startup time.')
-                obj.Max(2)           = max(obj.img{2}(~isinf(obj.img{2})), [], 'omitnan');
+                obj.Max(2)           = double(max(obj.img{2}(~isinf(obj.img{2})), [], 'omitnan'));
             end
             
             hasInf = obj.Min == -Inf;
@@ -333,8 +336,9 @@ classdef (Abstract) Draw < handle
                 obj.Max(2) = 1;
             end
             
-            obj.Max(obj.isComplex) = abs(obj.Max(obj.isComplex));
-            obj.Min(obj.isComplex) = abs(obj.Min(obj.isComplex));
+            obj.Max(obj.isComplex)  = abs(obj.Max(obj.isComplex));
+            obj.Min(obj.isComplex)  = abs(obj.Min(obj.isComplex));
+            obj.Std(obj.isComplex)  = abs(obj.Std(obj.isComplex));
         end
         
         
@@ -451,7 +455,7 @@ classdef (Abstract) Draw < handle
                                                 obj.Max(1)-obj.Min(1); ...
                                                 (obj.Max(2) - obj.Min(2))/2+obj.Min(2), ...
                                                 obj.Max(2)-obj.Min(2)],         @isnumeric);            
-            addParameter(obj.p, 'widthMin',     single(0.001*(obj.Max-obj.Min)),@isnumeric);
+            addParameter(obj.p, 'widthMin',     single(1e-3*obj.Std),@isnumeric);
             addParameter(obj.p, 'Unit',         {[], []},                       @(x) (iscell(x) && numel(x) <= 2) | ischar(x));
             addParameter(obj.p, 'DimLabel',     strcat(repmat({}, 1, numel(obj.S))), @(x) iscell(x) && numel(x) >= obj.nDims);
             addParameter(obj.p, 'DimVal',       cellfun(@(x) 1:x, num2cell(obj.S), 'UniformOutput', false), @iscell);
