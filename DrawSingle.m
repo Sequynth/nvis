@@ -155,6 +155,8 @@ classdef DrawSingle < Draw
         function obj = DrawSingle(in, varargin)
             % CONSTRUCTOR
             obj@Draw(in, varargin{:})
+            % set the type
+            obj.Type = 'DrawSingle';
             
             % only one Axis in DrawSingle
             obj.nAxes    = 1;
@@ -1016,7 +1018,7 @@ classdef DrawSingle < Draw
         
         function refreshUI(obj, ~, ~)
             
-            obj.prepareSliceData;            
+            obj.prepareSliceData;
             set(obj.hImage, 'CData', obj.sliceMixer(1));
             
             for iSlider = 1:obj.nSlider

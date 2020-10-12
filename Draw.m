@@ -8,8 +8,9 @@ classdef (Abstract) Draw < handle
     %   Many of the UI features (windowing, colormap overlay,...) are
     %   handled by Draw member functions. 
    
-    properties
+    properties (Access = public)
         f
+        Type
     end
 		
     properties (Access = private)
