@@ -1016,7 +1016,10 @@ classdef DrawSingle < Draw
         
         function refreshUI(obj, ~, ~)
             
-            obj.prepareSliceData;            
+            obj.prepareSliceData;
+            
+            obj.BtnCwSliceCallback(obj.hBtnCwSlice(1));
+            
             set(obj.hImage, 'CData', obj.sliceMixer(1));
             
             for iSlider = 1:obj.nSlider
