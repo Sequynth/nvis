@@ -307,6 +307,7 @@ classdef (Abstract) Draw < handle
                 % slow max/min calculation implementation.
                 obj.Max = [double(obj.cleverMax(obj.img{1})), double(obj.cleverMax(obj.img{2}))];
                 obj.Min = [double(obj.cleverMin(obj.img{1})), double(obj.cleverMin(obj.img{2}))];
+                obj.Std = obj.Max - obj.Min;
             else
                 obj.Max = [double(max(obj.img{1}, [], 'all', 'omitnan')), double(max(obj.img{2}, [], 'all', 'omitnan'))];
                 obj.Min = [double(min(obj.img{1}, [], 'all', 'omitnan')), double(min(obj.img{2}, [], 'all', 'omitnan'))];
@@ -457,7 +458,7 @@ classdef (Abstract) Draw < handle
                                                 obj.Max(2)-obj.Min(2)],         @isnumeric);            
             addParameter(obj.p, 'widthMin',     single(1e-3*obj.Std),@isnumeric);
             addParameter(obj.p, 'Unit',         {[], []},                       @(x) (iscell(x) && numel(x) <= 2) | ischar(x));
-            addParameter(obj.p, 'DimLabel',     strcat(repmat({}, 1, numel(obj.S))), @(x) iscell(x) && numel(x) == obj.nDims);
+            addParameter(obj.p, 'DimLabel',     strcat(repmat({}, 1, numel(obj.S))), @(x) iscell(x) && numel(x) >= obj.nDims);
             addParameter(obj.p, 'DimVal',       cellfun(@(x) 1:x, num2cell(obj.S), 'UniformOutput', false), @iscell);
             addParameter(obj.p, 'SaveImage',    '',                                 @ischar);
             addParameter(obj.p, 'SaveVideo',    '',                                 @ischar);
@@ -747,12 +748,10 @@ classdef (Abstract) Draw < handle
         function parseDimLabelsVals(obj)
             % dimension labels
             
-            
-            
             if ~contains('DimLabel', obj.p.UsingDefaults)
                 % check number of input labels equals dimensions of image
                 if numel(obj.p.Results.DimLabel) ~= obj.nDims
-                    error('Number of DimLabel must equal the number of image dimensions.')
+                    warning('Number of DimLabel is not equal to the number of image dimensions.')
                 end
                % if cell entry is empty, use default value
                emptyCell = cellfun(@isempty, obj.p.Results.DimLabel);
@@ -1695,7 +1694,7 @@ classdef (Abstract) Draw < handle
         function prepareColormaps(obj)
             cmapResolution = 256;
             obj.availableCmaps.gray    = gray(cmapResolution);
-            obj.availableCmaps.green   = [zeros(cmapResolution,1) linspace(0,1,cmapResolution)' zeros(cmapResolution,1)];;
+            obj.availableCmaps.green   = [zeros(cmapResolution,1) linspace(0,1,cmapResolution)' zeros(cmapResolution,1)];
             obj.availableCmaps.magenta = [linspace(0,1,cmapResolution)' zeros(cmapResolution,1) linspace(0,1,cmapResolution)'];
             obj.availableCmaps.hot     = hot(cmapResolution);
             obj.availableCmaps.parula  = parula(cmapResolution);
