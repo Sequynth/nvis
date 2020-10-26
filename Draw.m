@@ -302,7 +302,7 @@ classdef (Abstract) Draw < handle
             
             % min and max values are cast as doubles, to have their
             % datatype be independet of the input datatype
-            if sum(version('-release') < '2018b')
+            if verLessThan('matlab', '9.5')
                 % version is older than 2018b, use slower, but not very
                 % slow max/min calculation implementation.
                 obj.Max = [double(obj.cleverMax(obj.img{1})), double(obj.cleverMax(obj.img{2}))];
@@ -1694,6 +1694,10 @@ classdef (Abstract) Draw < handle
             obj.availableCmaps.magenta = [linspace(0,1,cmapResolution)' zeros(cmapResolution,1) linspace(0,1,cmapResolution)'];
             obj.availableCmaps.hot     = hot(cmapResolution);
             obj.availableCmaps.parula  = parula(cmapResolution);
+            if ~verLessThan('matlab', '9.9')
+                % this colormap was only introduced in 2020b
+                obj.availableCmaps.turbo   = turbo(cmapResolution);
+            end
             
             % check whether colorcet is available
             if exist('colorcet.m',  'file') == 2
