@@ -380,6 +380,7 @@ classdef (Abstract) Draw < handle
                 obj.img{2}       = [];
                 obj.nImages      = 1;                
                 obj.isComplex    = ~isreal(obj.img{1});
+                obj.layerShown   = [1, 0];
                 obj.S = size(obj.img{1});
                 obj.ston{1} = [];
             end            
@@ -864,40 +865,35 @@ classdef (Abstract) Draw < handle
                 axNo = 1;
             end
             
-            if obj.nImages == 1
-                lowerl  = single(obj.center(1) - obj.width(1)/2);
-                imshift = (obj.slice{axNo, 1} - lowerl)/single(obj.width(1)) * size(obj.cmap{1}, 1);
+            imgSize = [obj.resize * size(obj.slice{axNo, 1}), 3];
+            switch (obj.overlay)
+                % for assignment of overlay modes, see
+                % obj.overlayStrings                
+                case 1 % add
+                    cImage  = zeros(imgSize);
+                case 2 % multiply
+                    cImage  = ones(imgSize);
+            end
+            for idd = 1:obj.nImages
+                % map images to range [0, cmapResolution]
+                cLimLow  = single(obj.center(idd) - obj.width(idd)/2);
+                imgMapped = (obj.slice{axNo, idd} - cLimLow)/single(obj.width(idd)) * size(obj.cmap{idd}, 1);
                 if obj.resize ~= 1
-                    imshift = imresize(imshift, obj.resize);
+                    imgMapped = imresize(imgMapped, obj.resize);
                 end
-                cImage = ind2rgb(round(imshift), obj.cmap{1});
-            else
+                imgRGB  = ind2rgb(round(imgMapped), obj.cmap{idd}) * obj.layerShown(idd);
+                imgRGB(repmat(isnan(obj.slice{axNo, idd}), [1 1 3])) = 0;
                 switch (obj.overlay)
-                        % for assignment of overlay modes, see
-                        % obj.overlayStrings
-                        case 1 % add
-                            cImage  = zeros([size(obj.slice{axNo, 1} ), 3]);
-                        case 2 % multiply
-                            cImage  = ones([size(obj.slice{axNo, 1} ), 3]);
+                    % for assignment of overlay modes, see
+                    % obj.overlayStrings
+                    case 1 % add
+                        cImage  = cImage  + imgRGB;
+                    case 2 % multiply
+                        cImage  = cImage .* imgRGB;
                 end
-                for idd = 1:obj.nImages
-                    % convert images to range [0, cmapResolution]
-                    lowerl  = single(obj.center(idd) - obj.width(idd)/2);
-                    imshift = (obj.slice{axNo, idd} - lowerl)/single(obj.width(idd)) * size(obj.cmap{idd}, 1);
-                    if obj.resize ~= 1
-                        imshift = imresize(imshift, obj.resize);
-                    end
-                    imgRGB  = ind2rgb(round(imshift), obj.cmap{idd}) * obj.layerShown(idd);
-                    imgRGB(repmat(isnan(obj.slice{axNo, idd}), [1 1 3])) = 0;
-                    switch (obj.overlay)
-                        % for assignment of overlay modes, see
-                        % obj.overlayStrings
-                        case 1 % add
-                            cImage  = cImage + imgRGB;
-                        case 2 % multiply
-                            cImage  = cImage .* imgRGB;
-                    end
-                end
+            end
+            
+            if obj.nImages ~= 1
                 cImage(isnan(obj.slice{axNo, 1}) & isnan(obj.slice{axNo, 2})) = NaN;
             end
             
