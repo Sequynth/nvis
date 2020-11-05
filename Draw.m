@@ -1092,6 +1092,13 @@ classdef (Abstract) Draw < handle
             obj.center(iImg) = (obj.cleverMax(obj.slice{iImg})+obj.cleverMin(obj.slice{iImg})) / 2;
             obj.width(iImg)  = obj.cleverMax(obj.slice{iImg})-obj.cleverMin(obj.slice{iImg});
             
+            obj.centerStep  = double(obj.center);
+            obj.widthStep   = double(obj.width);
+            
+            % update the value for widthMin according to the std of image
+            % data in the currently active axis.
+            obj.widthMin = 1e-2*cell2mat(cellfun(@(x) std(x(:)), obj.slice(obj.activeAx, :), 'UniformOutput', false));
+            
             % apply changes to center and width
             obj.cw();
         end
