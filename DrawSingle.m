@@ -351,6 +351,7 @@ classdef DrawSingle < Draw
                 textFont        = 0.4;
             end
             
+            num = {'first', 'second'};
             for ii = 1:obj.nImages
             obj.hBtnCwHome(ii) = uicontrol( ...
                 'Style',                'pushbutton', ...
@@ -360,6 +361,7 @@ classdef DrawSingle < Draw
                 'Parent',               obj.pControls, ...
                 'Units',                'pixel', ...
                 'String',               char(8962), ...
+                'TooltipString',        ['use initial windowing on ' num{ii} ' image'], ...
                 'FontUnits',            'normalized', ...
                 'FontSize',             0.6, ...
                 'HorizontalAlignment',  'left');
@@ -372,6 +374,7 @@ classdef DrawSingle < Draw
                 'Parent',               obj.pControls, ...
                 'Units',                'pixel', ...
                 'String',               char(9633), ...
+                'TooltipString',        ['window current slice of ' num{ii} ' image'], ...
                 'FontUnits',            'normalized', ...
                 'FontSize',             0.6, ...
                 'HorizontalAlignment',  'left');
@@ -897,6 +900,37 @@ classdef DrawSingle < Draw
         end
         
         
+         function toggleCb(obj, ~, ~)
+            
+            images = allchild(obj.hAxCb);
+            if ~obj.cbShown
+                obj.colorbarWidth = 150;
+                set(obj.hAxCb,      'Visible', 'on')
+                if obj.nImages == 1
+                    set(images,      'Visible', 'on')
+                else
+                    set([images{:}],    'Visible', 'on')
+                end
+                obj.cbShown = true;
+                % guiResize() must be called before cw(), otherwise tick
+                % labels are not shown
+                obj.guiResize()
+                % run cw() again, to update ticklabels
+                obj.cw();
+            else
+                obj.colorbarWidth = 0;
+                set(obj.hAxCb,      'Visible', 'off')
+                if obj.nImages == 1
+                    set(images,    'Visible', 'off')
+                else
+                    set([images{:}],    'Visible', 'off')
+                end
+                obj.cbShown = false;
+                obj.guiResize()
+            end
+        end
+        
+        
         function setPanelPos(obj)
             % create a 3x4 array that stores the 'Position' information for
             % the four panels pImage, pSlider, pControl and pColorbar
@@ -1115,36 +1149,6 @@ classdef DrawSingle < Draw
             
             delete(obj.f);
             delete(obj)
-        end
-        
-        
-        function toggleCb(obj, ~, ~)
-            images = allchild(obj.hAxCb);
-            if ~obj.cbShown
-                obj.colorbarWidth = 150;
-                set(obj.hAxCb,      'Visible', 'on')
-                if obj.nImages == 1
-                    set(images,      'Visible', 'on')
-                else
-                    set([images{:}],    'Visible', 'on')
-                end
-                obj.cbShown = true;
-                % guiResize() must be called before cw(), otherwise tick
-                % labels are not shown
-                obj.guiResize()
-                % run cw() again, to update ticklabels
-                obj.cw();
-            else
-                obj.colorbarWidth = 0;
-                set(obj.hAxCb,      'Visible', 'off')
-                if obj.nImages == 1
-                    set(images,    'Visible', 'off')
-                else
-                    set([images{:}],    'Visible', 'off')
-                end
-                obj.cbShown = false;
-                obj.guiResize()
-            end
         end
         
         
