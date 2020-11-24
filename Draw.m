@@ -113,8 +113,8 @@ classdef (Abstract) Draw < handle
         % colormap for all images as a cell array, containing Nx3 colormaps
         cmap
         
-        % overlay mode (1: add, 2: multiply)
-        overlay
+        % alpha value for overlaying both input images
+        alpha
         
         % label for each dimension
         dimLabel
@@ -148,8 +148,8 @@ classdef (Abstract) Draw < handle
         % select the colormap for each input image
         hPopCm
         
-        % select the overlay mode
-        hPopOverlay
+        % set the alpha value
+        hEditAlpha
         
         % buttons array for complex data display
         hBtnCmplx
@@ -228,7 +228,6 @@ classdef (Abstract) Draw < handle
         BtnHideKey = ['w' 'e'];
         BtnTgglKey = 'q';
         
-        overlayStrings = {'add', 'multiply'}
     end    
     
     
@@ -446,7 +445,7 @@ classdef (Abstract) Draw < handle
             isboolean = @(x) x == 1 || x == 0;
             % add parameters to the input parser
             addParameter(obj.p, 'Position',     defaultPosition,                @(x) isnumeric(x) && numel(x) == 4);
-            addParameter(obj.p, 'Overlay',      1,                              @(x) floor(x)==x && x >= 1); %is integer greater 1
+            addParameter(obj.p, 'Alpha',        0.5,                            @(x) x >= 0 && x <= 1); %is between 0 and 1
             addParameter(obj.p, 'Colormap',     gray(256),                      @(x) iscell(x) | isnumeric(x) | ischar(x));
             addParameter(obj.p, 'Contrast',     'green-magenta',                @(x) obj.isContrast(x));
             addParameter(obj.p, 'ComplexMode',  obj.complexMode,                @(x) isnumeric(x) && x <= 4);
@@ -578,13 +577,15 @@ classdef (Abstract) Draw < handle
                 'Callback',             {@obj.changeCmap});
             
             if obj.nImages == 2
-                obj.hPopOverlay = uicontrol( ...
-                    'Style',                'popup', ...
-                    'String',               obj.overlayStrings, ...
-                    'Value',                obj.overlay, ...
+                obj.hEditAlpha = uicontrol( ...
+                    'Style',                'edit', ...
+                    'String',               obj.alpha, ...
                     'BackgroundColor',      obj.COLOR_BG, ...
                     'ForegroundColor',      obj.COLOR_F, ...
-                    'Callback',             {@obj.changeOverlay});
+                    'Enable',               'Inactive', ...
+                    'TooltipString',        'alpha value', ...
+                    'ButtonDownFcn',        @obj.removeListener, ...
+                    'Callback',             {@obj.changeAlpha});
                 
                 obj.hPopCm(2) = uicontrol( ...
                     'Style',                'popup', ...
@@ -865,15 +866,10 @@ classdef (Abstract) Draw < handle
                 axNo = 1;
             end
             
+            % prepare image matrix
             imgSize = [obj.resize * size(obj.slice{axNo, 1}), 3];
-            switch (obj.overlay)
-                % for assignment of overlay modes, see
-                % obj.overlayStrings                
-                case 1 % add
-                    cImage  = zeros(imgSize);
-                case 2 % multiply
-                    cImage  = ones(imgSize);
-            end
+            cImage  = zeros(imgSize);
+            
             for idd = 1:obj.nImages
                 % map images to range [0, cmapResolution]
                 cLimLow  = single(obj.center(idd) - obj.width(idd)/2);
@@ -881,17 +877,13 @@ classdef (Abstract) Draw < handle
                 if obj.resize ~= 1
                     imgMapped = imresize(imgMapped, obj.resize);
                 end
-                imgRGB  = ind2rgb(round(imgMapped), obj.cmap{idd}) * obj.layerShown(idd);
-                imgRGB(repmat(isnan(obj.slice{axNo, idd}), [1 1 3])) = 0;
-                switch (obj.overlay)
-                    % for assignment of overlay modes, see
-                    % obj.overlayStrings
-                    case 1 % add
-                        cImage  = cImage  + imgRGB;
-                    case 2 % multiply
-                        cImage  = cImage .* imgRGB;
-                end
+                
+                imgRGB{idd}  = ind2rgb(round(imgMapped), obj.cmap{idd}) * obj.layerShown(idd);
+                imgRGB{idd}(repmat(isnan(obj.slice{axNo, idd}), [1 1 3])) = 0;
+                
             end
+            
+            cImage  = imgRGB{2}*obj.alpha  + imgRGB{1}*(1-obj.alpha);
             
             if obj.nImages ~= 1
                 cImage(isnan(obj.slice{axNo, 1}) & isnan(obj.slice{axNo, 2})) = NaN;
@@ -1610,9 +1602,20 @@ classdef (Abstract) Draw < handle
         end
         
         
-        function changeOverlay(obj, src, ~)
+        function changeAlpha(obj, src, ~)
             % get the index of the new overlay value in obj.overlayStrings
-            obj.overlay = find(cellfun( @(x) strcmp(x, obj.overlayStrings{get(src, 'Value')}), obj.overlayStrings));
+            s = get(obj.hEditAlpha, 'String');
+            s(s==',') = '.';
+            obj.alpha = str2double(s);
+            
+            if obj.alpha > 1
+                obj.alpha = 1;
+                set(obj.hEditAlpha, 'String', num2str(obj.alpha))
+            elseif obj.alpha < 0
+                obj.alpha = 0;
+                set(obj.hEditAlpha, 'String', num2str(obj.alpha))
+            end
+            
             obj.refreshUI()
         end
         

@@ -202,7 +202,7 @@ classdef DrawSingle < Draw
             obj.complexMode         = obj.p.Results.ComplexMode;
             obj.resize              = obj.p.Results.Resize;  
             obj.contrast            = obj.p.Results.Contrast;
-            obj.overlay             = obj.p.Results.Overlay;
+            obj.alpha               = obj.p.Results.Alpha;
             obj.unit                = obj.p.Results.Unit;
             
             % set default values for dimLabel
@@ -470,7 +470,7 @@ classdef DrawSingle < Draw
                     'FontUnits',            'normalized', ...
                     'FontSize',             0.6);
                 
-                set(obj.hPopOverlay, ...
+                set(obj.hEditAlpha, ...
                     'Parent',               obj.pControls, ...
                     'FontUnits',            'normalized', ...
                     'FontSize',             0.6);
@@ -1299,7 +1299,7 @@ classdef DrawSingle < Draw
                 set(obj.hPopCm(1), 'Position', position(1, :));
             else
                 position = obj.divPosition(n, 2);
-                set(obj.hPopOverlay,  'Position', position(1, :));
+                set(obj.hEditAlpha,   'Position', position(1, :));
                 set(obj.hPopCm(1),    'Position', position(2, :));
                 set(obj.hPopCm(2),    'Position', position(3, :));
             end
