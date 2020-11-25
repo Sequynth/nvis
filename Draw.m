@@ -883,7 +883,7 @@ classdef (Abstract) Draw < handle
                 
             end
             
-            cImage  = imgRGB{2}*obj.alpha  + imgRGB{1}*(1-obj.alpha);
+            cImage  = imgRGB{2}*obj.alpha  + imgRGB{1};
             
             if obj.nImages ~= 1
                 cImage(isnan(obj.slice{axNo, 1}) & isnan(obj.slice{axNo, 2})) = NaN;
