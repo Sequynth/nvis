@@ -312,24 +312,19 @@ classdef (Abstract) Draw < handle
                 obj.Max = [double(max(obj.img{1}, [], 'all', 'omitnan')), double(max(obj.img{2}, [], 'all', 'omitnan'))];
                 obj.Min = [double(min(obj.img{1}, [], 'all', 'omitnan')), double(min(obj.img{2}, [], 'all', 'omitnan'))];
                 obj.Std = [double(std(obj.img{1}, 1, 'all', 'omitnan')), double(std(obj.img{2}, 1, 'all', 'omitnan'))];
+%                 obj.Std = obj.Max - obj.Min;
             end
             
             hasInf = obj.Max == Inf;
-            if hasInf(1)
-                warning('+Inf values present in input 1. For large input matrices this can cause memory overflow and long startup time.')
-                obj.Max(1)           = double(max(obj.img{1}(~isinf(obj.img{1})), [], 'omitnan'));
-            elseif obj.nImages == 2 && hasInf(2)
-                warning('-Inf values present in input 2. For large input matrices this can cause memory overflow and long startup time.')
-                obj.Max(2)           = double(max(obj.img{2}(~isinf(obj.img{2})), [], 'omitnan'));
+            for ii = find(hasInf)
+                warning('Inf values present in input %d. For large input matrices this can cause memory overflow and long startup time.', ii)
+                obj.Max(ii)           = double(max(obj.img{ii}(~isinf(obj.img{ii})), [], 'omitnan'));
             end
             
             hasInf = obj.Min == -Inf;
-            if hasInf(1)
-                warning('+Inf values present in input 1. For large input matrices this can cause memory overflow and long startup time.')
-                obj.Min(1)           = min(obj.img{1}(~isinf(obj.img{1})), [], 'omitnan');
-            elseif obj.nImages == 2 && hasInf(2)
-                warning('-Inf values present in input 2. For large input matrices this can cause memory overflow and long startup time.')
-                obj.Min(2)           = min(obj.img{2}(~isinf(obj.img{2})), [], 'omitnan');
+            for ii = find(hasInf)
+                warning('Inf values present in input %d. For large input matrices this can cause memory overflow and long startup time.', ii)
+                obj.Min(ii)           = min(obj.img{ii}(~isinf(obj.img{ii})), [], 'omitnan');
             end
             
             if obj.nImages == 1
@@ -767,7 +762,10 @@ classdef (Abstract) Draw < handle
             if ~contains('DimVal', obj.p.UsingDefaults)
                 % check number of value arrays equals dimensions of image
                 if numel(obj.p.Results.DimVal) ~= obj.nDims
-                    error('Number of elements in DimVal must equal the number of image dimensions.')
+%                     % allow for trailing singleton dimensions
+%                     if numel(obj.p.Results.DimVal) > obj.nDims & ~all(cellfun(@numel, obj.p.Results.DimVal(obj.nDims+1:end)))
+                        error('Number of elements in DimVal must equal the number of image dimensions.')
+%                     end
                 end
                 % if cell entry is empty, use default value
                 emptyCell = cellfun(@isempty, obj.p.Results.DimVal);
@@ -1712,6 +1710,7 @@ classdef (Abstract) Draw < handle
                 obj.availableCmaps.protanopic   = colorcet('CBL2', 'N', cmapResolution);
                 obj.availableCmaps.tritanopic   = colorcet('CBTL1', 'N', cmapResolution);
                 obj.availableCmaps.rainbow      = colorcet('R2', 'N', cmapResolution);
+                obj.availableCmaps.coolwarm     = colorcet('D1', 'N', cmapResolution);
             end
             % check whether certain colormaps are available
             if exist('viridis.m', 'file') == 2
