@@ -211,6 +211,15 @@ classdef (Abstract) Draw < handle
         % colormaps available
         availableCmaps
         cmapStrings
+        
+        % are both images windowed simultaneously?
+        linkedWindowing
+        
+        %% other
+        
+        % path to this file
+        resPath
+        
     end
     
     
@@ -287,6 +296,8 @@ classdef (Abstract) Draw < handle
             % prepare the colormaps
             obj.prepareColormaps()
             
+            [obj.resPath, ~, ~] = fileparts(mfilename('fullpath'));
+            obj.resPath = [obj.resPath filesep() 'res' filesep()];
         end
         
         
@@ -492,6 +503,8 @@ classdef (Abstract) Draw < handle
             end
         
             obj.widthMin = obj.p.Results.widthMin;
+            obj.center = zeros(1, 2);
+            obj.width = zeros(1, 2);
             for idh = 1:obj.nImages
                 obj.center(idh)	= double(obj.p.Results.CW(idh, 1));
                 obj.width(idh)  = double(obj.p.Results.CW(idh, 2));
@@ -540,6 +553,22 @@ classdef (Abstract) Draw < handle
                     'Callback',             @obj.setCW, ...
                     'TooltipString',        'width value for applied colormap');
                 
+                obj.hBtnCwHome(idh) = uicontrol( ...
+                    'Style',                'pushbutton', ...
+                    'BackgroundColor',      obj.COLOR_BG, ...
+                    'ForegroundColor',      obj.COLOR_F, ...
+                    'Callback',             {@obj.BtnCwHomeCallback}, ...
+                    'String',               char(8962), ...
+                    'TooltipString',        'use initial windowing');
+                
+                obj.hBtnCwSlice(idh) = uicontrol( ...
+                    'Style',                'pushbutton', ...
+                    'BackgroundColor',      obj.COLOR_BG, ...
+                    'ForegroundColor',      obj.COLOR_F, ...
+                    'Callback',             {@obj.BtnCwSliceCallback}, ...
+                    'String',               char(9633), ...
+                    'TooltipString',        'window current slice');
+                
                 if obj.nImages == 2
                     obj.hBtnHide(idh) = uicontrol( ...
                         'Style',                'togglebutton', ...
@@ -547,22 +576,36 @@ classdef (Abstract) Draw < handle
                         'Callback',             {@obj.BtnHideCallback});
                     
                     num = {'second', 'first'};
+                    arrows = [8592, 8594];
                     obj.hBtnCwCopy(idh) = uicontrol( ...
                         'Style',                'pushbutton', ...
                         'BackgroundColor',      obj.COLOR_BG, ...
                         'ForegroundColor',      obj.COLOR_F, ...
-                        'TooltipString',        ['copy CW values to ' num{idh} ' image'], ...
+                        'String',               char(arrows(idh)), ...
+                        'TooltipString',        ['copy CW values form ' num{idh} ' image'], ...
                         'Callback',             {@obj.BtnCwCopyCallback});
+                    
+                    set(obj.hBtnCwHome(idh),  'TooltipString', ['use initial windowing on ' num{idh} ' image']);
+                    set(obj.hBtnCwSlice(idh), 'TooltipString', ['window current slice of ' num{idh} ' image']);
                 end
             end
             
             if obj.nImages == 2
+                obj.hBtnCwLink = uicontrol( ...
+                    'Style',                'pushbutton', ...
+                    'BackgroundColor',      obj.COLOR_BG, ...
+                    'ForegroundColor',      obj.COLOR_F, ...
+                    'TooltipString',        'link windowing in both images', ...
+                    'String',               sprintf('<html><img src="file:/%sunlinked.png" height="15" width="15"/></html>', obj.resPath), ...
+                    'Callback',             {@obj.BtnCwLinkCallback});
+                obj.linkedWindowing = false;
+                
                 obj.hBtnToggle = uicontrol( ...
                     'Style',                'pushbutton', ...
                     'String',               ['Toggle (' obj.BtnTgglKey ')'], ...
                     'BackgroundColor',      obj.COLOR_BG, ...
                     'ForegroundColor',      obj.COLOR_F, ...
-                    'Callback',             {@obj.BtnToggleCallback});
+                    'Callback',             {@obj.BtnToggleCallback});                
             end
                         
             obj.hPopCm(1) = uicontrol( ...
@@ -971,27 +1014,34 @@ classdef (Abstract) Draw < handle
             % tracking of mouse movements
             callingAx = src.Parent;
             Pt = get(callingAx, 'CurrentPoint');
+            
+            
+            % activate the axis in which the windowing occurrs.
             imgIdx = find(obj.hImage == src);
             if obj.nAxes > 1
                 obj.activateAx(imgIdx)
             end
+            
+            % store start values for window and center
+            sCenter = obj.center;
+            sWidth  = obj.width;
+            % and the steps for both images
+            cStep   = [obj.centerStep(1), obj.centerStep(2)];
+            wStep   = [obj.widthStep(1), obj.widthStep(2)];
+            
             % normalization factor
             obj.nrmFac = [obj.S(find(obj.showDims(imgIdx, :), 1, 'first')) obj.S(find(obj.showDims(imgIdx, :), 1, 'last'))]*obj.resize;
             switch get(gcbf, 'SelectionType')
                 case 'normal'
                     if ~isempty(obj.img{2}) && obj.layerShown(2)
-                        sCenter = obj.center;
-                        sWidth  = obj.width;
-                        cStep   = [0, obj.centerStep(2)];
-                        wStep   = [0, obj.widthStep(2)];
+                        cStep = cStep .* [obj.linkedWindowing, 1];
+                        wStep = wStep .* [obj.linkedWindowing, 1];
                         obj.f.WindowButtonMotionFcn = {@obj.draggingFcn, callingAx, Pt, sCenter, sWidth, cStep, wStep};
                     end
                 case 'extend'
                     if isempty(obj.img{2}) || (~isempty(obj.img{2}) && obj.layerShown(1))
-                        sCenter = obj.center;
-                        sWidth  = obj.width;
-                        cStep   = [obj.centerStep(1), 0];
-                        wStep   = [obj.widthStep(1), 0];
+                        cStep = cStep .* [1, obj.linkedWindowing];
+                        wStep = wStep .* [1, obj.linkedWindowing];
                         obj.f.WindowButtonMotionFcn = {@obj.draggingFcn, callingAx, Pt, sCenter, sWidth, cStep, wStep};
                     end
                 case 'alt'
@@ -1006,17 +1056,17 @@ classdef (Abstract) Draw < handle
             pt = get(callingAx, 'CurrentPoint');
             switch (obj.azimuthAng)
                 case 0
-                    obj.center = sCenter - cStep * (pt(1, 2)-StartPt(1, 2))/obj.nrmFac(1);
-                    obj.width  = sWidth  + wStep * (pt(1, 1)-StartPt(1, 1))/obj.nrmFac(2);
+                    obj.center = sCenter - cStep .* (pt(1, 2)-StartPt(1, 2))/obj.nrmFac(1);
+                    obj.width  = sWidth  + wStep .* (pt(1, 1)-StartPt(1, 1))/obj.nrmFac(2);
                 case 90
-                    obj.center = sCenter - cStep * (pt(1, 1)-StartPt(1, 2))/obj.nrmFac(2);
-                    obj.width  = sWidth  - wStep * (pt(1, 2)-StartPt(1, 1))/obj.nrmFac(1);
+                    obj.center = sCenter - cStep .* (pt(1, 1)-StartPt(1, 2))/obj.nrmFac(2);
+                    obj.width  = sWidth  - wStep .* (pt(1, 2)-StartPt(1, 1))/obj.nrmFac(1);
                 case 180
-                    obj.center = sCenter + cStep * (pt(1, 2)-StartPt(1, 2))/obj.nrmFac(1);
-                    obj.width  = sWidth  - wStep * (pt(1, 1)-StartPt(1, 1))/obj.nrmFac(2);
+                    obj.center = sCenter + cStep .* (pt(1, 2)-StartPt(1, 2))/obj.nrmFac(1);
+                    obj.width  = sWidth  - wStep .* (pt(1, 1)-StartPt(1, 1))/obj.nrmFac(2);
                 case 270
-                    obj.center = sCenter + cStep * (pt(1, 1)-StartPt(1, 2))/obj.nrmFac(2);
-                    obj.width  = sWidth  + wStep * (pt(1, 2)-StartPt(1, 1))/obj.nrmFac(1);
+                    obj.center = sCenter + cStep .* (pt(1, 1)-StartPt(1, 2))/obj.nrmFac(2);
+                    obj.width  = sWidth  + wStep .* (pt(1, 2)-StartPt(1, 1))/obj.nrmFac(1);
             end
             obj.cw()
         end
@@ -1103,9 +1153,27 @@ classdef (Abstract) Draw < handle
         
         function BtnCwCopyCallback(obj, src, ~)
             % copy the CW-values from one image to another
-            obj.center(obj.hBtnCwCopy ~= src) = obj.center(obj.hBtnCwCopy == src);
-            obj.width(obj.hBtnCwCopy ~= src)  = obj.width(obj.hBtnCwCopy == src);
+            obj.center(obj.hBtnCwCopy == src) = obj.center(obj.hBtnCwCopy ~= src);
+            obj.width(obj.hBtnCwCopy == src)  = obj.width(obj.hBtnCwCopy ~= src);
             obj.cw();
+        end
+        
+        
+        function BtnCwLinkCallback(obj, src, ~)
+            % apply windowing to both images at once
+            if obj.linkedWindowing == true
+                % change state
+                obj.linkedWindowing = false;
+                % change button icon
+                set(obj.hBtnCwLink, 'String', sprintf('<html><img src="file:/%sunlinked.png" height="15" width="15"/></html>', obj.resPath));                
+                set(obj.hBtnCwLink, 'TooltipString', 'link windowing in both images');
+            else
+                % change state
+                obj.linkedWindowing = true;
+                % change button icon
+                set(obj.hBtnCwLink, 'String', sprintf('<html><img src="file:/%slinked.png" height="15" width="15"/></html>', obj.resPath));
+                set(obj.hBtnCwLink, 'TooltipString', 'unlink windowing in both images');
+            end
         end
         
         
