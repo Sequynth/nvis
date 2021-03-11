@@ -805,19 +805,21 @@ classdef (Abstract) Draw < handle
             if ~contains('DimVal', obj.p.UsingDefaults)
                 % check number of value arrays equals dimensions of image
                 if numel(obj.p.Results.DimVal) ~= obj.nDims
-%                     % allow for trailing singleton dimensions
-%                     if numel(obj.p.Results.DimVal) > obj.nDims & ~all(cellfun(@numel, obj.p.Results.DimVal(obj.nDims+1:end)))
+                    % allow for trailing singleton dimensions
+                    % check for all surplus dimensions in DimVal, that
+                    % their size is one.
+                    if numel(obj.p.Results.DimVal) > obj.nDims && ~all(cellfun(@numel, obj.p.Results.DimVal(obj.nDims+1:end)))
                         error('Number of elements in DimVal must equal the number of image dimensions.')
-%                     end
+                    end
                 end
                 % if cell entry is empty, use default value
                 emptyCell = cellfun(@isempty, obj.p.Results.DimVal);
                 obj.dimVal(~emptyCell) = obj.p.Results.DimVal(~emptyCell);
                 
                 % value array for each dimension must have obj.S entries
-                if ~isequal(obj.S, cellfun(@numel, obj.dimVal))
-                    error('Number of elements in DimVal for dimension(s) %s do not match image size', mat2str(find(obj.S ~= cellfun(@numel, obj.dimVal))))
-                end
+%                 if ~isequal(obj.S, cellfun(@numel, obj.dimVal))
+%                     error('Number of elements in DimVal for dimension(s) %s do not match image size', mat2str(find(obj.S ~= cellfun(@numel, obj.dimVal))))
+%                 end
             end
             
             obj.dimVal = valsToString(obj.dimVal);
