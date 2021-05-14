@@ -971,30 +971,39 @@ classdef (Abstract) Draw < handle
         function startDragFcn(obj, src, evtData)
             % when middle mouse button is pressed, save current point and start
             % tracking of mouse movements
+            
+            % on which axis & image was mouse pressed
             callingAx = src.Parent;
             Pt = get(callingAx, 'CurrentPoint');
             imgIdx = find(obj.hImage == src);
+            
+            % if there are more axes, make the axis under the cursor
+            % current
             if obj.nAxes > 1
                 obj.activateAx(imgIdx)
             end
-            % normalization factor
+            
+            % normalization-factor for cursor travel distance when using resized
+            % images
             obj.nrmFac = [obj.S(find(obj.showDims(imgIdx, :), 1, 'first')) obj.S(find(obj.showDims(imgIdx, :), 1, 'last'))]*obj.resize;
+            
+            % get windowing parameters according to current slice
+            
+            % save start parameters
+            sCenter = obj.center;
+            sWidth  = obj.width;
+            
             switch get(gcbf, 'SelectionType')
                 case 'normal'
                     if ~isempty(obj.img{2}) && obj.layerShown(2)
-                        sCenter = obj.center;
-                        sWidth  = obj.width;
-                        cStep   = [0, obj.centerStep(2)];
-                        wStep   = [0, obj.widthStep(2)];
-                        obj.f.WindowButtonMotionFcn = {@obj.draggingFcn, callingAx, Pt, sCenter, sWidth, cStep, wStep};
+                        % set mask for the correct image
+                        mask = [0, 1];
+                        obj.f.WindowButtonMotionFcn = {@obj.draggingFcn, callingAx, Pt, sCenter, sWidth, mask};
                     end
                 case 'extend'
                     if isempty(obj.img{2}) || (~isempty(obj.img{2}) && obj.layerShown(1))
-                        sCenter = obj.center;
-                        sWidth  = obj.width;
-                        cStep   = [obj.centerStep(1), 0];
-                        wStep   = [obj.widthStep(1), 0];
-                        obj.f.WindowButtonMotionFcn = {@obj.draggingFcn, callingAx, Pt, sCenter, sWidth, cStep, wStep};
+                        mask = [1, 0];
+                        obj.f.WindowButtonMotionFcn = {@obj.draggingFcn, callingAx, Pt, sCenter, sWidth, mask};
                     end
                 case 'alt'
                     obj.mouseButtonAlt(src, evtData)
@@ -1002,31 +1011,40 @@ classdef (Abstract) Draw < handle
         end
         
         
-        function draggingFcn(obj, ~, ~, callingAx, StartPt, sCenter, sWidth, cStep, wStep)
+        function draggingFcn(obj, ~, ~, callingAx, startPos, sCenter, sWidth, mask)
             % track motion of mouse and change center and width variables
             % accordingly
-            pt = get(callingAx, 'CurrentPoint');
+            
+            % update step parameters for center and width
+            cStep = mask .* obj.center;
+            wStep = mask .* obj.width;
+            
+            % get the current coordinates of the cursor
+            cursorPos = get(callingAx, 'CurrentPoint');
             switch (obj.azimuthAng)
                 case 0
-                    obj.center = sCenter - cStep * (pt(1, 2)-StartPt(1, 2))/obj.nrmFac(1);
-                    obj.width  = sWidth  + wStep * (pt(1, 1)-StartPt(1, 1))/obj.nrmFac(2);
+                    obj.center = sCenter - cStep * (cursorPos(1, 2)-startPos(1, 2)) / obj.nrmFac(1);
+                    obj.width  = sWidth  + wStep * (cursorPos(1, 1)-startPos(1, 1)) / obj.nrmFac(2);
                 case 90
-                    obj.center = sCenter - cStep * (pt(1, 1)-StartPt(1, 2))/obj.nrmFac(2);
-                    obj.width  = sWidth  - wStep * (pt(1, 2)-StartPt(1, 1))/obj.nrmFac(1);
+                    obj.center = sCenter - cStep * (cursorPos(1, 1)-startPos(1, 2)) / obj.nrmFac(2);
+                    obj.width  = sWidth  - wStep * (cursorPos(1, 2)-startPos(1, 1)) / obj.nrmFac(1);
                 case 180
-                    obj.center = sCenter + cStep * (pt(1, 2)-StartPt(1, 2))/obj.nrmFac(1);
-                    obj.width  = sWidth  - wStep * (pt(1, 1)-StartPt(1, 1))/obj.nrmFac(2);
+                    obj.center = sCenter + cStep * (cursorPos(1, 2)-startPos(1, 2)) / obj.nrmFac(1);
+                    obj.width  = sWidth  - wStep * (cursorPos(1, 1)-startPos(1, 1)) / obj.nrmFac(2);
                 case 270
-                    obj.center = sCenter + cStep * (pt(1, 1)-StartPt(1, 2))/obj.nrmFac(2);
-                    obj.width  = sWidth  + wStep * (pt(1, 2)-StartPt(1, 1))/obj.nrmFac(1);
+                    obj.center = sCenter + cStep * (cursorPos(1, 1)-startPos(1, 2)) / obj.nrmFac(2);
+                    obj.width  = sWidth  + wStep * (cursorPos(1, 2)-startPos(1, 1)) / obj.nrmFac(1);
             end
+            %fprintf('cStep: %.3f, %.3f\n', cStep(1), cStep(2))
+            fprintf('diff: %.3f, %.3f \n', (cursorPos(1, 2)-startPos(1, 2)),  (cursorPos(1, 1)-startPos(1, 1)))
+            %fprintf('wStep: %.3f, %.3f\n', wStep(1), wStep(2))
             obj.cw()
         end
         
         
         function cw(obj)
             % adjust windowing values depending on values for center and width
-            obj.width(obj.width <= obj.widthMin) = obj.widthMin(obj.width <= obj.widthMin);
+            obj.width(obj.width < 0) = 0;
             
             for ida = 1:numel(obj.hImage)
                 set(obj.hImage(ida), 'CData', obj.sliceMixer(ida));
