@@ -1135,8 +1135,7 @@ classdef DrawSingle < Draw
         
         function closeRqst(obj, ~, ~)
             % closeRqst is called, when the user closes the figure (by 'x' or
-            % 'close'). It stops and deletes the timer, frees up memory taken
-            % by img and closes the figure.
+            % 'close'). It stops and deletes the timer and closes the figure.
             
             try
                 stop(obj.t);
