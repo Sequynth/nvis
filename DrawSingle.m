@@ -8,10 +8,12 @@ classdef DrawSingle < Draw
 	% 	left/right(width). ROIs can be drawn to measure Signal to Noise
 	% 	ratio in image data.
 	%
-	% 	DRAWSINGLE(I1, I2): Data from the equally sized matrices I1 and I2
-	% 	are overlaid by adding the RGB values attributed by the individual
+	% 	DRAWSINGLE(I1, I2): Data from the matrices I1 and I2 are overlaid
+	% 	by adding (default) the RGB values attributed by the individual
 	% 	colormaps. The windowing for the second image can be adjusted by
-	% 	using the left mouse button.
+	% 	using the left mouse button. Image sizes must not be identical, but
+	% 	for dimensions, where the size is different, one matrix must be of
+	% 	size one.
 	%
 	%	Usage
 	%
@@ -77,9 +79,13 @@ classdef DrawSingle < Draw
     %                               dimensions of img, where the marker is
     %                               placed
 	%	'DimLabel',     cell{char}  char arrays to label the individual
-	%                               dimensions in the input data, if
-	%                               provided, must be provided for all
-	%                               dimensions.
+	%                               dimensions in the input data. Cell
+	%                               entries can be empty to use default
+	%                               label.
+    %	'DimVal', cell{cell{char}}  char arrays containing the axis-values
+    %                or cell{int}   for each dimension. Cell entries can be
+    %                               empty to use default enumeration. Vals
+    %                               must not be char, but is encouraged.
 	%	'fps',          double      defines how many times per second the
 	%                               slider value provided by 'LoopDim' is
 	%                               increased.
@@ -111,13 +117,9 @@ classdef DrawSingle < Draw
     % pressed (would require fft of the whole stack)
 	
     properties (Access = private)
-        t           % interrupt timer
-        fps
         
         % DISPLAYING
-        interruptedSlider
         locValString
-        dimensionLabel
         
         % UI Elements
         pImage
@@ -128,14 +130,9 @@ classdef DrawSingle < Draw
         hBtnShiftR
         hBtnRotL
         hBtnRotR
-        hBtnRun
-        hEditF
-        hTextFPS
         hBtnPoint
         hBtnPlot
         locAndVals
-        hBtnSaveImg
-        hBtnSaveVid
         
         hBtnG
         hRadioBtnSlider
@@ -166,8 +163,6 @@ classdef DrawSingle < Draw
     
     properties (Constant, Access = private)
         % UI PROPERTIES
-        % default figure position and size
-        defaultPosition = [ 300, 50, 800, 700];
         % absolute width of Control panel in pixel
         controlWidth  = 300; % px        
         sliderHeight  = 20;  % px 
@@ -178,6 +173,8 @@ classdef DrawSingle < Draw
         function obj = DrawSingle(in, varargin)
             % CONSTRUCTOR
             obj@Draw(in, varargin{:})
+            % set the type
+            obj.Type = 'DrawSingle';
             
             % only one Axis in DrawSingle
             obj.nAxes    = 1;
@@ -211,35 +208,20 @@ classdef DrawSingle < Draw
                 obj.inputNames{1} = inputname(1);
                 obj.standardTitle = inputname(1);
             end
-            
+                 
             obj.prepareParser()
             
             % additional parameters
             addParameter(obj.p, 'InitRot',          0,                                  @(x) isnumeric(x));
-            addParameter(obj.p, 'Position',         obj.defaultPosition,                @(x) isnumeric(x) && numel(x) == 4);
             addParameter(obj.p, 'InitSlice',        round(obj.S(obj.mapSliderToDim)/2), @isnumeric);
             addParameter(obj.p, 'InitPoint',        round(obj.S(obj.showDims)/2),       @isnumeric);
             addParameter(obj.p, 'MarkerColor',      [1 0 0],                            @(x) isnumeric(x) && numel(x) == 3);
-            addParameter(obj.p, 'fps',              0,                                  @isnumeric);
             addParameter(obj.p, 'ROI_Signal',       [0 0; 0 0; 0 0],                    @isnumeric);
             addParameter(obj.p, 'ROI_Noise',        [0 0; 0 0; 0 0],                    @isnumeric);
-            addParameter(obj.p, 'SaveImage',        '',                                 @ischar);
-            addParameter(obj.p, 'SaveVideo',        '',                                 @ischar);
             addParameter(obj.p, 'LoopDimension',    3,                                  @(x) isnumeric(x) && x <= obj.nDims && obj.nDims >= 3);
-            addParameter(obj.p, 'DimensionLabel',   strcat(repmat({'Dim'}, 1, numel(obj.S)), ...
-                                                    cellfun(@num2str, num2cell(1:obj.nDims), 'UniformOutput', false)), ...
-                                                                                        @(x) iscell(x) && numel(x) == obj.nDims);
-                    
+                  
             parse(obj.p, obj.varargin{:});
-            
-            if contains('dimensionLabel', obj.p.UsingDefaults)
-                for ff = 1:obj.nDims
-                    obj.dimensionLabel{ff} = [obj.p.Results.DimensionLabel{ff} num2str(ff)];
-                end
-            else
-                obj.dimensionLabel = obj.p.Results.DimensionLabel;
-            end
-            
+                        
             % if not specified, start with plotpoint disabled
             if contains('InitPoint', obj.p.UsingDefaults)
                 obj.pointEnabled = 0;
@@ -257,6 +239,11 @@ classdef DrawSingle < Draw
             obj.point               = obj.p.Results.InitPoint;
             obj.color_ma            = obj.p.Results.MarkerColor;
             obj.interruptedSlider   = obj.p.Results.LoopDimension - 2;
+            
+            % set default values for dimLabel
+            obj.dimLabel = strcat(repmat({'Dim'}, 1, numel(obj.S)), cellfun(@num2str, num2cell(1:obj.nDims), 'UniformOutput', false));
+            
+            obj.parseDimLabelsVals()
             
             obj.prepareGUIElements()
             
@@ -300,6 +287,9 @@ classdef DrawSingle < Draw
             obj.optimizeInitialFigureSize()   
             
             obj.guiResize()
+            
+            obj.recolor()
+            
             set(obj.f, 'Visible', 'on');
             
             if ~contains('ROI_Signal', obj.p.UsingDefaults)
@@ -376,7 +366,7 @@ classdef DrawSingle < Draw
             
             obj.margin   = 0.02 * obj.controlWidth;
             obj.height   = 0.05 * 660;
-            obj.yPadding = 0.01 * 660;
+            obj.yPadding = 0.0075 * 660;
             
             if obj.nImages == 1
                 obj.division    = 0.40 * obj.controlWidth;
@@ -394,12 +384,34 @@ classdef DrawSingle < Draw
                 textFont        = 0.4;
             end
             
+            num = {'first', 'second'};
+            for ii = 1:obj.nImages
+                set(obj.hBtnCwHome(ii), ...
+                    'Parent',               obj.pControls, ...
+                    'Units',                'pixel', ...
+                    'FontUnits',            'normalized', ...
+                    'FontSize',             0.6, ...
+                    'HorizontalAlignment',  'left');
+                
+                set(obj.hBtnCwSlice(ii), ...
+                    'Parent',               obj.pControls, ...
+                    'Units',                'pixel', ...
+                    'FontUnits',            'normalized', ...
+                    'FontSize',             0.6, ...
+                    'HorizontalAlignment',  'left');
+                
+                if obj.nImages == 2
+                    set(obj.hBtnCwHome(ii),  'TooltipString', ['use initial windowing on ' num{ii} ' image']);
+                    set(obj.hBtnCwSlice(ii), 'TooltipString', ['window current slice of ' num{ii} ' image']);
+                end
+                
+            end
+            
             % place cw windowing elements
             if obj.nImages == 2
                 set(obj.hBtnCwCopy(1), ...
                     'Parent',               obj.pControls, ...
                     'Units',                'pixel', ...
-                    'String',               '->', ...
                     'FontUnits',            'normalized', ...
                     'FontSize',             0.6, ...
                     'HorizontalAlignment',  'left');
@@ -407,10 +419,14 @@ classdef DrawSingle < Draw
                 set(obj.hBtnCwCopy(2), ...
                     'Parent',               obj.pControls, ...
                     'Units',                'pixel', ...
-                    'String',               '<-', ...
                     'FontUnits',            'normalized', ...
                     'FontSize',             0.6, ...
                     'HorizontalAlignment',  'left');
+                
+                 set(obj.hBtnCwLink, ...
+                    'Parent',               obj.pControls, ...
+                    'Units',                'pixel', ...
+                    'HorizontalAlignment',  'center');
             end
             
             set(obj.hTextC, ...
@@ -647,43 +663,23 @@ classdef DrawSingle < Draw
             end
             
             if obj.nDims > 2
-                obj.hBtnRun = uicontrol( ...
+                set(obj.hBtnRun, ...
                     'Parent',               obj.pControls, ...
-                    'Style',                'pushbutton', ...
-                    'Units',                'pixel', ...
-                    'String',               'Run', ...
-                    'Callback',             { @obj.toggleTimer}, ...
                     'FontUnits',            'normalized', ...
-                    'FontSize',             0.45, ...
-                    'BackgroundColor',      obj.COLOR_BG, ...
-                    'ForegroundColor',      obj.COLOR_F);
+                    'FontSize',             0.45);
                 
-                obj.hEditF = uicontrol( ...
+                set(obj.hEditF, ...
                     'Parent',               obj.pControls, ...
-                    'Style',                'edit', ...
-                    'Units',                'pixel', ...
-                    'String',               sprintf('%.2f', obj.fps), ...
                     'HorizontalAlignment',  'left', ...
                     'FontUnits',            'normalized', ...
                     'FontSize',             0.6, ...
-                    'BackgroundColor',      obj.COLOR_BG, ...
-                    'ForegroundColor',      obj.COLOR_F, ...
-                    'Enable',               'Inactive', ...
-                    'FontName',             'FixedWidth', ...
-                    'Tooltip',              'timer precision is 1 ms', ...
-                    'ButtonDownFcn',        @obj.removeListener, ...
-                    'Callback',             @obj.setFPS);
+                    'FontName',             'FixedWidth');
                 
-                obj.hTextFPS = uicontrol( ...
+                set(obj.hTextFPS, ...
                     'Parent',               obj.pControls, ...
-                    'Style',                'text', ...
-                    'Units',                'pixel', ...
-                    'String',               sprintf('fps'), ...
                     'HorizontalAlignment',  'left', ...
                     'FontUnits',            'normalized', ...
-                    'FontSize',             0.6, ...
-                    'BackgroundColor',      obj.COLOR_BG, ...
-                    'ForegroundColor',      obj.COLOR_F);
+                    'FontSize',             0.6);
                 
                 obj.hBtnPoint = uicontrol( ...
                     'Parent',               obj.pControls, ...
@@ -730,35 +726,26 @@ classdef DrawSingle < Draw
                 'BackgroundColor',      obj.COLOR_BG, ...
                 'Interpreter',          'Tex');
             
-            obj.hBtnSaveImg = uicontrol( ...
+            set(obj.hBtnSaveImg, ...
                 'Parent',               obj.pControls, ...
-                'Style',                'pushbutton', ...
                 'Units',                'pixel', ...
                 'Position',             [obj.margin ...
                                         obj.margin ...
                                         (obj.controlWidth-3*obj.margin)/2 ...
                                         obj.height], ...
                 'String',               'Save Image', ...
-                'Callback',             { @obj.saveImgBtn}, ...
                 'FontUnits',            'normalized', ...
-                'FontSize',             0.45, ...
-                'BackgroundColor',      obj.COLOR_BG, ...
-                'ForegroundColor',      obj.COLOR_F);
+                'FontSize',             0.45);
             
-            obj.hBtnSaveVid = uicontrol( ...
+            set(obj.hBtnSaveVid, ...
                 'Parent',               obj.pControls, ...
-                'Style',                'pushbutton', ...
                 'Units',                'pixel', ...
                 'Position',             [(obj.controlWidth+obj.margin)/2 ...
                                         obj.margin ...
                                         (obj.controlWidth-3*obj.margin)/2 ...
                                         obj.height], ...
-                'String',               'Save Video', ...
-                'Callback',             { @obj.saveVidBtn}, ...
                 'FontUnits',            'normalized', ...
-                'FontSize',             0.45, ...
-                'BackgroundColor',      obj.COLOR_BG, ...
-                'ForegroundColor',      obj.COLOR_F);
+                'FontSize',             0.45);
             
             if obj.nDims <= 2
                 set(obj.hBtnSaveVid, 'Visible', 'off')
@@ -781,7 +768,8 @@ classdef DrawSingle < Draw
                 'ForegroundColor',      obj.COLOR_F, ...
                 'ShadowColor',          obj.COLOR_B, ...
                 'HighLightColor',       obj.COLOR_BG, ...
-                'SelectionChangedFcn',  @(bg, event) obj.BtnGselection(bg, event));
+                'SelectionChangedFcn',  @(bg, event) obj.btnGselection(bg, event), ...
+                'Visible',              'on');
             
             % create and position the sliders
             for iSlider = 1:obj.nSlider
@@ -847,7 +835,6 @@ classdef DrawSingle < Draw
             obj.initializeAxis(true)
             
             if ~sum(ismember(obj.p.UsingDefaults, 'fps')) && length(obj.S) > 2
-                obj.fps = obj.p.Results.fps;
                 set(obj.hBtnRun, 'String', 'Stop')
                 obj.setAndStartTimer
             end
@@ -904,7 +891,7 @@ classdef DrawSingle < Draw
         function initializeSliders(obj)
             % get the size, dimensionNo, and labels only for the sliders
             s = obj.S(obj.mapSliderToDim);
-            labels = obj.dimensionLabel(obj.mapSliderToDim);
+            labels = obj.dimLabel(obj.mapSliderToDim);
             
             
             for iSlider = 1:obj.nSlider
@@ -927,10 +914,32 @@ classdef DrawSingle < Draw
                         'Enable',       'off');
                 end
                 
-                set(obj.hEditSlider(iSlider), 'String', num2str(obj.sel{obj.mapSliderToDim(iSlider)}));
+                set(obj.hEditSlider(iSlider), 'String', obj.dimVal{obj.mapSliderToDim(iSlider)}{obj.sel{obj.mapSliderToDim(iSlider)}});
             end
         end
         
+        
+        function recolor(obj)
+            % this function is callen, when the user changes a colormap in
+            % the GUI. To keep the colors consistent an easier
+            % attribuateble ti each in put, the colors in the GUI need to
+            % be adapted. Specifically in the locValString and the slider
+            % indices in the case of uniquely singleton dimensions.
+            
+            obj.setLocValFunction()
+            
+            % reset color to standard foreground color
+            set(obj.hEditSlider, 'ForegroundColor', obj.COLOR_F)
+            
+            % if necessary, change color for unique singleton
+            % dimensions
+            for iImg = 1:obj.nImages
+                stonSliderDims = ismember(obj.mapSliderToDim, obj.ston{iImg});
+                set(obj.hEditSlider(stonSliderDims), ...
+                    'ForegroundColor', obj.COLOR_m(mod(iImg, 2)+1, :))
+            end
+        end
+                
         
         function initializeColorbars(obj)
             % add axis to display the colorbars
@@ -960,6 +969,37 @@ classdef DrawSingle < Draw
             % change callback of 'colorbar' icon in MATLAB toolbar
             hToolColorbar = findall(gcf, 'tag', 'Annotation.InsertColorbar');
             set(hToolColorbar, 'ClickedCallback', {@obj.toggleCb});
+        end
+        
+        
+         function toggleCb(obj, ~, ~)
+            
+            images = allchild(obj.hAxCb);
+            if ~obj.cbShown
+                obj.colorbarWidth = 150;
+                set(obj.hAxCb,      'Visible', 'on')
+                if obj.nImages == 1
+                    set(images,      'Visible', 'on')
+                else
+                    set([images{:}],    'Visible', 'on')
+                end
+                obj.cbShown = true;
+                % guiResize() must be called before cw(), otherwise tick
+                % labels are not shown
+                obj.guiResize()
+                % run cw() again, to update ticklabels
+                obj.cw();
+            else
+                obj.colorbarWidth = 0;
+                set(obj.hAxCb,      'Visible', 'off')
+                if obj.nImages == 1
+                    set(images,    'Visible', 'off')
+                else
+                    set([images{:}],    'Visible', 'off')
+                end
+                obj.cbShown = false;
+                obj.guiResize()
+            end
         end
         
         
@@ -996,7 +1036,12 @@ classdef DrawSingle < Draw
         function createSelector(obj)
             % create slice selector
             obj.sel        = repmat({':'}, 1, obj.nDims);
-            obj.sel(ismember(1:obj.nDims, obj.mapSliderToDim)) = num2cell(obj.p.Results.InitSlice);            
+            obj.sel(ismember(1:obj.nDims, obj.mapSliderToDim)) = num2cell(obj.p.Results.InitSlice);
+            % consider singleton dimensions            
+            obj.sel(obj.S == 1) = {1};
+            % obj.sel{obj.S == 1} = 1; does not work here, because the
+            % condition might return an empty array which fails with curly
+            % brackets
         end
         
         
@@ -1009,8 +1054,12 @@ classdef DrawSingle < Draw
                 end
             end
             
+            % check the currently shown dimensions for necessity of color
+            % indication, if one input is singleton along dimension
+           
+            
             if obj.nImages == 1
-                obj.locValString = @(dim1L, dim1, dim2L, dim2, val) sprintf('\\color[rgb]{%.2f,%.2f,%.2f}%s:%4d\n%s:%4d\n%s:%s', ...
+                obj.locValString = @(dim1L, dim1, dim2L, dim2, val) sprintf('\\color[rgb]{%.2f,%.2f,%.2f}%s:%s\n%s:%s\n%s:%s', ...
                     obj.COLOR_F, ...
                     dim1L, ...
                     dim1, ...
@@ -1019,11 +1068,29 @@ classdef DrawSingle < Draw
                     obj.valNames{1}, ...
                     [num2sci(val) ' ' obj.unit{1}]);
             else
-                obj.locValString = @(dim1L, dim1, dim2L, dim2, val1, val2) sprintf('\\color[rgb]{%.2f,%.2f,%.2f}%s:%4d\n%s:%4d\n\\color[rgb]{%.2f,%.2f,%.2f}%s:%s\n\\color[rgb]{%.2f,%.2f,%.2f}%s:%s', ...
+                % check the currently shown dimensions for necessity of color
+                % indication, if one input is singleton along dimension
+                
+                adjColorStr = {'', ''};
+                for iImg = 1:obj.nImages
+                    match = ismember(obj.showDims, obj.ston{iImg});
+                    
+                    for iDim = find(match)
+                        % set color to different dimensions color
+                        adjColorStr{iDim} = sprintf('\\color[rgb]{%.2f,%.2f,%.2f}', obj.COLOR_m(mod(iImg, 2)+1, :));
+                    end
+                    
+                end
+                
+                obj.locValString = @(dim1L, dim1, dim2L, dim2, val1, val2) ...
+                    sprintf('\\color[rgb]{%.2f,%.2f,%.2f}%s:%s%s\n\\color[rgb]{%.2f,%.2f,%.2f}%s:%s%s\n\\color[rgb]{%.2f,%.2f,%.2f}%s:%s\n\\color[rgb]{%.2f,%.2f,%.2f}%s:%s', ...
                     obj.COLOR_F, ...
                     dim1L, ...
+                    adjColorStr{1}, ...
                     dim1, ...
+                    obj.COLOR_F, ...
                     dim2L, ...
+                    adjColorStr{2}, ...
                     dim2, ...
                     obj.COLOR_m(1, :), ...
                     obj.valNames{1}, ...
@@ -1040,14 +1107,14 @@ classdef DrawSingle < Draw
                 if obj.nImages == 1
                     val = obj.slice{1, 1}(point{:});
                     set(obj.locAndVals, 'String', obj.locValString(...
-                        obj.dimensionLabel{obj.showDims(1)}, point{1}, ...
-                        obj.dimensionLabel{obj.showDims(2)}, point{2}, val));
+                        obj.dimLabel{obj.showDims(1)}, obj.dimVal{obj.showDims(1)}{point{1}}, ...
+                        obj.dimLabel{obj.showDims(2)}, obj.dimVal{obj.showDims(2)}{point{2}}, val));
                 else
                     val1 = obj.slice{1, 1}(point{:});
                     val2 = obj.slice{1, 2}(point{:});
                     set(obj.locAndVals, 'String', obj.locValString(...
-                        obj.dimensionLabel{obj.showDims(1)}, point{1}, ...
-                        obj.dimensionLabel{obj.showDims(2)}, point{2}, val1, val2));
+                        obj.dimLabel{obj.showDims(1)}, obj.dimVal{obj.showDims(1)}{point{1}}, ...
+                        obj.dimLabel{obj.showDims(2)}, obj.dimVal{obj.showDims(2)}{point{2}}, val1, val2));
                 end
             else
                 set(obj.locAndVals, 'String', '');
@@ -1057,12 +1124,12 @@ classdef DrawSingle < Draw
         
         function refreshUI(obj, ~, ~)
             
-            obj.prepareSliceData;            
+            obj.prepareSliceData;
             set(obj.hImage, 'CData', obj.sliceMixer(1));
             
             for iSlider = 1:obj.nSlider
-                set(obj.hEditSlider(iSlider),   'String', num2str(obj.sel{obj.mapSliderToDim(iSlider)}));
-                set(obj.hSlider(iSlider),       'Value', obj.sel{obj.mapSliderToDim(iSlider)});
+                set(obj.hEditSlider(iSlider),   'String',   obj.dimVal{obj.mapSliderToDim(iSlider)}{obj.sel{obj.mapSliderToDim(iSlider)}});
+                set(obj.hSlider(iSlider),       'Value',    obj.sel{obj.mapSliderToDim(iSlider)});
             end
             
             % update 'val' when changing slice
@@ -1111,62 +1178,18 @@ classdef DrawSingle < Draw
             obj.refreshUI();
         end
         
-        
-        function interrupt(obj, ~, ~)
-            % this function is called for every interrupt of the timer and
-            % increments/decrements the slider value.
-            if obj.fps > 0
-                obj.sel{1, obj.interruptedSlider+2} = obj.sel{1, obj.interruptedSlider+2} + 1;
-            elseif obj.fps < 0
-                obj.sel{1, obj.interruptedSlider+2} = obj.sel{1, obj.interruptedSlider+2} - 1;
-            end
-                obj.sel{1, obj.interruptedSlider+2} = mod(obj.sel{1, obj.interruptedSlider+2}-1, obj.S(obj.interruptedSlider+2))+1;
-            obj.refreshUI();
+       
+        function mouseButtonAlt(obj, src, evtData)
+            % code executed when the user presses the right mouse button.
+            % currently not implemented.
         end
         
         
-        function setFPS(obj, src, ~)
-            % called by the center and width edit fields
-            s = get(src, 'String');
-            %turn "," into "."
-            s(s == ',') = '.';
-            
-            obj.fps = str2double(s);
-            % set(src, 'String', num2str(obj.fps));
-            stop(obj.t)
-            set(obj.hBtnRun, 'String', 'Run');
-            if obj.fps ~= 0
-                obj.setAndStartTimer;
-                set(obj.hBtnRun, 'String', 'Stop');
-            end
-        end
-        
-        
-        function setAndStartTimer(obj)
-            % make sure fps is not higher 100
-            period  = 1/abs(obj.fps) + (abs(obj.fps) > 100)*(1/100-1/abs(obj.fps));
-            % provide 1 ms precision to avoid warning
-            period = round(period*1000)/1000;
-            
-            obj.t.Period    = period;
-            obj.t.TimerFcn  = @(t, event) obj.interrupt(obj.fps);
-            set(obj.hEditF, 'String', num2str(sign(obj.fps)/obj.t.Period));
-            start(obj.t)
-        end
-        
-        
-        function toggleTimer(obj, ~, ~)
-            %called by the 'Run'/'Stop' button and controls the state of the
-            %timer
-            if strcmp(get(obj.t, 'Running'), 'off') && obj.fps ~= 0
-                obj.setAndStartTimer;
-                set(obj.hBtnRun, 'String',  'Stop');
-                set(obj.hBtnG,   'Visible', 'on');
-            else
-                stop(obj.t)
-                set(obj.hBtnRun, 'String',  'Run');
-                set(obj.hBtnG,   'Visible', 'off');
-            end
+        function btnGselection(obj, ~, evtData)
+           % the radio buttons are enumerated in their 'Tag' property, get
+           % the 'Tag' from the now selected radio button, which is the new
+           % value for the interrupted slider.
+            obj.interruptedSlider = str2double(evtData.NewValue.Tag);
         end
         
         
@@ -1212,7 +1235,7 @@ classdef DrawSingle < Draw
                 % create and open plot figure
                 obj.hExtPlot = externalPlot(...
                     'unit',             obj.unit, ...
-                    'dimensionLabel',   obj.dimensionLabel, ....
+                    'dimLabel',         obj.dimLabel, ....
                     'initDim',          obj.externalDim);
                 obj.updateExternalData()
                 obj.updateExternalPoint()
@@ -1285,91 +1308,9 @@ classdef DrawSingle < Draw
         end
         
         
-        function saveVidBtn(obj, ~, ~)
-            % get the filepath from a UI and call saveVideo funciton to save
-            % the video or gif
-            [filename, filepath] = uiputfile({'*.avi', 'AVI-file (*.avi)'; ...
-                '*.gif', 'gif-Animation (*.gif)'}, ...
-                'Save video', '.avi');
-            
-            if filepath == 0
-                return
-            else
-                obj.saveVideo([filepath, filename])
-            end
-        end
-        
-        
-        function saveVideo(obj, path)
-            % save video of matrix with current windowing and each frame being
-            % one slice in the 3rd dimension.
-            
-            if ~isempty(obj.t)
-                % get the state of the timer
-                bRunning = strcmp(obj.t.Running, 'on');
-                % stop the interrupt, to get control over the data shown.
-                if bRunning
-                    stop(obj.t)
-                end
-            end
-            
-            if strcmp(path(end-2:end), 'avi') || strcmp(path(end-2:end), 'gif')
-                
-                if  strcmp(path(end-2:end), 'gif')
-                    gif = 1;
-                else
-                    gif = 0;
-                    % start the video writer
-                    v           = VideoWriter(path);
-                    v.FrameRate = obj.fps;
-                    v.Quality   = 100;
-                    open(v);
-                end
-                % select the looping slices that are currently shown in the DrawSingle
-                % window, resize image, apply the colormap and rotate according
-                % to the azimuthal angle of the view.
-                for ii = 1: obj.S(obj.interruptedSlider+2)
-                    obj.sel{obj.interruptedSlider+2} = ii;
-                    obj.prepareSliceData
-                    imgOut = rot90(obj.sliceMixer(1), -round(obj.azimuthAng/90));
-                    
-                    if gif
-                        [gifImg, cm] = rgb2ind(imgOut, 256);
-                        if ii == 1
-                            imwrite(gifImg, cm, path, 'gif', ...
-                                'WriteMode',    'overwrite', ...
-                                'DelayTime',    1/obj.fps, ...
-                                'LoopCount',    Inf);
-                        else
-                            imwrite(gifImg, cm, path, 'gif', ...
-                                'WriteMode',    'append',...
-                                'DelayTime',    1/obj.fps);
-                        end
-                    else
-                        writeVideo(v, imgOut);
-                    end
-                end
-            else
-                warning('Invalid filename! Data was not saved.');
-            end
-            
-            if ~gif
-                close(v)
-            end
-            
-            if ~isempty(obj.t)
-                % restart the timer if it was running before
-                if bRunning
-                    start(obj.t)
-                end
-            end
-        end
-        
-        
         function closeRqst(obj, ~, ~)
             % closeRqst is called, when the user closes the figure (by 'x' or
-            % 'close'). It stops and deletes the timer, frees up memory taken
-            % by img and closes the figure.
+            % 'close'). It stops and deletes the timer and closes the figure.
             
             try
                 stop(obj.t);
@@ -1379,36 +1320,6 @@ classdef DrawSingle < Draw
             
             delete(obj.f);
             delete(obj)
-        end
-        
-        
-        function toggleCb(obj, ~, ~)
-            images = allchild(obj.hAxCb);
-            if ~obj.cbShown
-                obj.colorbarWidth = 150;
-                set(obj.hAxCb,      'Visible', 'on')
-                if obj.nImages == 1
-                    set(images,      'Visible', 'on')
-                else
-                    set([images{:}],    'Visible', 'on')
-                end
-                obj.cbShown = true;
-                % guiResize() must be called before cw(), otherwise tick
-                % labels are not shown
-                obj.guiResize()
-                % run cw() again, to update ticklabels
-                obj.cw();
-            else
-                obj.colorbarWidth = 0;
-                set(obj.hAxCb,      'Visible', 'off')
-                if obj.nImages == 1
-                    set(images,    'Visible', 'off')
-                else
-                    set([images{:}],    'Visible', 'off')
-                end
-                obj.cbShown = false;
-                obj.guiResize()
-            end
         end
         
         
@@ -1425,11 +1336,15 @@ classdef DrawSingle < Draw
         
         
         function shiftDims(obj, src, ~)
-            
+            % this line ignores singleton dimensions, because they dont get
+            % a slider and are boring to look at
             dimArray = [obj.showDims obj.mapSliderToDim];
+            
             switch (src.String)
                 case '->'
-                    shifted = circshift(dimArray, -1);                    
+                    shifted = circshift(dimArray, -1);
+                    % activeDim defines the active slider and cant be one
+                    % of the shown dimensions
                     if ismember(obj.activeDim, shifted(1:2))
                         obj.activeDim = shifted(3);
                     end
@@ -1444,15 +1359,19 @@ classdef DrawSingle < Draw
                         
             % renew slice selector for dimensions 3 and higher
             obj.sel        = repmat({':'}, 1, obj.nDims);
-            obj.sel(ismember(1:obj.nDims, obj.mapSliderToDim)) = num2cell(round(obj.S(obj.mapSliderToDim)/2));
+            %obj.sel(ismember(1:obj.nDims, obj.mapSliderToDim)) = num2cell(round(obj.S(obj.mapSliderToDim)/2));
+            obj.sel(obj.mapSliderToDim) = num2cell(round(obj.S(obj.mapSliderToDim)/2));
+            % consider singleton dimensions
+            obj.sel(obj.S == 1) = {1};
             
             obj.initializeSliders()
             obj.initializeAxis(false)
-            
             % if opened, update dimensions in external plot
             if ~isempty(obj.hExtPlot) && isvalid(obj.hExtPlot)
                 obj.hExtPlot.setDimension(obj.mapSliderToDim(1))
             end
+            
+            obj.recolor()
         end
         
         
@@ -1513,22 +1432,32 @@ classdef DrawSingle < Draw
                                         obj.sliderHeight]);
             end
             
-            n = 0.5;
-            if obj.nImages == 2
-                position = obj.divPosition(n, 0.5);
-                set(obj.hBtnCwCopy(1), 'Position', position(2, :));
-                set(obj.hBtnCwCopy(2), 'Position', position(3, :));
+            n = 0.75;
+            if obj.nImages == 1
+                position = obj.positionN(n, 2, obj.division, 0.75);
+                set(obj.hBtnCwHome,  'Position', position(1, :));
+                set(obj.hBtnCwSlice, 'Position', position(2, :));
+            else
+                position = obj.positionN(n, 7, obj.division, 0.75);
+                set(obj.hBtnCwHome(1),  'Position', position(1, :));
+                set(obj.hBtnCwSlice(1), 'Position', position(2, :));
+                set(obj.hBtnCwCopy(1),  'Position', position(3, :));
+                set(obj.hBtnCwLink,  'Position', position(4, :));
+                set(obj.hBtnCwCopy(2),  'Position', position(5, :));
+                set(obj.hBtnCwSlice(2), 'Position', position(6, :));
+                set(obj.hBtnCwHome(2),  'Position', position(7, :));
+                
             end
             
             n = n + 1;
-            position = obj.divPosition(n);
+            position = obj.divPosition(n, obj.nImages);
             set(obj.hTextC, 'Position', position(1, :));
             for ii = 1:obj.nImages
                 set(obj.hEditC(ii), 'Position', position(ii+1, :));
             end
             
             n = n + 1;
-            position = obj.divPosition(n);
+            position = obj.divPosition(n, obj.nImages);
             set(obj.hTextW, 'Position', position(1, :));
             for ii = 1:obj.nImages
                 set(obj.hEditW(ii), 'Position', position(ii+1, :));
@@ -1536,7 +1465,7 @@ classdef DrawSingle < Draw
             
             if obj.nImages == 2
                 n = n + 1;
-                position = obj.divPosition(n);
+                position = obj.divPosition(n, obj.nImages);
                 set(obj.hBtnToggle,   'Position', position(1, :));
                 set(obj.hBtnHide(1),  'Position', position(2, :));
                 set(obj.hBtnHide(2),  'Position', position(3, :));
@@ -1547,27 +1476,27 @@ classdef DrawSingle < Draw
                 position = obj.positionN(n, 1);
                 set(obj.hPopCm(1), 'Position', position(1, :));
             else
-                position = obj.divPosition(n);
+                position = obj.divPosition(n, 2);
                 set(obj.hPopOverlay,  'Position', position(1, :));
                 set(obj.hPopCm(1),    'Position', position(2, :));
                 set(obj.hPopCm(2),    'Position', position(3, :));
             end
             n = n + 1;
-            position = obj.divPosition(n);
+            position = obj.divPosition(n, obj.nImages);
             set(obj.hBtnRoi(1), 'Position', position(1, :));
             for ii = 1:obj.nImages
                 set(obj.hTextRoi(1, ii), 'Position', position(ii+1, :));
             end
             
             n = n + 1;
-            position = obj.divPosition(n);
+            position = obj.divPosition(n, obj.nImages);
             set(obj.hBtnRoi(2), 'Position', position(1, :));
             for ii = 1:obj.nImages
                 set(obj.hTextRoi(2, ii), 'Position', position(ii+1, :));
             end
             
             n = n + 1;
-            position = obj.divPosition(n);
+            position = obj.divPosition(n, obj.nImages);
             set(obj.hTextSNR, 'Position', position(1, :));
             for ii = 1:obj.nImages
                 set(obj.hTextSNRvals(ii), 'Position', position(ii+1, :));
@@ -1614,64 +1543,44 @@ classdef DrawSingle < Draw
         end
             
         
-        function pos = divPosition(obj, N, hF)
-            if nargin == 2
+        function pos = divPosition(obj, h, n, hF)
+            % one element before a 'division, one or two elements after the
+            % division (depending on number of images)
+            % h: heigth value
+            % n: number of equally spaced horitonzal elements
+            % hF: multiplier of the height of the elements.
+            
+            if nargin == 3
                 % set the height changing factor to 1
                 hF = 1;
             end
             
-            yPos = ceil(obj.figurePos(4)-obj.margin-(N)*obj.height-(N-1)*obj.yPadding);
-            if obj.nImages == 1
-                pos = [obj.margin ...
-                    yPos ...
-                    obj.division-2*obj.margin ...
-                    obj.height*hF; ...
-                    obj.division+obj.margin/2 ...
-                    yPos ...
-                    (obj.controlWidth-obj.division)-obj.margin ...
-                    obj.height*hF];
-            else
-                pos = [obj.margin/2 ...
-                    yPos ...
-                    obj.division-3/4*obj.margin ...
-                    obj.height*hF; ...
-                    obj.division+obj.margin/4 ...
-                    yPos ...
-                    (obj.controlWidth-obj.division)/2-5/4*obj.margin ...
-                    obj.height*hF; ...
-                    obj.division+obj.margin/2+((obj.controlWidth-obj.division)/2-3/4*obj.margin) ...
-                    yPos ...
-                    (obj.controlWidth-obj.division)/2-5/4*obj.margin ...
-                    obj.height*hF];
-            end
+            yPos = ceil(obj.figurePos(4)-obj.margin-h*obj.height-(h-1)*obj.yPadding);
+            
+            pos = [obj.margin/2 yPos obj.division-3/4*obj.margin obj.height*hF];
+            pos = [pos; obj.positionN(h, n, obj.division, hF)];
         end
         
-        
-        function pos = divPosition3(obj, N)
-            yPos = ceil(obj.figurePos(4)-obj.margin-N*obj.height-(N-1)*obj.yPadding);
-            pos = [obj.division+obj.margin/2 ...
-                yPos ...
-                (obj.controlWidth-obj.division-7/2*obj.margin)/3 ...
-                obj.height; ...
-                obj.division+1/2*obj.margin+(obj.controlWidth-obj.division-1/2*obj.margin)/3 ...
-                yPos ...
-                (obj.controlWidth-obj.division-7/2*obj.margin)/3 ...
-                obj.height; ...
-                obj.division+1/2*obj.margin+2*(obj.controlWidth-obj.division-1/2*obj.margin)/3 ...
-                yPos ...
-                (obj.controlWidth-obj.division-7/2*obj.margin)/3 ...
-                obj.height];
-        end
-        
-        
-        function pos = positionN(obj, h, n)
+          
+        function pos = positionN(obj, h, n, x0, hF)
+            % euqally space elements in the GUI in a row
             % h: heigth value
             % n: number of equally spaced horitonzal elements
-            yPos  = ceil(obj.figurePos(4)-obj.margin-h*obj.height-(h-1)*obj.yPadding);
-            width =(obj.controlWidth-(n+1)*obj.margin)/n;
+            % x0: startpoint from left side (default: 0)
+            % hF: multiplier of the height of the elements.
             
-            pos   = repmat([0 yPos width obj.height], [n, 1]);
-            xPos  = (0:(n-1)) * (width+ obj.margin) + obj.margin;
+            if nargin == 3
+                x0 = 0;
+                hF = 1;                
+            elseif nargin == 4
+                hF = 1;                
+            end
+            
+            yPos  = ceil(obj.figurePos(4)-obj.margin-h*obj.height-(h-1)*obj.yPadding);
+            width =(obj.controlWidth-x0-(n+1)*obj.margin)/n;
+            
+            pos   = repmat([0 yPos width obj.height*hF], [n, 1]);
+            xPos  = x0 + (0:(n-1)) * (width+ obj.margin) + obj.margin;
             
             pos(:, 1) = xPos;
         end

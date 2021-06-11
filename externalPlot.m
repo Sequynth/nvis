@@ -19,7 +19,7 @@ classdef externalPlot < handle
         hPopDim
         
         %% input properties
-        dimensionLabel
+        dimLabel
         unit
         initDim
         
@@ -52,12 +52,12 @@ classdef externalPlot < handle
             p = inputParser;
             addParameter(p, 'Position',             defaultPosition,  @(x) isnumeric(x));
             addParameter(p, 'unit',                 '',  @(x) ischar(x) || iscell(x));
-            addParameter(p, 'dimensionLabel',       '',  @(x) ischar(x) || iscell(x));
+            addParameter(p, 'dimLabel',             '',  @(x) ischar(x) || iscell(x));
             addParameter(p, 'initDim',              1,  @(x) isnumeric(x));
             parse(p, varargin{:});
             
             obj.figurePos       = p.Results.Position;
-            obj.dimensionLabel  = p.Results.dimensionLabel;
+            obj.dimLabel        = p.Results.dimLabel;
             obj.unit            = p.Results.unit;
             obj.initDim         = p.Results.initDim;
             
@@ -89,7 +89,7 @@ classdef externalPlot < handle
             obj.hPopDim = uicontrol( ...
                 'Parent',               obj.pControls, ...
                 'Style',                'popup', ...
-                'String',               obj.dimensionLabel, ...
+                'String',               obj.dimLabel, ...
                 'Value',                obj.initDim, ...
                 'Callback',             @obj.changeDim);
             
@@ -130,7 +130,7 @@ classdef externalPlot < handle
             % necessary change of dimension, i.e. when the plotted
             % dimensions are changed.
             
-            obj.hAx.XLabel.String = obj.dimensionLabel(dimNo);
+            obj.hAx.XLabel.String = obj.dimLabel(dimNo);
             set(obj.hPopDim,    'Value', dimNo);
             
         end
@@ -140,7 +140,7 @@ classdef externalPlot < handle
             % call the calling function and request data from a different
             % dimension
             
-            obj.hAx.XLabel.String = obj.dimensionLabel(obj.hPopDim.Value);
+            obj.hAx.XLabel.String = obj.dimLabel(obj.hPopDim.Value);
             notify(obj, 'dimChanged')
             
         end

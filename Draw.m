@@ -8,8 +8,9 @@ classdef (Abstract) Draw < handle
     %   Many of the UI features (windowing, colormap overlay,...) are
     %   handled by Draw member functions. 
    
-    properties
+    properties (Access = public)
         f
+        Type
     end
 		
     properties (Access = private)
@@ -17,9 +18,11 @@ classdef (Abstract) Draw < handle
         layerShown      % which of the images is currently shown?
         fftStatus       % keeps track of fft-button status
         
+        
         % WINDOWING PROPERTIES
         Max             % maximum value in both images
         Min             % minimum value in both images
+        Std             % standard deviation in both images
         center          % current value mapped to the center of the colormap
         width           % width of values mapped to the colormap, around center
         widthMin        % minimalWidth of the colormap, prevents division by 0
@@ -37,6 +40,7 @@ classdef (Abstract) Draw < handle
         nAxes           % number of displayed image Axes (DrawSingle: 1, DrawSlider: 3)
         img             % cell array in which the input matrices are stored
         nDims           % number of image dimensions
+        ston            % cell array for dimensions where a matrix is the only singleton
         isComplex       % is one of the inputs complex
         S               % size of the image(s)
         p               % input parser
@@ -63,7 +67,9 @@ classdef (Abstract) Draw < handle
         showDims
         
         % cell array that stores the location information in the input data
-        % of each currently shown slice
+        % of each currently shown slice.
+        % obj.sel{2, :} contains the subscripts to obtain the image shown
+        % in axis 2
         sel
         
         % cell array containing the current slice image information
@@ -75,6 +81,14 @@ classdef (Abstract) Draw < handle
         
         % index of the currently active ax element
         activeAx
+        
+        % timer
+        t
+        % index of the slider that is inc- or decremented by the timer
+        % interrupt
+        interruptedSlider
+        % framerate of timer
+        fps
         
         % stores the current complex representation mode
         complexMode
@@ -102,6 +116,12 @@ classdef (Abstract) Draw < handle
         % overlay mode (1: add, 2: multiply)
         overlay
         
+        % label for each dimension
+        dimLabel
+        
+        % values for each dimension
+        dimVal
+        
         %% GUI ELEMENTS
         
         % array of images displayed in 'ax', the handle to the respective axis can always be obtained via
@@ -121,6 +141,9 @@ classdef (Abstract) Draw < handle
         hBtnHide
         hBtnToggle
         hBtnCwCopy
+        hBtnCwHome
+        hBtnCwSlice
+        hBtnCwLink
         
         % select the colormap for each input image
         hPopCm
@@ -147,6 +170,15 @@ classdef (Abstract) Draw < handle
         
         % colorbars
         hAxCb        
+        
+        % animation elements
+        hBtnRun
+        hEditF
+        hTextFPS
+        
+        % saving images and videos
+        hBtnSaveImg
+        hBtnSaveVid
         
         %% GUI ELEMENT PROPERTIES
         
@@ -179,6 +211,15 @@ classdef (Abstract) Draw < handle
         % colormaps available
         availableCmaps
         cmapStrings
+        
+        % are both images windowed simultaneously?
+        linkedWindowing
+        
+        %% other
+        
+        % path to this file
+        resPath
+        
     end
     
     
@@ -206,7 +247,9 @@ classdef (Abstract) Draw < handle
         refreshUI(obj)
         incDecActiveDim(obj, incDec)
         mouseBtnNormal(obj, pt)
-        updateExternalData(obj)
+        mouseButtonAlt(src, evtData)
+        recolor(obj)
+        saveImgBtn(obj)
     end
         
     
@@ -233,6 +276,9 @@ classdef (Abstract) Draw < handle
             obj.signal       = NaN(1, obj.nImages);
             obj.noise        = NaN(1, obj.nImages);
             
+            % initialize UI colors
+            obj.COLOR_m = [obj.COLOR_F; obj.COLOR_F];
+            
             % set the correct default value for complexMode
             if any(obj.isComplex)
                 obj.complexMode = 1;
@@ -251,9 +297,8 @@ classdef (Abstract) Draw < handle
             % prepare the colormaps
             obj.prepareColormaps()
             
-            % create GUI elements for cw windowing
-            % obj.prepareGUIElements()
-            
+            [obj.resPath, ~, ~] = fileparts(mfilename('fullpath'));
+            obj.resPath = [obj.resPath filesep() 'res' filesep()];
         end
         
         
@@ -269,32 +314,29 @@ classdef (Abstract) Draw < handle
             
             % min and max values are cast as doubles, to have their
             % datatype be independet of the input datatype
-            if sum(version('-release') < '2018b')
+            if verLessThan('matlab', '9.5')
                 % version is older than 2018b, use slower, but not very
                 % slow max/min calculation implementation.
                 obj.Max = [double(obj.cleverMax(obj.img{1})), double(obj.cleverMax(obj.img{2}))];
                 obj.Min = [double(obj.cleverMin(obj.img{1})), double(obj.cleverMin(obj.img{2}))];
+                obj.Std = obj.Max - obj.Min;
             else
                 obj.Max = [double(max(obj.img{1}, [], 'all', 'omitnan')), double(max(obj.img{2}, [], 'all', 'omitnan'))];
                 obj.Min = [double(min(obj.img{1}, [], 'all', 'omitnan')), double(min(obj.img{2}, [], 'all', 'omitnan'))];
+                obj.Std = [double(std(obj.img{1}, 1, 'all', 'omitnan')), double(std(obj.img{2}, 1, 'all', 'omitnan'))];
+%                 obj.Std = obj.Max - obj.Min;
             end
             
             hasInf = obj.Max == Inf;
-            if hasInf(1)
-                warning('+Inf values present in input 1. For large input matrices this can cause memory overflow and long startup time.')
-                obj.Max(1)           = max(obj.img{1}(~isinf(obj.img{1})), [], 'omitnan');
-            elseif obj.nImages == 2 && hasInf(2)
-                warning('-Inf values present in input 2. For large input matrices this can cause memory overflow and long startup time.')
-                obj.Max(2)           = max(obj.img{2}(~isinf(obj.img{2})), [], 'omitnan');
+            for ii = find(hasInf)
+                warning('Inf values present in input %d. For large input matrices this can cause memory overflow and long startup time.', ii)
+                obj.Max(ii)           = double(max(obj.img{ii}(~isinf(obj.img{ii})), [], 'omitnan'));
             end
             
             hasInf = obj.Min == -Inf;
-            if hasInf(1)
-                warning('+Inf values present in input 1. For large input matrices this can cause memory overflow and long startup time.')
-                obj.Min(1)           = [min(obj.img{1}(~isinf(obj.img{1})), [], 'omitnan'), 0];
-            elseif obj.nImages == 2 && hasInf(2)
-                warning('-Inf values present in input 2. For large input matrices this can cause memory overflow and long startup time.')
-                obj.Min(2)           = [min(obj.img{2}(~isinf(obj.img{2})), [], 'omitnan'), 0];
+            for ii = find(hasInf)
+                warning('Inf values present in input %d. For large input matrices this can cause memory overflow and long startup time.', ii)
+                obj.Min(ii)           = min(obj.img{ii}(~isinf(obj.img{ii})), [], 'omitnan');
             end
             
             if obj.nImages == 1
@@ -302,8 +344,9 @@ classdef (Abstract) Draw < handle
                 obj.Max(2) = 1;
             end
             
-            obj.Max(obj.isComplex) = abs(obj.Max(obj.isComplex));
-            obj.Min(obj.isComplex) = abs(obj.Min(obj.isComplex));
+            obj.Max(obj.isComplex)  = abs(obj.Max(obj.isComplex));
+            obj.Min(obj.isComplex)  = abs(obj.Min(obj.isComplex));
+            obj.Std(obj.isComplex)  = abs(obj.Std(obj.isComplex));
         end
         
         
@@ -312,7 +355,10 @@ classdef (Abstract) Draw < handle
             if ~isempty(obj.varargin) && ( isnumeric(obj.varargin{1}) || islogical(obj.varargin{1}) )
                 % two input matrices
                 obj.img{1}      = in;
+                % get second matrix from varargin
                 obj.img{2}      = obj.varargin{1};
+                % remove second matrix from varargin, should only contain
+                % NVPs now
                 obj.varargin(1) = [];
                 isEmpt          = cellfun(@isempty, obj.img);
                 if ~sum( isEmpt )
@@ -320,6 +366,7 @@ classdef (Abstract) Draw < handle
                     obj.nImages     = 2;
                     obj.isComplex   = ~cellfun(@isreal, obj.img);
                     obj.layerShown  = [1, 1];
+                    obj.checkSize()
                 elseif sum(isEmpt) == 1
                     % one input matrix is empty
                     warning('Input %d is empty! Only non-empty iputs are shown', find(isEmpt))
@@ -329,6 +376,8 @@ classdef (Abstract) Draw < handle
                     % for nImages=1, the second cell must be explicitly
                     % empty
                     obj.img{2} = [];
+                    obj.S = size(obj.img{1});
+                    obj.ston{1} = [];
                 else
                     error('Both input matrices are empty')                    
                 end
@@ -338,17 +387,72 @@ classdef (Abstract) Draw < handle
                 obj.img{2}       = [];
                 obj.nImages      = 1;                
                 obj.isComplex    = ~isreal(obj.img{1});
+                obj.layerShown   = [1, 0];
+                obj.S = size(obj.img{1});
+                obj.ston{1} = [];
+            end            
+            obj.nDims = numel(obj.S);
+        end
+        
+        
+        function checkSize(obj)
+            
+            % get the image sizes
+            s1 = size(obj.img{1});
+            s2 = size(obj.img{2});
+            if numel(s1) ~= numel(s2)
+                % and image dimensions (trailing singleton dimensions are not
+                % considered by size)
+                d1 = ndims(obj.img{1});
+                d2 = ndims(obj.img{2});
+                if d1 > d2
+                    s2 = [s2 ones(1, d1-d2)];
+                else
+                    s1 = [s1 ones(1, d2-d1)];
+                end
             end
-            obj.S           = size(obj.img{1});
-            obj.nDims       = ndims(obj.img{1}); 
+            
+            if any(s1 ~= s2)
+                % there are dimensions, in wich both matrices have different
+                % sizes
+                
+                % combine the sizes into one array
+                s = [s1; s2];
+                
+                % check that for those dimensions, where the size differs,
+                % one is equal to 1
+                if any(min(s(:, s1~=s2),[], 1) ~= 1)
+                    % there are dimensions where the size differs and
+                    % neither of the matrices has a size of one along that
+                    % dimension
+                    error('Matrix dimensions must agree.')
+                else
+                    % find unique singleton dimensions in matrices
+                    obj.ston{1} = find((s1 ~= s2) & s1 == 1);
+                    obj.ston{2} = find((s1 ~= s2) & s2 == 1);
+                end
+                
+                obj.S = max(s, [], 1);
+            else
+                % both input matrices have exactly the same size
+                obj.ston{1} = [];
+                obj.ston{2} = [];
+                obj.S = size(obj.img{1});
+            end
         end
         
         
         function prepareParser(obj)
             
+            % default figure position and size. is adapted to actual screensize
+            % and is separated from top/bottom by 10% of up/down screensize
+            screenS = get(0, 'ScreenSize');
+            defaultPosition = [ 300, round(0.1*screenS(4)), 800, round(0.8*screenS(4))];
+
             obj.p = inputParser;
             isboolean = @(x) x == 1 || x == 0;
             % add parameters to the input parser
+            addParameter(obj.p, 'Position',     defaultPosition,                @(x) isnumeric(x) && numel(x) == 4);
             addParameter(obj.p, 'Overlay',      1,                              @(x) floor(x)==x && x >= 1); %is integer greater 1
             addParameter(obj.p, 'Colormap',     gray(256),                      @(x) iscell(x) | isnumeric(x) | ischar(x));
             addParameter(obj.p, 'Contrast',     'green-magenta',                @(x) obj.isContrast(x));
@@ -360,8 +464,15 @@ classdef (Abstract) Draw < handle
                                                 obj.Max(1)-obj.Min(1); ...
                                                 (obj.Max(2) - obj.Min(2))/2+obj.Min(2), ...
                                                 obj.Max(2)-obj.Min(2)],         @isnumeric);            
-            addParameter(obj.p, 'widthMin',     single(0.001*(obj.Max-obj.Min)),@isnumeric);
+            addParameter(obj.p, 'widthMin',     single(1e-3*obj.Std),@isnumeric);
             addParameter(obj.p, 'Unit',         {[], []},                       @(x) (iscell(x) && numel(x) <= 2) | ischar(x));
+            addParameter(obj.p, 'DimLabel',     strcat(repmat({}, 1, numel(obj.S))), @(x) iscell(x) && numel(x) >= obj.nDims);
+            addParameter(obj.p, 'DimVal',       cellfun(@(x) 1:x, num2cell(obj.S), 'UniformOutput', false), @iscell);
+            addParameter(obj.p, 'SaveImage',    '',                                 @ischar);
+            addParameter(obj.p, 'SaveVideo',    '',                                 @ischar);
+            addParameter(obj.p, 'fps',          0,                              @isnumeric);
+            addParameter(obj.p, 'LoopCount',    Inf,                            @isnumeric);
+
         end
         
         
@@ -393,6 +504,8 @@ classdef (Abstract) Draw < handle
             end
         
             obj.widthMin = obj.p.Results.widthMin;
+            obj.center = zeros(1, 2);
+            obj.width = zeros(1, 2);
             for idh = 1:obj.nImages
                 obj.center(idh)	= double(obj.p.Results.CW(idh, 1));
                 obj.width(idh)  = double(obj.p.Results.CW(idh, 2));
@@ -430,14 +543,32 @@ classdef (Abstract) Draw < handle
                     'BackgroundColor',      obj.COLOR_BG, ...
                     'Enable',               'Inactive', ...
                     'ButtonDownFcn',        @obj.removeListener, ...
-                    'Callback',             @obj.setCW);
+                    'Callback',             @obj.setCW, ...
+                    'TooltipString',        'center value for applied colormap');
                 
                 obj.hEditW(idh) = uicontrol( ...
                     'Style',                'edit', ...
                     'BackgroundColor',      obj.COLOR_BG, ...
                     'Enable',               'Inactive', ...
                     'ButtonDownFcn',        @obj.removeListener, ...
-                    'Callback',             @obj.setCW);
+                    'Callback',             @obj.setCW, ...
+                    'TooltipString',        'width value for applied colormap');
+                
+                obj.hBtnCwHome(idh) = uicontrol( ...
+                    'Style',                'pushbutton', ...
+                    'BackgroundColor',      obj.COLOR_BG, ...
+                    'ForegroundColor',      obj.COLOR_F, ...
+                    'Callback',             {@obj.BtnCwHomeCallback}, ...
+                    'String',               char(8962), ...
+                    'TooltipString',        'use initial windowing');
+                
+                obj.hBtnCwSlice(idh) = uicontrol( ...
+                    'Style',                'pushbutton', ...
+                    'BackgroundColor',      obj.COLOR_BG, ...
+                    'ForegroundColor',      obj.COLOR_F, ...
+                    'Callback',             {@obj.BtnCwSliceCallback}, ...
+                    'String',               char(9633), ...
+                    'TooltipString',        'window current slice');
                 
                 if obj.nImages == 2
                     obj.hBtnHide(idh) = uicontrol( ...
@@ -445,21 +576,37 @@ classdef (Abstract) Draw < handle
                         'BackgroundColor',      obj.COLOR_BG, ...
                         'Callback',             {@obj.BtnHideCallback});
                     
+                    num = {'second', 'first'};
+                    arrows = [8592, 8594];
                     obj.hBtnCwCopy(idh) = uicontrol( ...
                         'Style',                'pushbutton', ...
                         'BackgroundColor',      obj.COLOR_BG, ...
                         'ForegroundColor',      obj.COLOR_F, ...
+                        'String',               char(arrows(idh)), ...
+                        'TooltipString',        ['copy CW values form ' num{idh} ' image'], ...
                         'Callback',             {@obj.BtnCwCopyCallback});
+                    
+                    set(obj.hBtnCwHome(idh),  'TooltipString', ['use initial windowing on ' num{idh} ' image']);
+                    set(obj.hBtnCwSlice(idh), 'TooltipString', ['window current slice of ' num{idh} ' image']);
                 end
             end
             
             if obj.nImages == 2
+                obj.hBtnCwLink = uicontrol( ...
+                    'Style',                'pushbutton', ...
+                    'BackgroundColor',      obj.COLOR_BG, ...
+                    'ForegroundColor',      obj.COLOR_F, ...
+                    'TooltipString',        'link windowing in both images', ...
+                    'String',               sprintf('<html><img src="file:/%sunlinked.png" height="15" width="15"/></html>', obj.resPath), ...
+                    'Callback',             {@obj.BtnCwLinkCallback});
+                obj.linkedWindowing = false;
+                
                 obj.hBtnToggle = uicontrol( ...
                     'Style',                'pushbutton', ...
                     'String',               ['Toggle (' obj.BtnTgglKey ')'], ...
                     'BackgroundColor',      obj.COLOR_BG, ...
                     'ForegroundColor',      obj.COLOR_F, ...
-                    'Callback',             {@obj.BtnToggleCallback});
+                    'Callback',             {@obj.BtnToggleCallback});                
             end
                         
             obj.hPopCm(1) = uicontrol( ...
@@ -485,6 +632,10 @@ classdef (Abstract) Draw < handle
                     'ForegroundColor',      obj.COLOR_F, ...
                     'Callback',             {@obj.changeCmap});
             end
+            
+            %--
+            % regions of interest
+            %--
             
             % uicontrols must be initialized alone, cannot be done without
             % loop (i guess...)
@@ -538,6 +689,9 @@ classdef (Abstract) Draw < handle
                 'BackgroundColor',      obj.COLOR_BG, ...
                 'ForegroundColor',      obj.COLOR_F);            
             
+            %--
+            % FFT and complex mode display
+            %--
             obj.hBtnFFT = uicontrol( ...
                 'Style',                'pushbutton', ...
                 'String',               'FFT', ...
@@ -572,7 +726,105 @@ classdef (Abstract) Draw < handle
                 'Callback',             {@obj.toggleComplex},...
                 'BackgroundColor',      obj.COLOR_BG, ...
                 'ForegroundColor',      obj.COLOR_F);
-        end        
+            
+            %--
+            % animation
+            %--
+            if obj.nDims > 2
+                obj.hBtnRun = uicontrol( ...
+                    'Style',                'pushbutton', ...
+                    'Units',                'pixel', ...
+                    'String',               'Run', ...
+                    'Callback',             { @obj.toggleTimer}, ...
+                    'BackgroundColor',      obj.COLOR_BG, ...
+                    'ForegroundColor',      obj.COLOR_F);
+                
+                obj.hEditF = uicontrol( ...
+                    'Style',                'edit', ...
+                    'Units',                'pixel', ...
+                    'String',               sprintf('%.2f', obj.fps), ...
+                    'BackgroundColor',      obj.COLOR_BG, ...
+                    'ForegroundColor',      obj.COLOR_F, ...
+                    'Enable',               'Inactive', ...
+                    'Tooltip',              'timer precision is 1 ms', ...
+                    'ButtonDownFcn',        @obj.removeListener, ...
+                    'Callback',             @obj.setFPS);
+                
+                obj.hTextFPS = uicontrol( ...
+                    'Style',                'text', ...
+                    'Units',                'pixel', ...
+                    'String',               sprintf('fps'), ...
+                    'BackgroundColor',      obj.COLOR_BG, ...
+                    'ForegroundColor',      obj.COLOR_F);
+            end
+            %--
+            % saving
+            %--
+            obj.hBtnSaveImg = uicontrol( ...
+                'Style',                'pushbutton', ...
+                'String',               'Save Image', ...
+                'Callback',             {@obj.saveImgBtn}, ...
+                'BackgroundColor',      obj.COLOR_BG, ...
+                'ForegroundColor',      obj.COLOR_F);
+            
+            obj.hBtnSaveVid = uicontrol( ...
+                'Style',                'pushbutton', ...
+                'String',               'Save Video', ...
+                'Callback',             {@obj.saveVidBtn}, ...
+                'BackgroundColor',      obj.COLOR_BG, ...
+                'ForegroundColor',      obj.COLOR_F);
+            
+            obj.t = timer(...
+                'BusyMode',         'queue', ...
+                'ExecutionMode',    'fixedRate', ...
+                'Period',           1, ...
+                'StartDelay',       0, ...
+                'TimerFcn',         @(t, event) obj.interrupt, ...
+                'TasksToExecute',   Inf);
+            
+        end
+        
+        
+        function parseDimLabelsVals(obj)
+            % dimension labels
+            
+            if ~contains('DimLabel', obj.p.UsingDefaults)
+                % check number of input labels equals dimensions of image
+                if numel(obj.p.Results.DimLabel) ~= obj.nDims
+                    warning('Number of DimLabel is not equal to the number of image dimensions.')
+                end
+               % if cell entry is empty, use default value
+               emptyCell = cellfun(@isempty, obj.p.Results.DimLabel);
+               obj.dimLabel(~emptyCell) = obj.p.Results.DimLabel(~emptyCell);
+            end
+            
+            % dimension values
+            
+            % set default values via size of each dimension
+            obj.dimVal = cellfun(@(x) 1:x, num2cell(obj.S), 'UniformOutput', false);
+            
+            if ~contains('DimVal', obj.p.UsingDefaults)
+                % check number of value arrays equals dimensions of image
+                if numel(obj.p.Results.DimVal) ~= obj.nDims
+                    % allow for trailing singleton dimensions
+                    % check for all surplus dimensions in DimVal, that
+                    % their size is one.
+                    if numel(obj.p.Results.DimVal) > obj.nDims && ~all(cellfun(@numel, obj.p.Results.DimVal(obj.nDims+1:end)))
+                        error('Number of elements in DimVal must equal the number of image dimensions.')
+                    end
+                end
+                % if cell entry is empty, use default value
+                emptyCell = cellfun(@isempty, obj.p.Results.DimVal);
+                obj.dimVal(~emptyCell) = obj.p.Results.DimVal(~emptyCell);
+                
+                % value array for each dimension must have obj.S entries
+%                 if ~isequal(obj.S, cellfun(@numel, obj.dimVal))
+%                     error('Number of elements in DimVal for dimension(s) %s do not match image size', mat2str(find(obj.S ~= cellfun(@numel, obj.dimVal))))
+%                 end
+            end
+            
+            obj.dimVal = valsToString(obj.dimVal);
+        end
         
         
         function prepareSliceData(obj)
@@ -581,7 +833,39 @@ classdef (Abstract) Draw < handle
                 for iax = 1:obj.nAxes
                     % get the image information of the current slice(s)
                     % from the input matrices
-                    obj.slice{iax, iImg} = squeeze(obj.img{iImg}(obj.sel{iax, :}));
+                    
+                    % for dimensions where one matrix is singleton, the
+                    % selector-value must be adjusted to 1
+                    select = obj.sel(iax, :);
+                    select(obj.ston{iImg}) = {1};
+                    
+                    if ~isempty(obj.ston{iImg})
+                        % this matrix has singleton dimensions where the
+                        % other does not
+                        
+                        % is the matrix singleton along a shown dimension?
+                        isect = intersect(obj.showDims(iax, :), obj.ston{iImg});
+                        % if the matrix is singleton along one of the shown
+                        % image dimensions, use repmat
+                        repDims = ones(1, obj.nDims);
+                        repDims(isect) = obj.S(isect);
+                    else
+                        % no unique singleton dimensions, no repetition
+                        % necessary
+                        repDims = ones(1, obj.nDims);
+                    end
+                    
+                    % use permute instead of squeeze, because squeeze
+                    % reduces a matrix of  size 1, 1, 100 to 100, 1
+                    % instead of 1, 100
+                    permDims = 1:obj.nDims;
+                    permDims(obj.showDims(iax, :)) = [];
+                    permDims = [obj.showDims(iax, :) permDims];
+                    
+                    % repeat along singleton if necessary, then permute to
+                    % get orientation right
+                    obj.slice{iax, iImg} = permute(repmat(obj.img{iImg}(select{:}), repDims), permDims);
+                    
                     if obj.fftStatus == 1
                         % if chosen by the user, perform a 2D fft on the
                         % Data
@@ -590,7 +874,7 @@ classdef (Abstract) Draw < handle
                 end
             end
             
-            if any(~cellfun(@isreal, obj.slice))
+            if any(~cellfun(@isreal, obj.slice(:)))
                 % at least one of the slices has complex values, that
                 % means:
                 % show the complex Buttons
@@ -625,40 +909,35 @@ classdef (Abstract) Draw < handle
                 axNo = 1;
             end
             
-            if obj.nImages == 1
-                lowerl  = single(obj.center(1) - obj.width(1)/2);
-                imshift = (obj.slice{axNo, 1} - lowerl)/single(obj.width(1)) * size(obj.cmap{1}, 1);
+            imgSize = [obj.resize * size(obj.slice{axNo, 1}), 3];
+            switch (obj.overlay)
+                % for assignment of overlay modes, see
+                % obj.overlayStrings                
+                case 1 % add
+                    cImage  = zeros(imgSize);
+                case 2 % multiply
+                    cImage  = ones(imgSize);
+            end
+            for idd = 1:obj.nImages
+                % map images to range [0, cmapResolution]
+                cLimLow  = single(obj.center(idd) - obj.width(idd)/2);
+                imgMapped = (obj.slice{axNo, idd} - cLimLow)/single(obj.width(idd)) * size(obj.cmap{idd}, 1);
                 if obj.resize ~= 1
-                    imshift = imresize(imshift, obj.resize);
+                    imgMapped = imresize(imgMapped, obj.resize);
                 end
-                cImage = ind2rgb(round(imshift), obj.cmap{1});
-            else
+                imgRGB  = ind2rgb(round(imgMapped), obj.cmap{idd}) * obj.layerShown(idd);
+                imgRGB(repmat(isnan(obj.slice{axNo, idd}), [1 1 3])) = 0;
                 switch (obj.overlay)
-                        % for assignment of overlay modes, see
-                        % obj.overlayStrings
-                        case 1 % add
-                            cImage  = zeros([size(obj.slice{axNo, 1} ), 3]);
-                        case 2 % multiply
-                            cImage  = ones([size(obj.slice{axNo, 1} ), 3]);
+                    % for assignment of overlay modes, see
+                    % obj.overlayStrings
+                    case 1 % add
+                        cImage  = cImage  + imgRGB;
+                    case 2 % multiply
+                        cImage  = cImage .* imgRGB;
                 end
-                for idd = 1:obj.nImages
-                    % convert images to range [0, cmapResolution]
-                    lowerl  = single(obj.center(idd) - obj.width(idd)/2);
-                    imshift = (obj.slice{axNo, idd} - lowerl)/single(obj.width(idd)) * size(obj.cmap{idd}, 1);
-                    if obj.resize ~= 1
-                        imshift = imresize(imshift, obj.resize);
-                    end
-                    imgRGB  = ind2rgb(round(imshift), obj.cmap{idd}) * obj.layerShown(idd);
-                    imgRGB(repmat(isnan(obj.slice{axNo, idd}), [1 1 3])) = 0;
-                    switch (obj.overlay)
-                        % for assignment of overlay modes, see
-                        % obj.overlayStrings
-                        case 1 % add
-                            cImage  = cImage + imgRGB;
-                        case 2 % multiply
-                            cImage  = cImage .* imgRGB;
-                    end
-                end
+            end
+            
+            if obj.nImages ~= 1
                 cImage(isnan(obj.slice{axNo, 1}) & isnan(obj.slice{axNo, 2})) = NaN;
             end
             
@@ -739,27 +1018,34 @@ classdef (Abstract) Draw < handle
             % tracking of mouse movements
             callingAx = src.Parent;
             Pt = get(callingAx, 'CurrentPoint');
+            
+            
+            % activate the axis in which the windowing occurrs.
             imgIdx = find(obj.hImage == src);
             if obj.nAxes > 1
                 obj.activateAx(imgIdx)
             end
+            
+            % store start values for window and center
+            sCenter = obj.center;
+            sWidth  = obj.width;
+            % and the steps for both images
+            cStep   = [obj.centerStep(1), obj.centerStep(2)];
+            wStep   = [obj.widthStep(1), obj.widthStep(2)];
+            
             % normalization factor
             obj.nrmFac = [obj.S(find(obj.showDims(imgIdx, :), 1, 'first')) obj.S(find(obj.showDims(imgIdx, :), 1, 'last'))]*obj.resize;
             switch get(gcbf, 'SelectionType')
                 case 'alt'
                     if ~isempty(obj.img{2}) && obj.layerShown(2)
-                        sCenter = obj.center;
-                        sWidth  = obj.width;
-                        cStep   = [0, obj.centerStep(2)];
-                        wStep   = [0, obj.widthStep(2)];
+                        cStep = cStep .* [obj.linkedWindowing, 1];
+                        wStep = wStep .* [obj.linkedWindowing, 1];
                         obj.f.WindowButtonMotionFcn = {@obj.draggingFcn, callingAx, Pt, sCenter, sWidth, cStep, wStep};
                     end
                 case 'extend'
                     if isempty(obj.img{2}) || (~isempty(obj.img{2}) && obj.layerShown(1))
-                        sCenter = obj.center;
-                        sWidth  = obj.width;
-                        cStep   = [obj.centerStep(1), 0];
-                        wStep   = [obj.widthStep(1), 0];
+                        cStep = cStep .* [1, obj.linkedWindowing];
+                        wStep = wStep .* [1, obj.linkedWindowing];
                         obj.f.WindowButtonMotionFcn = {@obj.draggingFcn, callingAx, Pt, sCenter, sWidth, cStep, wStep};
                     end
                 case 'normal'
@@ -774,17 +1060,17 @@ classdef (Abstract) Draw < handle
             pt = get(callingAx, 'CurrentPoint');
             switch (obj.azimuthAng)
                 case 0
-                    obj.center = sCenter - cStep * (pt(1, 2)-StartPt(1, 2))/obj.nrmFac(1);
-                    obj.width  = sWidth  + wStep * (pt(1, 1)-StartPt(1, 1))/obj.nrmFac(2);
+                    obj.center = sCenter - cStep .* (pt(1, 2)-StartPt(1, 2))/obj.nrmFac(1);
+                    obj.width  = sWidth  + wStep .* (pt(1, 1)-StartPt(1, 1))/obj.nrmFac(2);
                 case 90
-                    obj.center = sCenter - cStep * (pt(1, 1)-StartPt(1, 2))/obj.nrmFac(2);
-                    obj.width  = sWidth  - wStep * (pt(1, 2)-StartPt(1, 1))/obj.nrmFac(1);
+                    obj.center = sCenter - cStep .* (pt(1, 1)-StartPt(1, 2))/obj.nrmFac(2);
+                    obj.width  = sWidth  - wStep .* (pt(1, 2)-StartPt(1, 1))/obj.nrmFac(1);
                 case 180
-                    obj.center = sCenter + cStep * (pt(1, 2)-StartPt(1, 2))/obj.nrmFac(1);
-                    obj.width  = sWidth  - wStep * (pt(1, 1)-StartPt(1, 1))/obj.nrmFac(2);
+                    obj.center = sCenter + cStep .* (pt(1, 2)-StartPt(1, 2))/obj.nrmFac(1);
+                    obj.width  = sWidth  - wStep .* (pt(1, 1)-StartPt(1, 1))/obj.nrmFac(2);
                 case 270
-                    obj.center = sCenter + cStep * (pt(1, 1)-StartPt(1, 2))/obj.nrmFac(2);
-                    obj.width  = sWidth  + wStep * (pt(1, 2)-StartPt(1, 1))/obj.nrmFac(1);
+                    obj.center = sCenter + cStep .* (pt(1, 1)-StartPt(1, 2))/obj.nrmFac(2);
+                    obj.width  = sWidth  + wStep .* (pt(1, 2)-StartPt(1, 1))/obj.nrmFac(1);
             end
             obj.cw()
         end
@@ -840,6 +1126,29 @@ classdef (Abstract) Draw < handle
         end
         
         
+        function BtnCwHomeCallback(obj, src, ~)
+            % set center and width to the initial values
+            iImg = (obj.hBtnCwHome == src);
+            obj.center(iImg) = obj.p.Results.CW(iImg, 1);
+            obj.width(iImg) = obj.p.Results.CW(iImg, 2);
+            % apply changes to center and width
+            obj.cw();
+        end
+        
+        
+        function BtnCwSliceCallback(obj, src, ~)
+            % set center and width to optimize display of the current slice
+            iImg = (obj.hBtnCwSlice == src);
+            
+            % calculate cw values for the slice
+            obj.center(iImg) = (obj.cleverMax(obj.slice{iImg})+obj.cleverMin(obj.slice{iImg})) / 2;
+            obj.width(iImg)  = obj.cleverMax(obj.slice{iImg})-obj.cleverMin(obj.slice{iImg});
+            
+            % apply changes to center and width
+            obj.cw();
+        end
+        
+        
         function BtnHideCallback(obj, src, ~)
             % call the toggle layer fucntion
             obj.toggleLayer( find(obj.hBtnHide == src) );
@@ -848,9 +1157,27 @@ classdef (Abstract) Draw < handle
         
         function BtnCwCopyCallback(obj, src, ~)
             % copy the CW-values from one image to another
-            obj.center(obj.hBtnCwCopy ~= src) = obj.center(obj.hBtnCwCopy == src);
-            obj.width(obj.hBtnCwCopy ~= src)  = obj.width(obj.hBtnCwCopy == src);
+            obj.center(obj.hBtnCwCopy == src) = obj.center(obj.hBtnCwCopy ~= src);
+            obj.width(obj.hBtnCwCopy == src)  = obj.width(obj.hBtnCwCopy ~= src);
             obj.cw();
+        end
+        
+        
+        function BtnCwLinkCallback(obj, src, ~)
+            % apply windowing to both images at once
+            if obj.linkedWindowing == true
+                % change state
+                obj.linkedWindowing = false;
+                % change button icon
+                set(obj.hBtnCwLink, 'String', sprintf('<html><img src="file:/%sunlinked.png" height="15" width="15"/></html>', obj.resPath));                
+                set(obj.hBtnCwLink, 'TooltipString', 'link windowing in both images');
+            else
+                % change state
+                obj.linkedWindowing = true;
+                % change button icon
+                set(obj.hBtnCwLink, 'String', sprintf('<html><img src="file:/%slinked.png" height="15" width="15"/></html>', obj.resPath));
+                set(obj.hBtnCwLink, 'TooltipString', 'unlink windowing in both images');
+            end
         end
         
         
@@ -1171,6 +1498,148 @@ classdef (Abstract) Draw < handle
         end
                 
         
+        function setFPS(obj, src, ~)
+            % called by the center and width edit fields
+            s = get(src, 'String');
+            %turn "," into "."
+            s(s == ',') = '.';
+            
+            obj.fps = str2double(s);
+            % set(src, 'String', num2str(obj.fps));
+            stop(obj.t)
+            set(obj.hBtnRun, 'String', 'Run');
+            if obj.fps ~= 0
+                obj.setAndStartTimer;
+                set(obj.hBtnRun, 'String', 'Stop');
+            end
+        end
+        
+        
+        function setAndStartTimer(obj)
+            % make sure fps is not higher 100
+            period  = 1/abs(obj.fps) + (abs(obj.fps) > 100)*(1/100-1/abs(obj.fps));
+            % provide 1 ms precision to avoid warning
+            period = round(period*1000)/1000;
+            
+            obj.t.Period    = period;
+            obj.t.TimerFcn  = @(t, event) obj.interrupt(obj.fps);
+            set(obj.hEditF, 'String', num2str(sign(obj.fps)/obj.t.Period));
+            start(obj.t)
+        end
+        
+        
+        function toggleTimer(obj, ~, ~)
+            %called by the 'Run'/'Stop' button and controls the state of the
+            %timer
+            if strcmp(get(obj.t, 'Running'), 'off') && obj.fps ~= 0
+                obj.setAndStartTimer;
+                set(obj.hBtnRun, 'String',  'Stop');
+%                 set(obj.hBtnG,   'Visible', 'on');
+            else
+                stop(obj.t)
+                set(obj.hBtnRun, 'String',  'Run');
+%                 set(obj.hBtnG,   'Visible', 'off');
+            end
+        end
+        
+        
+        function interrupt(obj, ~, ~)
+            % this function is called for every interrupt of the timer and
+            % increments/decrements the slider value.
+            
+            % what dimension to adjust
+            interDim = obj.mapSliderToDim(obj.interruptedSlider);
+            if obj.fps > 0
+                obj.sel{1, interDim} = obj.sel{1, interDim} + 1;
+            elseif obj.fps < 0
+                obj.sel{1, interDim} = obj.sel{1, interDim} - 1;
+            end
+                obj.sel{1, interDim} = mod(obj.sel{1, interDim}-1, obj.S(interDim))+1;
+            obj.refreshUI();
+        end
+        
+        
+        function saveVidBtn(obj, ~, ~)
+            % get the filepath from a UI and call saveVideo funciton to save
+            % the video or gif
+            [filename, filepath] = uiputfile({'*.avi', 'AVI-file (*.avi)'; ...
+                '*.gif', 'gif-Animation (*.gif)'}, ...
+                'Save video', '.avi');
+            
+            if filepath == 0
+                return
+            else
+                if strcmp(filename(end-2:end), 'avi') || strcmp(filename(end-2:end), 'gif')
+                obj.saveVideo([filepath, filename])
+                else
+                    warning('Invalid filename! Data was not saved. Choose ''.gif'' or ''.avi'' as filetype.');
+                end
+            end
+        end
+        
+        
+        function saveVideo(obj, path)
+            % save video of matrix with current windowing and each frame being
+            % one slice along the dimension connectoed to the interrupted slider.
+            
+            if ~isempty(obj.t)
+                % get the state of the timer
+                bRunning = strcmp(obj.t.Running, 'on');
+                % stop the interrupt, to get control over the data shown.
+                if bRunning
+                    stop(obj.t)
+                end
+            end
+            
+            
+            if  strcmp(path(end-2:end), 'gif')
+                gif = 1;
+            else
+                gif = 0;
+                % start the video writer
+                v           = VideoWriter(path);
+                v.FrameRate = obj.fps;
+                v.Quality   = 100;
+                open(v);
+            end
+            % select the looping slices that are currently shown in the DrawSingle
+            % window, resize image, apply the colormap and rotate according
+            % to the azimuthal angle of the view.
+            for ii = 1:obj.S(obj.mapSliderToDim(obj.interruptedSlider))
+                obj.sel{obj.mapSliderToDim(obj.interruptedSlider)} = ii;
+                obj.prepareSliceData
+                imgOut = rot90(obj.sliceMixer(), -round(obj.azimuthAng/90));
+                
+                if gif
+                    [gifImg, cm] = rgb2ind(imgOut, 256);
+                    if ii == 1
+                        imwrite(gifImg, cm, path, 'gif', ...
+                            'WriteMode',    'overwrite', ...
+                            'DelayTime',    1/obj.fps, ...
+                            'LoopCount',    obj.p.Results.LoopCount);
+                    else
+                        imwrite(gifImg, cm, path, 'gif', ...
+                            'WriteMode',    'append',...
+                            'DelayTime',    1/obj.fps);
+                    end
+                else
+                    writeVideo(v, imgOut);
+                end
+            end
+            
+            if ~gif
+                close(v)
+            end
+            
+            if ~isempty(obj.t)
+                % restart the timer if it was running before
+                if bRunning
+                    start(obj.t)
+                end
+            end
+        end
+        
+        
         function setValNames(obj)
             
             for ii = 1:obj.nImages
@@ -1217,6 +1686,7 @@ classdef (Abstract) Draw < handle
             obj.refreshUI()
         end
         
+        
         function setCmap(obj, src, ~)            
             % which colormap is selected
             idx = find(src == obj.hPopCm);
@@ -1224,15 +1694,15 @@ classdef (Abstract) Draw < handle
             obj.cmap{idx} = obj.availableCmaps.(cm);
             
             % set UI text colors
-            obj.COLOR_m(idx, :) = obj.cmap{idx}(round(size(obj.availableCmaps.(cm), 1) * 0.9), :);
-            
-            % change color of c/w edit fields
-            set(obj.hEditC(idx), 'ForegroundColor', obj.COLOR_m(idx, :))
-            set(obj.hEditW(idx), 'ForegroundColor', obj.COLOR_m(idx, :))
-            if obj.nImages == 2
+                obj.COLOR_m(idx, :) = obj.cmap{idx}(round(size(obj.availableCmaps.(cm), 1) * 0.9), :);
+                
+                % change color of c/w edit fields
+                set(obj.hEditC(idx), 'ForegroundColor', obj.COLOR_m(idx, :))
+                set(obj.hEditW(idx), 'ForegroundColor', obj.COLOR_m(idx, :))
+                if obj.nImages == 2
                 set(obj.hBtnHide(idx), 'ForegroundColor', obj.COLOR_m(idx, :))
-            end
-                        
+                end
+                
             % change colorbar axes
             if ~isempty(obj.hAxCb)
                 % many UI elements dont exist when prepare colors is called
@@ -1241,15 +1711,23 @@ classdef (Abstract) Draw < handle
                 % recolor the ticks on the colorbars
             	obj.cw()
             end
-            
+                                  
+            if obj.nImages == 2 && strcmp(get(obj.f, 'Visible'), 'on')
+                % the first time setCmap is called, not all UI Elements are
+                % created yet, so we wait until obj.f is actually shown to
+                % the user
+                                
+                obj.recolor()
+            end
         end
+        
         
         function changeCmap(obj, src, ~)
             
             obj.setCmap(src)
             
             % reclaculate the shown image with the new colormap
-            obj.refreshUI
+            obj.refreshUI()
         end
         
         
@@ -1282,10 +1760,14 @@ classdef (Abstract) Draw < handle
         function prepareColormaps(obj)
             cmapResolution = 256;
             obj.availableCmaps.gray    = gray(cmapResolution);
-            obj.availableCmaps.green   = [zeros(cmapResolution,1) linspace(0,1,cmapResolution)' zeros(cmapResolution,1)];;
+            obj.availableCmaps.green   = [zeros(cmapResolution,1) linspace(0,1,cmapResolution)' zeros(cmapResolution,1)];
             obj.availableCmaps.magenta = [linspace(0,1,cmapResolution)' zeros(cmapResolution,1) linspace(0,1,cmapResolution)'];
             obj.availableCmaps.hot     = hot(cmapResolution);
             obj.availableCmaps.parula  = parula(cmapResolution);
+            if ~verLessThan('matlab', '9.9')
+                % this colormap was only introduced in 2020b
+                obj.availableCmaps.turbo   = turbo(cmapResolution);
+            end
             
             % check whether colorcet is available
             if exist('colorcet.m',  'file') == 2
@@ -1300,6 +1782,7 @@ classdef (Abstract) Draw < handle
                 obj.availableCmaps.protanopic   = colorcet('CBL2', 'N', cmapResolution);
                 obj.availableCmaps.tritanopic   = colorcet('CBTL1', 'N', cmapResolution);
                 obj.availableCmaps.rainbow      = colorcet('R2', 'N', cmapResolution);
+                obj.availableCmaps.coolwarm     = colorcet('D1', 'N', cmapResolution);
             end
             % check whether certain colormaps are available
             if exist('viridis.m', 'file') == 2
@@ -1313,8 +1796,7 @@ classdef (Abstract) Draw < handle
         end
         
         
-        function setInitialColormap(obj, inputMap)
-            
+        function setInitialColormap(obj, inputMap)            
             if iscell(inputMap) & numel(inputMap)==1 & obj.nImages==2
                 inputMap{2} = inputMap{1};
             end
@@ -1388,6 +1870,7 @@ classdef (Abstract) Draw < handle
            set(obj.hPopCm(idx), 'Value', idxValue);            
         end
         
+        
         function tmp = cleverMax(~, in)
             % this function is called by MATLAB versions older than R2018a
             % in which 'max(A, [], 'all')' syntax was implemented. It
@@ -1433,6 +1916,30 @@ classdef (Abstract) Draw < handle
             end
         end
     end
-    
 end
 
+
+function str = valsToString(valCell)
+	% makes sure all entries in dimVals are strings
+    
+    % initialize output
+    str = valCell;
+    
+    % find numeric arrays
+    numArray = cellfun(@isnumeric, valCell);
+    if any(numArray)
+        % convert matrix to cell
+        str(numArray) = cellfun(@num2cell, valCell(numArray), 'UniformOutput', 0);
+        % convert numbers to strings
+        for ii = find(numArray)
+            str{ii} = cellfun(@num2str, str{ii}, 'UniformOutput', 0);
+        end
+    end
+    
+    % find char arrays
+    charArray = cellfun(@ischar, valCell);
+    if any(charArray)
+        % convert char to cell
+        str(charArray) = cellfun(@(x) {x}, valCell(charArray), 'UniformOutput', 0);
+    end
+end
