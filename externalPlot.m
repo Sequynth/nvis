@@ -4,7 +4,6 @@ classdef externalPlot < handle
    
     properties
         f
-        input
         
         %% UI properties
         figurePos
@@ -18,6 +17,11 @@ classdef externalPlot < handle
         hPlot
         hPlotPoint
         hPopDim
+        
+        %% input properties
+        dimensionLabel
+        unit
+        initDim
         
         
     end
@@ -35,22 +39,27 @@ classdef externalPlot < handle
     
     
     events
-        dimChange
+        dimChanged
     end
     
     methods
-        function obj = externalPlot(in, varargin)
+        function obj = externalPlot(varargin)
             % CONSTRUCTOR
-            obj.input = in;
             
             screenSize = get(0,'ScreenSize');
             defaultPosition = [ 1/2*screenSize(3), 1/2*screenSize(4), 1/3*screenSize(3), 1/3*screenSize(4)];
   
             p = inputParser;
-            addParameter(p, 'Position',  defaultPosition,  @(x) isnumeric(x));
+            addParameter(p, 'Position',             defaultPosition,  @(x) isnumeric(x));
+            addParameter(p, 'unit',                 '',  @(x) ischar(x) || iscell(x));
+            addParameter(p, 'dimensionLabel',       '',  @(x) ischar(x) || iscell(x));
+            addParameter(p, 'initDim',              1,  @(x) isnumeric(x));
             parse(p, varargin{:});
             
-            obj.figurePos = p.Results.Position;
+            obj.figurePos       = p.Results.Position;
+            obj.dimensionLabel  = p.Results.dimensionLabel;
+            obj.unit            = p.Results.unit;
+            obj.initDim         = p.Results.initDim;
             
             obj.createGUI()
         end
@@ -80,7 +89,8 @@ classdef externalPlot < handle
             obj.hPopDim = uicontrol( ...
                 'Parent',               obj.pControls, ...
                 'Style',                'popup', ...
-                'String',               obj.input.xlabel, ...
+                'String',               obj.dimensionLabel, ...
+                'Value',                obj.initDim, ...
                 'Callback',             @obj.changeDim);
             
             %% pPlot
@@ -88,8 +98,6 @@ classdef externalPlot < handle
                 'Parent',               obj.pPlot, ...
                 'Units',                'normalized', ...
                 'Position',             [0.1 0.15 0.85 0.80]);
-            xlabel(obj.input.xlabel)
-            ylabel(obj.input.ylabel)
             hold on
             
             obj.hPlot = plot([0 1], [1 1], ...
@@ -117,11 +125,23 @@ classdef externalPlot < handle
         end
         
         
+        function setDimension(obj, dimNo)
+            % called from extern to let the plot panel know about a
+            % necessary change of dimension, i.e. when the plotted
+            % dimensions are changed.
+            
+            obj.hAx.XLabel.String = obj.dimensionLabel(dimNo);
+            set(obj.hPopDim,    'Value', dimNo);
+            
+        end
+        
+        
         function changeDim(obj, ~, ~)
-            % call the calling fucntion and request data from a different
+            % call the calling function and request data from a different
             % dimension
             
-                notify(obj, 'dimChange')
+            obj.hAx.XLabel.String = obj.dimensionLabel(obj.hPopDim.Value);
+            notify(obj, 'dimChanged')
             
         end
         

@@ -194,7 +194,7 @@ classdef DrawSingle < Draw
                 obj.mapSliderToDim  = tmp(obj.S(3:end) > 1);
                 obj.nSlider         = numel(obj.mapSliderToDim);
                 obj.activeDim       = obj.mapSliderToDim(1);
-                obj.externalDim = obj.mapSliderToDim(1);
+                obj.externalDim     = obj.mapSliderToDim(1);
             else
                 % there is no dimension to slide through anyway
                 obj.nSlider   = 0;
@@ -1201,25 +1201,36 @@ classdef DrawSingle < Draw
         
         
         function openExternalPlot(obj, ~, ~)
-            % prepare data for external plot
-            externalStruct.ylabel = obj.unit;
-            externalStruct.xlabel = obj.dimensionLabel(obj.mapSliderToDim);
             
-            % create and open plot figure
-            obj.hExtPlot = externalPlot(externalStruct);
-            obj.updateExternalData()
-            obj.updateExternalPoint()
-            
-            % add listener to react, when plot expect data along a
-            % different dimension
-            addlistener(obj.hExtPlot, 'dimChange', @(src, eventdata) obj.externalDimChange(src, eventdata));
+            % check if expternal plot has not been called yet, or has been
+            % closed previously
+            if isempty(obj.hExtPlot) || ~isvalid(obj.hExtPlot)
+                % initially set the external dimension to the first slider
+                % dimension
+                obj.externalDim = obj.mapSliderToDim(1);
+                
+                % create and open plot figure
+                obj.hExtPlot = externalPlot(...
+                    'unit',             obj.unit, ...
+                    'dimensionLabel',   obj.dimensionLabel, ....
+                    'initDim',          obj.externalDim);
+                obj.updateExternalData()
+                obj.updateExternalPoint()
+                
+                % add listener to react, when plot expect data along a
+                % different dimension
+                addlistener(obj.hExtPlot, 'dimChanged', @(src, eventdata) obj.externalDimChange(src, eventdata));
+            else
+                % move existing figure to foreground
+                figure(obj.hExtPlot.f)
+            end
         end
         
         
-        function externalDimChange(obj, src, evtData)
+        function externalDimChange(obj, src, ~)
             % is called when the dimension in the external plot is changed
             % by the user
-            obj.externalDim = src.hPopDim.Value+2;
+            obj.externalDim = src.hPopDim.Value;
             obj.updateExternalPoint()
             obj.updateExternalData()
         end
@@ -1231,8 +1242,7 @@ classdef DrawSingle < Draw
             extSel{obj.showDims(1, 2)} = obj.point(2);
             extSelPoint = extSel;
             
-            set(obj.hExtPlot.hPlotPoint, 'XData', obj.sel{obj.externalDim})
-            set(obj.hExtPlot.hPlotPoint, 'YData', squeeze(obj.complexPart(obj.img{1}(extSelPoint{:}))))
+            obj.hExtPlot.plotPoint(extSelPoint{obj.externalDim}, squeeze(obj.complexPart(obj.img{1}(extSelPoint{:}))))
         end
         
         
@@ -1248,8 +1258,7 @@ classdef DrawSingle < Draw
 %                 YData = fftshift(fftn(fftshift(YData)));
 %             end
             % update the external plot
-            set(obj.hExtPlot.hPlot, 'XData', XData)
-            set(obj.hExtPlot.hPlot, 'YData', YData)
+            obj.hExtPlot.plotData(XData, YData);
         end
         
         
@@ -1416,6 +1425,7 @@ classdef DrawSingle < Draw
         
         
         function shiftDims(obj, src, ~)
+            
             dimArray = [obj.showDims obj.mapSliderToDim];
             switch (src.String)
                 case '->'
@@ -1438,6 +1448,11 @@ classdef DrawSingle < Draw
             
             obj.initializeSliders()
             obj.initializeAxis(false)
+            
+            % if opened, update dimensions in external plot
+            if ~isempty(obj.hExtPlot) && isvalid(obj.hExtPlot)
+                obj.hExtPlot.setDimension(obj.mapSliderToDim(1))
+            end
         end
         
         
