@@ -17,11 +17,17 @@ classdef externalPlot < handle
         hPlot
         hPlotPoint
         hPopDim
+        hTextIndex
+        
+        xaxes % struct-cell containing x-axis information for each dimension
         
         %% input properties
         dimLabel
+        dimVal
         unit
-        initDim
+        cDim    % index of the currently shown dimension
+        MinMax
+        nPlots
         
         
     end
@@ -50,16 +56,23 @@ classdef externalPlot < handle
             defaultPosition = [ 1/2*screenSize(3), 1/2*screenSize(4), 1/3*screenSize(3), 1/3*screenSize(4)];
   
             p = inputParser;
+            addParameter(p, 'nPlots',               1, @(x) isnumeric(x));
             addParameter(p, 'Position',             defaultPosition,  @(x) isnumeric(x));
-            addParameter(p, 'unit',                 '',  @(x) ischar(x) || iscell(x));
-            addParameter(p, 'dimLabel',             '',  @(x) ischar(x) || iscell(x));
+            addParameter(p, 'unit',                 '', @(x) ischar(x) || iscell(x));
+            addParameter(p, 'DimLabel',             '', @(x) ischar(x) || iscell(x));
+            addParameter(p, 'DimVal',               {}, @iscell);
             addParameter(p, 'initDim',              1,  @(x) isnumeric(x));
+            addParameter(p, 'MinMax',               [], @(x) isnumeric(x));
+           
             parse(p, varargin{:});
             
+            obj.nPlots          = p.Results.nPlots;
             obj.figurePos       = p.Results.Position;
-            obj.dimLabel        = p.Results.dimLabel;
+            obj.dimLabel        = p.Results.DimLabel;
+            obj.dimVal          = p.Results.DimVal;
             obj.unit            = p.Results.unit;
-            obj.initDim         = p.Results.initDim;
+            obj.cDim            = p.Results.initDim;
+            obj.MinMax          = p.Results.MinMax;
             
             obj.createGUI()
         end
@@ -87,34 +100,71 @@ classdef externalPlot < handle
             
             %% pControl
             obj.hPopDim = uicontrol( ...
+                'Units',                'pixels', ...
                 'Parent',               obj.pControls, ...
+                'Position',             [10 10 100 30], ...
                 'Style',                'popup', ...
                 'String',               obj.dimLabel, ...
-                'Value',                obj.initDim, ...
+                'Value',                obj.cDim, ...
                 'Callback',             @obj.changeDim);
+            
+            obj.hTextIndex = uicontrol( ...
+                'Units',                'pixels', ...
+                'Parent',               obj.pControls, ...
+                'Position',             [130 10 150 30], ...
+                'Style',                'text', ...
+                'String',               'Index: ');
             
             %% pPlot
             obj.hAx = axes( ...
                 'Parent',               obj.pPlot, ...
                 'Units',                'normalized', ...
                 'Position',             [0.1 0.15 0.85 0.80]);
+            xlabel(obj.dimLabel(obj.hPopDim.Value))
             hold on
             
-            obj.hPlot = plot([0 1], [1 1], ...
-                'Marker',               'x');
+            %for ii = 1:obj.nPlots
+                obj.hPlot = plot([0 1], [1 1], ...
+                    'Marker',               'x');
+            %end
             
             obj.hPlotPoint = plot([0 1], [1 1], ...
                 'Marker',               'x', ...
                 'MarkerSize',           10, ...
                 'LineWidth',            2);
             
+            if ~isempty(obj.MinMax)
+                set(obj.hAx, 'YLim', obj.MinMax)
+            end
+            
+            obj.prepareXaxis();
+            
             % after everything is created, make the figure visible
             set(obj.f, 'Visible', 'on');
         end
         
+        function prepareXaxis(obj)
+            
+            % find axis with values that cannot be converted to numbers
+            for ii = 1:numel(obj.dimVal)
+                obj.xaxes{ii}.ticklabels = obj.dimVal{ii};
+                
+                if iscell(cellfun(@str2num, obj.dimVal{ii}, 'UniformOutput', false))
+                    % some entries in dimVal for this axis cannot be
+                    % converted to numbers
+                    obj.xaxes{ii}.tickvalues = 1:numel(obj.dimVal{ii});
+                else
+                    % all enries in dimVal can be converted to numbers
+                    obj.xaxes{ii}.tickvalues = cellfun(@str2num, obj.dimVal{ii});
+                end
+            end
+            
+        end
         
-        function plotData(obj, x, y)
-            set(obj.hPlot, 'XData', x)
+        
+        function plotData(obj, y)
+            %set(obj.hPlot, 'XData', x)
+            set(obj.hPlot, 'XData', obj.xaxes{obj.cDim}.tickvalues)
             set(obj.hPlot, 'YData', y)
         end
         
@@ -130,8 +180,21 @@ classdef externalPlot < handle
             % necessary change of dimension, i.e. when the plotted
             % dimensions are changed.
             
-            obj.hAx.XLabel.String = obj.dimLabel(dimNo);
-            set(obj.hPopDim,    'Value', dimNo);
+            obj.cDim = dimNo;
+            obj.hAx.XLabel.String = obj.dimLabel(obj.cDim);
+            obj.hAx.XTickLabels = obj.xaxes{obj.cDim}.ticklabels;
+            obj.hAx.XTick = obj.xaxes{obj.cDim}.tickvalues;
+            set(obj.hPopDim,    'Value', obj.cDim);
+            
+        end
+        
+        
+        function setIndexString(obj, string)
+            % called from extern to let the plot panel know about a
+            % necessary change of dimension, i.e. when the plotted
+            % dimensions are changed.
+            
+            set(obj.hTextIndex,    'String', string);
             
         end
         

@@ -145,6 +145,7 @@ classdef DrawSingle < Draw
         hExtPlot
         % dimension that is shown in the external plot
         externalDim
+        externalSel
         
         % UI properties
         
@@ -1137,8 +1138,8 @@ classdef DrawSingle < Draw
             
             % if existing, update the point in the external plot figure
             if ~isempty(obj.hExtPlot) && isvalid(obj.hExtPlot) && obj.pointEnabled
-                obj.updateExternalPoint()
                 obj.updateExternalData()
+                obj.updateExternalPoint()
             end
             
             
@@ -1236,7 +1237,10 @@ classdef DrawSingle < Draw
                 obj.hExtPlot = externalPlot(...
                     'unit',             obj.unit, ...
                     'dimLabel',         obj.dimLabel, ....
-                    'initDim',          obj.externalDim);
+                    'dimVal',           obj.dimVal, ....
+                    'initDim',          obj.externalDim, ...
+                    'MinMax',           obj.getMinMax);
+                obj.updateExternalDimension()
                 obj.updateExternalData()
                 obj.updateExternalPoint()
                 
@@ -1254,34 +1258,57 @@ classdef DrawSingle < Draw
             % is called when the dimension in the external plot is changed
             % by the user
             obj.externalDim = src.hPopDim.Value;
-            obj.updateExternalPoint()
+            obj.updateExternalDimension()
             obj.updateExternalData()
+            obj.updateExternalPoint()            
+        end
+        
+        
+        function updateExternalDimension(obj)
+            obj.hExtPlot.setDimension(obj.externalDim)            
+        end
+        
+        
+        function updateExternalSelector(obj)
+            obj.externalSel = obj.sel;
+            obj.externalSel{obj.showDims(1, 1)} = obj.point(1);
+            obj.externalSel{obj.showDims(1, 2)} = obj.point(2);
         end
         
         
         function updateExternalPoint(obj)
-            extSel = obj.sel;
-            extSel{obj.showDims(1, 1)} = obj.point(1);
-            extSel{obj.showDims(1, 2)} = obj.point(2);
-            extSelPoint = extSel;
+            obj.updateExternalSelector();
+            extSelPoint = obj.externalSel;
             
             obj.hExtPlot.plotPoint(extSelPoint{obj.externalDim}, squeeze(obj.complexPart(obj.img{1}(extSelPoint{:}))))
+            
+            obj.updateExternalIndex()
         end
         
         
         function updateExternalData(obj)
-            extSel = obj.sel;
-            extSel{obj.showDims(1, 1)} = obj.point(1);
-            extSel{obj.showDims(1, 2)} = obj.point(2);
-            extSel{obj.externalDim} = ':';
+            obj.updateExternalSelector();
+            obj.externalSel{obj.externalDim} = ':';            
             
-            XData = 1:obj.S(obj.externalDim);
-            YData = squeeze(obj.complexPart(obj.img{1}(extSel{:})));
-%             if obj.fftStatus == 1
-%                 YData = fftshift(fftn(fftshift(YData)));
-%             end
+            YData = squeeze(obj.complexPart(obj.img{1}(obj.externalSel{:})));
+            
             % update the external plot
-            obj.hExtPlot.plotData(XData, YData);
+            obj.hExtPlot.plotData(YData(:));
+        end
+        
+        
+        function updateExternalIndex(obj)
+            
+            selString = 'Index: ';
+            
+            for ii = 1:numel(obj.externalSel)
+                selString = [selString num2str(obj.externalSel{ii}) ', '];
+            end
+            % remove last comma and whitespace
+            selString = selString(1:end-2);
+            
+            obj.hExtPlot.setIndexString(selString)
+             
         end
         
         
@@ -1366,8 +1393,16 @@ classdef DrawSingle < Draw
             
             obj.initializeSliders()
             obj.initializeAxis(false)
-            % if opened, update dimensions in external plot
+            
+            if obj.pointEnabled
+                % if point is shown, make sure its coordinates are within the limits
+                round(obj.S(obj.showDims)/2)
+                obj.point = round(obj.S(obj.showDims)/2);
+            end
+            
             if ~isempty(obj.hExtPlot) && isvalid(obj.hExtPlot)
+                % if opened, update dimensions in external plot
+                obj.externalDim = obj.mapSliderToDim(1);
                 obj.hExtPlot.setDimension(obj.mapSliderToDim(1))
             end
             
