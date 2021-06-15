@@ -1126,6 +1126,15 @@ classdef (Abstract) Draw < handle
         end
         
         
+        function minmax = getMinMax(obj)
+            
+            minmax = [obj.Min(1) obj.Max(1)];
+            
+        end
+            
+            
+        
+        
         function BtnCwHomeCallback(obj, src, ~)
             % set center and width to the initial values
             iImg = (obj.hBtnCwHome == src);
