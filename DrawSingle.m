@@ -1234,19 +1234,19 @@ classdef DrawSingle < Draw
                 obj.externalDim = obj.mapSliderToDim(1);
                 
                 % create and open plot figure
-                obj.hExtPlot = externalPlot(...
-                    'unit',             obj.unit, ...
-                    'dimLabel',         obj.dimLabel, ....
-                    'dimVal',           obj.dimVal, ....
-                    'initDim',          obj.externalDim, ...
-                    'MinMax',           obj.getMinMax);
+                obj.hExtPlot = DrawPlot_obj(obj.img{:}, ...
+                    'Unit',             obj.unit, ...
+                    'DimLabel',         obj.dimLabel, ....
+                    'DimVal',           obj.dimVal, ....
+                    'initDim',          obj.externalDim);%, ...
+                    %'MinMax',           obj.getMinMax);
                 obj.updateExternalDimension()
                 obj.updateExternalData()
                 obj.updateExternalPoint()
                 
                 % add listener to react, when plot expect data along a
                 % different dimension
-                addlistener(obj.hExtPlot, 'dimChanged', @(src, eventdata) obj.externalDimChange(src, eventdata));
+                %addlistener(obj.hExtPlot, 'dimChanged', @(src, eventdata) obj.externalDimChange(src, eventdata));
             else
                 % move existing figure to foreground
                 figure(obj.hExtPlot.f)
@@ -1278,22 +1278,26 @@ classdef DrawSingle < Draw
         
         function updateExternalPoint(obj)
             obj.updateExternalSelector();
-            extSelPoint = obj.externalSel;
+            %extSelPoint = obj.externalSel;
             
-            obj.hExtPlot.plotPoint(extSelPoint{obj.externalDim}, squeeze(obj.complexPart(obj.img{1}(extSelPoint{:}))))
+            %obj.hExtPlot.plotPoint(extSelPoint{obj.externalDim}, squeeze(obj.complexPart(obj.img{1}(extSelPoint{:}))))
             
-            obj.updateExternalIndex()
+            %obj.updateExternalIndex()
+            
+            obj.hExtPlot.setSelector(obj.externalSel)
         end
         
         
         function updateExternalData(obj)
             obj.updateExternalSelector();
-            obj.externalSel{obj.externalDim} = ':';            
+            %obj.externalSel{obj.externalDim} = ':';            
             
-            YData = squeeze(obj.complexPart(obj.img{1}(obj.externalSel{:})));
+            %YData = squeeze(obj.complexPart(obj.img{1}(obj.externalSel{:})));
             
             % update the external plot
-            obj.hExtPlot.plotData(YData(:));
+            %obj.hExtPlot.plotData(YData(:));
+            
+            obj.hExtPlot.setSelector(obj.externalSel)
         end
         
         
