@@ -1283,15 +1283,15 @@ classdef DrawSingle < Draw
                     'Unit',             obj.unit, ...
                     'DimLabel',         obj.dimLabel, ....
                     'DimVal',           obj.dimVal, ....
-                    'initDim',          obj.externalDim);%, ...
-                    %'MinMax',           obj.getMinMax);
+                    'initDim',          obj.externalDim, ...
+                    'MinMax',           obj.getMinMax);
                 obj.updateExternalDimension()
                 obj.updateExternalData()
                 obj.updateExternalPoint()
                 
                 % add listener to react, when plot expect data along a
                 % different dimension
-                %addlistener(obj.hExtPlot, 'dimChanged', @(src, eventdata) obj.externalDimChange(src, eventdata));
+                addlistener(obj.hExtPlot, 'selChanged', @(src, eventdata) obj.externalSelChange(src, eventdata));
             else
                 % move existing figure to foreground
                 figure(obj.hExtPlot.f)
@@ -1299,13 +1299,24 @@ classdef DrawSingle < Draw
         end
         
         
-        function externalDimChange(obj, src, ~)
+        function externalSelChange(obj, ~, ~)
             % is called when the dimension in the external plot is changed
             % by the user
-            obj.externalDim = src.hPopDim.Value;
-            obj.updateExternalDimension()
-            obj.updateExternalData()
-            obj.updateExternalPoint()            
+            
+            % get selector value from external
+            obj.sel = obj.hExtPlot.getSelector();
+            
+            % set new position of point
+            obj.point(1) = obj.sel{obj.showDims(1)};
+            obj.point(2) = obj.sel{obj.showDims(2)};
+            set(obj.hMarker, 'YData', obj.point(1))
+            set(obj.hMarker, 'XData', obj.point(2))
+            
+            % overwrite shown dimensions
+            obj.sel{obj.showDims(1)} = ':';
+            obj.sel{obj.showDims(2)} = ':';
+            
+            obj.refreshUI();
         end
         
         

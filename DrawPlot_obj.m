@@ -64,6 +64,8 @@ classdef DrawPlot_obj < handle
         p               % input parser
         S               % size of input matrices
         unit            % physical unit of the input data
+        minVal          % minVal of all inputData
+        maxVal          % maxVal of all inputData
         
         %% DISPLAYING
         
@@ -122,6 +124,15 @@ classdef DrawPlot_obj < handle
         hLine
         
         xaxes
+        
+        %% external
+        bUpdateCaller
+        hBtnToggleUpdateCaller 
+    end
+    
+    
+    events
+        selChanged
     end
     
     
@@ -143,6 +154,9 @@ classdef DrawPlot_obj < handle
                 % data
                 obj.complexMode = 3;
             end
+            
+            % per default, update the caller about selection changes
+            obj.bUpdateCaller = 1;
             
             % prepare the input parser
             obj.parseNVPs();
@@ -228,6 +242,7 @@ classdef DrawPlot_obj < handle
             addParameter(obj.p, 'DimVal',       cellfun(@(x) 1:x, num2cell(obj.S), 'UniformOutput', false), @iscell);
             addParameter(obj.p, 'Unit',         '',                             @(x) ischar(x) || iscell(x));
             addParameter(obj.p, 'InitDim',      1,                              @isnumeric);
+            addParameter(obj.p, 'MinMax',       [0 1],                          @isnumeric);
             
             parse(obj.p, obj.varargin{:});
             
@@ -236,6 +251,9 @@ classdef DrawPlot_obj < handle
             obj.lineStyle           = obj.p.Results.LineStyle;
             obj.unit                = obj.p.Results.Unit;
             obj.showDim             = obj.p.Results.InitDim;
+            
+            obj.minVal = obj.p.Results.MinMax(1);
+            obj.maxVal = obj.p.Results.MinMax(2);
             
             obj.parseDimLabelsVals()
         end
@@ -403,9 +421,33 @@ classdef DrawPlot_obj < handle
                 'Parent',               obj.pControl, ...
                 'Style',                'togglebutton', ...
                 'Units',                'normalized',...
-                'Position',             [0 0 1 1/3], ...
+                'Position',             [0 0 1/3 1/3], ...
                 'String',               'Autoscale', ...
                 'Callback',             {@obj.autoscale},...
+                'FontUnits',            'normalized', ...
+                'Value',                0, ...
+                'FontSize',             0.3);
+            
+            % global scale button
+            uicontrol( ...
+                'Parent',               obj.pControl, ...
+                'Style',                'togglebutton', ...
+                'Units',                'normalized',...
+                'Position',             [1/3 0 1/3 1/3], ...
+                'String',               'Globalscale', ...
+                'Callback',             {@obj.globalscale},...
+                'FontUnits',            'normalized', ...
+                'Value',                0, ...
+                'FontSize',             0.3);
+            
+            % updateCaller
+            obj.hBtnToggleUpdateCaller = uicontrol( ...
+                'Parent',               obj.pControl, ...
+                'Style',                'togglebutton', ...
+                'Units',                'normalized',...
+                'Position',             [2/3 0 1/3 1/3], ...
+                'String',               'Update: on', ...
+                'Callback',             {@obj.toggleUpdateCaller},...
                 'FontUnits',            'normalized', ...
                 'Value',                0, ...
                 'FontSize',             0.3);
@@ -502,6 +544,12 @@ classdef DrawPlot_obj < handle
             
             % reposition vertical line
             set(obj.hVertLine, 'Value', obj.sel{obj.showDim})
+            
+            % inform the calling object, that the selector has changed
+            if obj.bUpdateCaller
+                notify(obj, 'selChanged')
+            end
+            
         end
         
         
@@ -613,6 +661,18 @@ classdef DrawPlot_obj < handle
         end
         
         
+        function out = getSelector(obj)
+            % getSelector(newSel)
+            % 
+            % Called by:    external
+            %
+            % Is called from external, to get the current selector
+            
+            out = obj.sel;
+            
+        end
+        
+        
         function setDimension(obj, newDim)
             % source:       index of the new dimension shown along ax-axis
             %
@@ -672,7 +732,7 @@ classdef DrawPlot_obj < handle
         function autoscale(obj, ~, ~)
             % autoscale(~, ~)
             %
-            % called by:    hBtnAutoscale
+            % called by:    autoscale button
             %
             % set the x- and y-limits such that data fills the axis entirely
             
@@ -682,6 +742,42 @@ classdef DrawPlot_obj < handle
                 set(obj.hAxis, 'YLim', [min(obj.currYData, [], 'all')-1 min(obj.currYData, [], 'all')+1]);
             else
                 set(obj.hAxis, 'YLim', [min(obj.currYData, [], 'all') max(obj.currYData, [], 'all')]);
+            end
+        end
+        
+        
+        function globalscale(obj, ~, ~)
+            % globalscale(~, ~)
+            %
+            % called by:    globalscale button
+            %
+            % set the x- and y-limits to the min and max values of the
+            % input data
+            
+            set(obj.hAxis, 'XLim', [min(obj.currXData) max(obj.currXData)]);
+            % in case of a constant line
+            if obj.minVal == obj.maxVal
+                set(obj.hAxis, 'YLim', [obj.minVal-1 obj.minVal+1]);
+            else
+                set(obj.hAxis, 'YLim', [obj.minVal obj.maxVal]);
+            end
+        end
+        
+        
+        function toggleUpdateCaller(obj, ~, ~)
+            % toggleUpdateCaller(~, ~)
+            %
+            % called by:    UpdateCaller button
+            %
+            % toggle the value of bUpdateCaller
+            
+            if obj.bUpdateCaller == 0
+                obj.bUpdateCaller = 1;
+                set(obj.hBtnToggleUpdateCaller , 'String', 'Update: on')
+                notify(obj, 'selChanged')
+            elseif obj.bUpdateCaller == 1
+                obj.bUpdateCaller = 0;
+                set(obj.hBtnToggleUpdateCaller , 'String', 'Update: off')
             end
         end
         
