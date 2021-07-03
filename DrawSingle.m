@@ -132,11 +132,13 @@ classdef DrawSingle < Draw
         hBtnRotR
         hBtnPoint
         hBtnPlot
+        hBtnUpdateExternal
         locAndVals
         
         hBtnG
         hRadioBtnSlider
         
+        %% external plot parameters
         % point for external plots
         hMarker
         point
@@ -146,8 +148,11 @@ classdef DrawSingle < Draw
         % dimension that is shown in the external plot
         externalDim
         externalSel
+        % switch, whether external plot should be updated when selector is
+        % changed
+        bUpdateExternal
         
-        % UI properties
+        %% UI properties
         
         pSliderHeight
         colorbarWidth
@@ -163,7 +168,7 @@ classdef DrawSingle < Draw
     end
     
     properties (Constant, Access = private)
-        % UI PROPERTIES
+        %% UI PROPERTIES
         % absolute width of Control panel in pixel
         controlWidth  = 300; % px        
         sliderHeight  = 20;  % px 
@@ -172,7 +177,7 @@ classdef DrawSingle < Draw
     
     methods
         function obj = DrawSingle(in, varargin)
-            % CONSTRUCTOR
+            %% CONSTRUCTOR
             obj@Draw(in, varargin{:})
             % set the type
             obj.Type = 'DrawSingle';
@@ -182,6 +187,9 @@ classdef DrawSingle < Draw
             obj.activeAx = 1;
             
             obj.cbDirection = 'vertical';
+            
+            % per default, update external plots
+            obj.bUpdateExternal = 1;
             
             % which dimensions are shown initially
             obj.showDims = [1 2];
@@ -308,13 +316,13 @@ classdef DrawSingle < Draw
         
         
         function delete(obj)
-        % destructor
+        %% destructor
             
         end
         
         
         function prepareGUI(obj)            
-            % adjust figure properties
+            %% adjust figure properties
             
             set(obj.f, ...
                 'name',                 obj.p.Results.Title, ...
@@ -704,6 +712,17 @@ classdef DrawSingle < Draw
                     'FontSize',             0.45, ...
                     'BackgroundColor',      obj.COLOR_BG, ...
                     'ForegroundColor',      obj.COLOR_F);
+                
+                obj.hBtnUpdateExternal = uicontrol( ...
+                    'Parent',               obj.pControls, ...
+                    'Style',                'pushbutton', ...
+                    'Units',                'pixel', ...
+                    'String',               'Update', ...
+                    'Callback',             {@obj.toggleUpdateExternal}, ...
+                    'FontUnits',            'normalized', ...
+                    'FontSize',             0.45, ...
+                    'BackgroundColor',      obj.COLOR_BG, ...
+                    'ForegroundColor',      obj.COLOR_F);
             end
             
             if obj.pointEnabled
@@ -844,6 +863,7 @@ classdef DrawSingle < Draw
         
         
         function initializeAxis(obj, firstCall)
+            %% (re)create the axes in the GUI
             % initializeAxis is called, to create the GUI, or when the
             % dimensions of the image are shifted and a reset of UI elements is
             % necessary. Both cases differ in the value of the bool 'firstCall'
@@ -890,6 +910,8 @@ classdef DrawSingle < Draw
         
         
         function initializeSliders(obj)
+            %% (re)set slider labels and steps
+            
             % get the size, dimensionNo, and labels only for the sliders
             s = obj.S(obj.mapSliderToDim);
             labels = obj.dimLabel(obj.mapSliderToDim);
@@ -921,10 +943,11 @@ classdef DrawSingle < Draw
         
         
         function recolor(obj)
-            % this function is callen, when the user changes a colormap in
-            % the GUI. To keep the colors consistent an easier
-            % attribuateble ti each in put, the colors in the GUI need to
-            % be adapted. Specifically in the locValString and the slider
+            %% change UI colors according to used colormaps
+            % this function is called, when the user changes a colormap in
+            % the GUI. To keep the colors consistent and easier
+            % attributable to each input, the colors in the GUI need to be
+            % adapted. Specifically in the locValString and the slider
             % indices in the case of uniquely singleton dimensions.
             
             obj.setLocValFunction()
@@ -943,6 +966,8 @@ classdef DrawSingle < Draw
                 
         
         function initializeColorbars(obj)
+            %% create custom colorbar objects
+            
             % add axis to display the colorbars
             for idh = 1:obj.nImages
                 % create the colorbar axis for the colorbarpanel
@@ -974,7 +999,7 @@ classdef DrawSingle < Draw
         
         
          function toggleCb(obj, ~, ~)
-            
+            %% show/hide custom colorbar(s)
             images = allchild(obj.hAxCb);
             if ~obj.cbShown
                 obj.colorbarWidth = 150;
@@ -1137,7 +1162,8 @@ classdef DrawSingle < Draw
             obj.mouseMovement();
             
             % if existing, update the point in the external plot figure
-            if ~isempty(obj.hExtPlot) && isvalid(obj.hExtPlot) && obj.pointEnabled
+            if ~isempty(obj.hExtPlot) && isvalid(obj.hExtPlot) ...
+                    && obj.pointEnabled && obj.bUpdateExternal
                 obj.updateExternalData()
                 obj.updateExternalPoint()
             end
@@ -1221,6 +1247,25 @@ classdef DrawSingle < Draw
                 set(obj.hMarker, 'Visible', 'on');
             end
                 
+        end
+        
+        
+        function toggleUpdateExternal(obj, ~, ~)
+            
+            if obj.bUpdateExternal == 1
+                % button is not pressed
+                obj.bUpdateExternal = 0;
+                set(obj.hBtnUpdateExternal, 'String', 'Updating: off')
+            elseif obj.bUpdateExternal == 0
+                % button is pressed
+                obj.bUpdateExternal = 1;
+                set(obj.hBtnUpdateExternal, 'String', 'Updating: on')
+                % update external data
+                obj.updateExternalDimension()
+                obj.updateExternalData()
+                obj.updateExternalPoint()
+            end
+            obj.bUpdateExternal                
         end
         
         
@@ -1400,11 +1445,11 @@ classdef DrawSingle < Draw
             
             if obj.pointEnabled
                 % if point is shown, make sure its coordinates are within the limits
-                round(obj.S(obj.showDims)/2)
+                round(obj.S(obj.showDims)/2);
                 obj.point = round(obj.S(obj.showDims)/2);
             end
             
-            if ~isempty(obj.hExtPlot) && isvalid(obj.hExtPlot)
+            if ~isempty(obj.hExtPlot) && isvalid(obj.hExtPlot) && obj.bUpdateExternal
                 % if opened, update dimensions in external plot
                 obj.externalDim = obj.mapSliderToDim(1);
                 obj.hExtPlot.setDimension(obj.mapSliderToDim(1))
@@ -1576,8 +1621,11 @@ classdef DrawSingle < Draw
                 set(obj.hTextFPS,   'Position', position(3, :))
                 n = n + 1.5;
                 position = obj.positionN(n, 3);                
-                set(obj.hBtnPoint,   'Position', position(1, :))
-                set(obj.hBtnPlot,   'Position', position(2, :))
+                set(obj.hBtnPoint,          'Position', position(1, :))
+                set(obj.hBtnPlot,           'Position', position(2, :))
+                % make update button smaller
+                position(3, 3) = position(3, 3) / 2;
+                set(obj.hBtnUpdateExternal, 'Position', position(3, :))
             end
         end
             
