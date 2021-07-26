@@ -1009,7 +1009,6 @@ classdef (Abstract) Draw < handle
             
             obj.cw()
             obj.refreshUI()
-            obj.updateExternalData()
         end
         
         
