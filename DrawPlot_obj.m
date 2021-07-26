@@ -278,7 +278,8 @@ classdef DrawPlot_obj < handle
                 'Units',                'pixel', ...
                 'ResizeFcn',            @obj.guiResize, ...
                 'Visible',              'off', ...
-                'WindowScrollWheelFcn', @obj.scrollSlider);
+                'WindowScrollWheelFcn', @obj.scrollSlider, ...
+                'CloseRequestFcn',      @obj.closeRqst);
             
             % -------------------------------------------------------------------------
             % define the plot panel and slider panel.
@@ -692,6 +693,8 @@ classdef DrawPlot_obj < handle
             set(obj.hPlot, 'XData', obj.xaxes{obj.showDim}.tickvalues(:))
             % store x-data cache
             obj.currXData = obj.xaxes{obj.showDim}.tickvalues(:);
+            % set axis limits automatically
+            xlim('auto')
             
             % unpress all buttons
             set(obj.hSliderLabel, 'Value', 0);
@@ -862,6 +865,15 @@ classdef DrawPlot_obj < handle
                 0 ...
                 obj.controlPanelWidth*fWidth ...
                 obj.sliderPanelHeight]);
+        end
+        
+        
+        function closeRqst(obj, ~, ~)
+            % closeRqst is called, when the user closes the figure (by 'x' or
+            % 'close').           
+            
+            delete(obj.fig);
+            delete(obj)
         end
         
         
