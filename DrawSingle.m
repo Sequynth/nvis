@@ -224,6 +224,7 @@ classdef DrawSingle < Draw
             addParameter(obj.p, 'InitRot',          0,                                  @(x) isnumeric(x));
             addParameter(obj.p, 'InitSlice',        round(obj.S(obj.mapSliderToDim)/2), @isnumeric);
             addParameter(obj.p, 'InitPoint',        round(obj.S(obj.showDims)/2),       @isnumeric);
+            addParameter(obj.p, 'InitShift',        0,                                  @(x) isnumeric(x) && isscalar(x));
             addParameter(obj.p, 'MarkerColor',      [1 0 0],                            @(x) isnumeric(x) && numel(x) == 3);
             addParameter(obj.p, 'ROI_Signal',       [0 0; 0 0; 0 0],                    @isnumeric);
             addParameter(obj.p, 'ROI_Noise',        [0 0; 0 0; 0 0],                    @isnumeric);
@@ -298,6 +299,10 @@ classdef DrawSingle < Draw
             obj.guiResize()
             
             obj.recolor()
+            
+            if obj.p.Results.InitShift ~= 0
+                obj.shiftDims(obj.p.Results.InitShift);
+            end
             
             set(obj.f, 'Visible', 'on');
             
@@ -520,7 +525,7 @@ classdef DrawSingle < Draw
                 'Style',                'pushbutton', ...
                 'Units',                'pixel', ...
                 'String',               '<-', ...
-                'Callback',             { @obj.shiftDims}, ...
+                'Callback',             { @obj.shiftCallback}, ...
                 'FontUnits',            'normalized', ...
                 'FontSize',             0.45, ...
                 'BackgroundColor',      obj.COLOR_BG, ...
@@ -553,7 +558,7 @@ classdef DrawSingle < Draw
                 'Style',                'pushbutton', ...
                 'Units',                'pixel', ...
                 'String',               '->', ...
-                'Callback',             { @obj.shiftDims}, ...
+                'Callback',             { @obj.shiftCallback}, ...
                 'FontUnits',            'normalized', ...
                 'FontSize',             0.45, ...
                 'BackgroundColor',      obj.COLOR_BG, ...
@@ -919,6 +924,9 @@ classdef DrawSingle < Draw
             
             for iSlider = 1:obj.nSlider
                 set(obj.hTextSlider(iSlider), 'String', labels{iSlider});
+                % set the tooltip the same, this helps with longer labels
+                % without taking up too much space
+                set(obj.hTextSlider(iSlider), 'Tooltip', labels{iSlider});
                 
                 % if dimension is singleton, set slider steps to 0
                 if s(iSlider) == 1
@@ -1422,25 +1430,40 @@ classdef DrawSingle < Draw
         end
         
         
-        function shiftDims(obj, src, ~)
+        function shiftCallback(obj, src, ~)
+            % called by the '<-' and '->' UI buttons to trigger a dimension
+            % shift
+            
+            % find out which button was pressed to determine the sign.
+            switch (src.String)
+                case '->'
+                    sign = -1;
+                case '<-'
+                    sign = 1;
+            end
+            
+            obj.shiftDims(sign)
+            
+        end
+        
+        
+        function shiftDims(obj, shifts)
             % this line ignores singleton dimensions, because they dont get
             % a slider and are boring to look at
             dimArray = [obj.showDims obj.mapSliderToDim];
             
-            switch (src.String)
-                case '->'
-                    shifted = circshift(dimArray, -1);
-                    % activeDim defines the active slider and cant be one
-                    % of the shown dimensions
-                    if ismember(obj.activeDim, shifted(1:2))
-                        obj.activeDim = shifted(3);
-                    end
-                case '<-'
-                    shifted = circshift(dimArray, +1);
-                    if ismember(obj.activeDim, shifted(1:2))
-                        obj.activeDim = shifted(end);
-                    end
+            shifted = circshift(dimArray, shifts);
+            
+            % activeDim defines the active slider and cant be one
+            % of the shown dimensions
+            if ismember(obj.activeDim, shifted(1:2))
+                if shifts > 0
+                    obj.activeDim = shifted(end);
+                elseif shifts < 0
+                    obj.activeDim = shifted(3);
+                end                
             end
+            
             obj.showDims        = shifted(1:2);
             obj.mapSliderToDim  = shifted(3:end);
                         
