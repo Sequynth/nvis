@@ -126,6 +126,7 @@ classdef DrawPlot_obj < handle
         xaxes
         
         %% external
+        bCalledFromExternal
         bUpdateCaller
         hBtnToggleUpdateCaller 
     end
@@ -243,6 +244,7 @@ classdef DrawPlot_obj < handle
             addParameter(obj.p, 'Unit',         '',                             @(x) ischar(x) || iscell(x));
             addParameter(obj.p, 'InitDim',      1,                              @isnumeric);
             addParameter(obj.p, 'MinMax',       [0 1],                          @isnumeric);
+            addParameter(obj.p, 'ExternalCall', 0,                              @(x) (x == 0 || x == 1));
             
             parse(obj.p, obj.varargin{:});
             
@@ -251,6 +253,7 @@ classdef DrawPlot_obj < handle
             obj.lineStyle           = obj.p.Results.LineStyle;
             obj.unit                = obj.p.Results.Unit;
             obj.showDim             = obj.p.Results.InitDim;
+            obj.bCalledFromExternal = obj.p.Results.ExternalCall;
             
             obj.minVal = obj.p.Results.MinMax(1);
             obj.maxVal = obj.p.Results.MinMax(2);
@@ -264,10 +267,10 @@ classdef DrawPlot_obj < handle
             %   Create Figure and partition into panels
             % -------------------------------------------------------------------------
             
-            fWidth0  = 400;
+            fWidth0  = 300;
             fHeight0 = 200;
-            fWidth   = 800;
-            fHeight  = 600;
+            fWidth   = 1000;
+            fHeight  = 800;
             
             
             obj.sliderPanelHeight = (obj.nSlider+1) * 30;%px
@@ -335,9 +338,8 @@ classdef DrawPlot_obj < handle
                     'String',           obj.dimVal{iSlider}{obj.sel{iSlider}}, ...
                     'FontUnits',        'normalized', ...
                     'FontSize',         0.8, ...
-                    'Enable',           'Inactive', ...
-                    'ButtonDownFcn',    @removeListener);
-                set(obj.hIndex(iSlider), 'Callback', { @editIndex});
+                    'Enable',           'on');
+                set(obj.hIndex(iSlider), 'Callback', { @obj.editIndex});
                 
                 if obj.S(iSlider) == 1
                     sliderStep = [0, 0];
@@ -417,12 +419,18 @@ classdef DrawPlot_obj < handle
                 obj.complexMode = 1;
             end
             
+            if obj.bCalledFromExternal
+                nLowerRow = 3;
+            else
+                nLowerRow = 2;
+            end
+            
             % autoscale button
             uicontrol( ...
                 'Parent',               obj.pControl, ...
                 'Style',                'togglebutton', ...
                 'Units',                'normalized',...
-                'Position',             [0 0 1/3 1/3], ...
+                'Position',             [0 0 1/nLowerRow 1/3], ...
                 'String',               'Autoscale', ...
                 'Callback',             {@obj.autoscale},...
                 'FontUnits',            'normalized', ...
@@ -434,24 +442,26 @@ classdef DrawPlot_obj < handle
                 'Parent',               obj.pControl, ...
                 'Style',                'togglebutton', ...
                 'Units',                'normalized',...
-                'Position',             [1/3 0 1/3 1/3], ...
+                'Position',             [1/nLowerRow 0 1/nLowerRow 1/3], ...
                 'String',               'Globalscale', ...
                 'Callback',             {@obj.globalscale},...
                 'FontUnits',            'normalized', ...
                 'Value',                0, ...
                 'FontSize',             0.3);
             
-            % updateCaller
-            obj.hBtnToggleUpdateCaller = uicontrol( ...
-                'Parent',               obj.pControl, ...
-                'Style',                'togglebutton', ...
-                'Units',                'normalized',...
-                'Position',             [2/3 0 1/3 1/3], ...
-                'String',               'Update: on', ...
-                'Callback',             {@obj.toggleUpdateCaller},...
-                'FontUnits',            'normalized', ...
-                'Value',                0, ...
-                'FontSize',             0.3);
+            if obj.bCalledFromExternal
+                % updateCaller (only if caller exists)
+                obj.hBtnToggleUpdateCaller = uicontrol( ...
+                    'Parent',               obj.pControl, ...
+                    'Style',                'togglebutton', ...
+                    'Units',                'normalized',...
+                    'Position',             [2/3 0 1/3 1/3], ...
+                    'String',               'Update: on', ...
+                    'Callback',             {@obj.toggleUpdateCaller},...
+                    'FontUnits',            'normalized', ...
+                    'Value',                0, ...
+                    'FontSize',             0.3);
+            end
             
             % -------------------------------------------------------------------------
             % pPlot Elements
@@ -833,6 +843,42 @@ classdef DrawPlot_obj < handle
             % change the plot dimension
             
             obj.setDimension( find(obj.hSliderLabel == source) );
+        end
+        
+        
+        function editIndex(obj, source, ~)
+            % editIndex(source, evtData)
+            % source:       handle to uicontrol edit
+            % evtData:      unused
+            %
+            % Called by:    uicontrol edit: Callback
+            %
+            % Is called, when the user has changed a value in an hIndex
+            % element and subsequently presses ENTER. The new value is stored
+            % in the slider variable and the slider is set at the appropriate
+            % position. The hIndex is disabled afterwards.
+            
+            s = get(source, 'String');
+            set(source, 'String', s);
+            
+            % get the slider dimension
+            dim = find(source == obj.hIndex);
+            
+            % get the new index
+            inSlice = round(str2double(s));
+            % find the closest match in the axesValue
+            % I = closestMatch(str2double(s), obj.dimVal{indexNo});
+            
+            % make sure the new value is within reasonable bounds
+            inSlice = max([1 inSlice]);
+            inSlice = min([inSlice obj.S(dim)]);
+            
+            obj.sel{dim} = inSlice;
+            set(obj.hSlider(dim), 'Value', inSlice);
+            % if you want, you can now change the active slider to the just
+            % edited one
+            obj.activeDim = dim;
+            obj.refreshUI();
         end
         
         
