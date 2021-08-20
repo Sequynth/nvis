@@ -228,7 +228,7 @@ classdef DrawSingle < Draw
             addParameter(obj.p, 'MarkerColor',      [1 0 0],                            @(x) isnumeric(x) && numel(x) == 3);
             addParameter(obj.p, 'ROI_Signal',       [0 0; 0 0; 0 0],                    @isnumeric);
             addParameter(obj.p, 'ROI_Noise',        [0 0; 0 0; 0 0],                    @isnumeric);
-            addParameter(obj.p, 'LoopDimension',    3,                                  @(x) isnumeric(x) && x <= obj.nDims && obj.nDims >= 3);
+            
                   
             parse(obj.p, obj.varargin{:});
                         
@@ -249,6 +249,7 @@ classdef DrawSingle < Draw
             obj.point               = obj.p.Results.InitPoint;
             obj.color_ma            = obj.p.Results.MarkerColor;
             obj.interruptedSlider   = obj.p.Results.LoopDimension - 2;
+            
             
             % set default values for dimLabel
             obj.dimLabel = strcat(repmat({'Dim'}, 1, numel(obj.S)), cellfun(@num2str, num2cell(1:obj.nDims), 'UniformOutput', false));
@@ -336,7 +337,6 @@ classdef DrawSingle < Draw
                 'Visible',              'off', ...
                 'ResizeFcn',            @obj.guiResize, ...
                 'CloseRequestFcn',      @obj.closeRqst, ...
-                'WindowKeyPress',       @obj.keyPress, ...
                 'WindowButtonMotionFcn',@obj.mouseMovement, ...
                 'WindowButtonUpFcn',    @obj.stopDragFcn, ...
                 'WindowScrollWheelFcn', @obj.scrollSlider);
@@ -467,8 +467,7 @@ classdef DrawSingle < Draw
                     'FontUnits',            'normalized', ...
                     'FontSize',             textFont, ...
                     'FontName',             'FixedWidth', ...
-                    'ForegroundColor',      obj.COLOR_m(idh, :), ...
-                    'Enable',               'Inactive');
+                    'ForegroundColor',      obj.COLOR_m(idh, :));
                 
                 set(obj.hEditW(idh), ...
                     'Parent',               obj.pControls, ...
@@ -477,8 +476,7 @@ classdef DrawSingle < Draw
                     'FontUnits',            'normalized', ...
                     'FontSize',             textFont, ...
                     'FontName',             'FixedWidth', ...
-                    'ForegroundColor',      obj.COLOR_m(idh, :), ...
-                    'Enable',               'Inactive');
+                    'ForegroundColor',      obj.COLOR_m(idh, :));
                 
                 if obj.nImages == 2
                     set(obj.hBtnHide(idh), ...
@@ -824,9 +822,8 @@ classdef DrawSingle < Draw
                     'FontUnits',        'normalized', ...
                     'Position',         [EditWidth0 sliderHeight0 EditWidth obj.sliderHeight], ...
                     'FontSize',         0.8, ...
-                    'Enable',           'Inactive', ...
+                    'Enable',           'on', ...
                     'Value',            iSlider, ...
-                    'ButtonDownFcn',    @obj.removeListener, ...
                     'BackgroundColor',  obj.COLOR_BG, ...
                     'ForegroundColor',  obj.COLOR_F);
                 
@@ -1184,27 +1181,7 @@ classdef DrawSingle < Draw
         end
         
         
-        function keyPress(obj, src, ~)
-            
-            keyPress@Draw(obj, src)
-            
-            % in case of input with more than 2 dimensions, the image stack
-            % can be scrolled with 1 and 3 on the numpad
-            key = get(src, 'CurrentCharacter');
-            switch(key)
-                case '1'
-                    if obj.nDims > 2
-                        obj.incDecActiveDim(-1);
-                    end
-                case '3'
-                    if obj.nDims > 2
-                        obj.incDecActiveDim(+1);
-                    end
-            end
-        end
-        
-        
-        function incDecActiveDim(obj, incDec)
+       function incDecActiveDim(obj, incDec)
             % change the active dimension by incDec
             obj.sel{1, obj.activeDim} = obj.sel{1, obj.activeDim} + incDec;
             % check whether the value is too large and take the modulus

@@ -471,6 +471,7 @@ classdef (Abstract) Draw < handle
             addParameter(obj.p, 'SaveImage',    '',                                 @ischar);
             addParameter(obj.p, 'SaveVideo',    '',                                 @ischar);
             addParameter(obj.p, 'fps',          0,                              @isnumeric);
+            addParameter(obj.p, 'LoopDimension',3,                              @(x) isnumeric(x) && x <= obj.nDims && obj.nDims >= 3);
             addParameter(obj.p, 'LoopCount',    Inf,                            @isnumeric);
 
         end
@@ -523,8 +524,7 @@ classdef (Abstract) Draw < handle
             
             % create figure handle, but hide figure
             obj.f = figure('Color', obj.COLOR_BG, ...
-                'Visible',              'off', ...
-                'WindowKeyPress',       @obj.keyPress);
+                'Visible',              'off');
             
             % create UI elements for center and width
             obj.hTextC = uicontrol( ...
@@ -541,16 +541,14 @@ classdef (Abstract) Draw < handle
                 obj.hEditC(idh) = uicontrol( ...
                     'Style',                'edit', ...
                     'BackgroundColor',      obj.COLOR_BG, ...
-                    'Enable',               'Inactive', ...
-                    'ButtonDownFcn',        @obj.removeListener, ...
+                    'Enable',               'on', ...
                     'Callback',             @obj.setCW, ...
                     'TooltipString',        'center value for applied colormap');
                 
                 obj.hEditW(idh) = uicontrol( ...
                     'Style',                'edit', ...
                     'BackgroundColor',      obj.COLOR_BG, ...
-                    'Enable',               'Inactive', ...
-                    'ButtonDownFcn',        @obj.removeListener, ...
+                    'Enable',               'on', ...
                     'Callback',             @obj.setCW, ...
                     'TooltipString',        'width value for applied colormap');
                 
@@ -745,9 +743,8 @@ classdef (Abstract) Draw < handle
                     'String',               sprintf('%.2f', obj.fps), ...
                     'BackgroundColor',      obj.COLOR_BG, ...
                     'ForegroundColor',      obj.COLOR_F, ...
-                    'Enable',               'Inactive', ...
+                    'Enable',               'on', ...
                     'Tooltip',              'timer precision is 1 ms', ...
-                    'ButtonDownFcn',        @obj.removeListener, ...
                     'Callback',             @obj.setFPS);
                 
                 obj.hTextFPS = uicontrol( ...
@@ -1056,21 +1053,21 @@ classdef (Abstract) Draw < handle
         function draggingFcn(obj, ~, ~, callingAx, StartPt, sCenter, sWidth, cStep, wStep)
             % track motion of mouse and change center and width variables
             % accordingly
-            pt = get(callingAx, 'CurrentPoint');
-            switch (obj.azimuthAng)
-                case 0
-                    obj.center = sCenter - cStep .* (pt(1, 2)-StartPt(1, 2))/obj.nrmFac(1);
-                    obj.width  = sWidth  + wStep .* (pt(1, 1)-StartPt(1, 1))/obj.nrmFac(2);
-                case 90
-                    obj.center = sCenter - cStep .* (pt(1, 1)-StartPt(1, 2))/obj.nrmFac(2);
-                    obj.width  = sWidth  - wStep .* (pt(1, 2)-StartPt(1, 1))/obj.nrmFac(1);
-                case 180
-                    obj.center = sCenter + cStep .* (pt(1, 2)-StartPt(1, 2))/obj.nrmFac(1);
-                    obj.width  = sWidth  - wStep .* (pt(1, 1)-StartPt(1, 1))/obj.nrmFac(2);
-                case 270
-                    obj.center = sCenter + cStep .* (pt(1, 1)-StartPt(1, 2))/obj.nrmFac(2);
-                    obj.width  = sWidth  + wStep .* (pt(1, 2)-StartPt(1, 1))/obj.nrmFac(1);
-            end
+            cPoint = get(callingAx, 'CurrentPoint');
+            
+            dx = (cPoint(1, 1)-StartPt(1, 1)) / obj.nrmFac(2); % width-direction (LR)
+            dy = (cPoint(1, 2)-StartPt(1, 2)) / obj.nrmFac(1); % center direction (UD)
+            
+             % dVec = [dx, dy];
+            
+            % from the rotated axis coordinate system, rotate back into the
+            % figure (screen) coordinate system
+            dVecRot = [cosd(obj.azimuthAng) * dx - sind(obj.azimuthAng) * dy, ...
+                sind(obj.azimuthAng) * dx + cosd(obj.azimuthAng) * dy];
+
+            obj.width  = sWidth  + wStep .* dVecRot(1);
+            obj.center = sCenter - cStep .* dVecRot(2);
+
             obj.cw()
         end
         
@@ -1251,8 +1248,6 @@ classdef (Abstract) Draw < handle
             obj.activateSlider(dim)
             
             obj.refreshUI();
-            set(obj.f,  'WindowKeyPress',   @obj.keyPress);
-            set(src,    'Enable',           'Inactive');
         end
         
         
@@ -1346,8 +1341,6 @@ classdef (Abstract) Draw < handle
             % cw is called in order to update the colobar ticks
             obj.cw();
             obj.refreshUI();
-            set(obj.f,  'WindowKeyPress',   @obj.keyPress);
-            set(src,    'Enable',           'Inactive');
         end
         
         
@@ -1385,20 +1378,7 @@ classdef (Abstract) Draw < handle
             end
         end
         
-        
-        function keyPress(obj, src, ~)
-            key = get(src, 'CurrentCharacter');
-            
-            if isletter(key) & obj.nImages == 2
-                if ismember(lower(key), obj.BtnHideKey)
-                    obj.toggleLayer(find(ismember(obj.BtnHideKey, lower(key))))
-                elseif key == obj.BtnTgglKey
-                    obj.BtnToggleCallback()
-                end
-            end
-        end
-        
-        
+         
         function createROI(obj, roiNo, polygon)
             % when the user provides coordinates for a ROI polygon, create
             % the UI object
@@ -1681,13 +1661,7 @@ classdef (Abstract) Draw < handle
             obj.valNames = strcat(obj.valNames, ws);
         end
         
-        
-        function removeListener(obj, src, ~)
-            set(obj.f, 'WindowKeyPress', '');
-            set(src, 'Enable', 'On');
-        end
-        
-        
+              
         function changeOverlay(obj, src, ~)
             % get the index of the new overlay value in obj.overlayStrings
             obj.overlay = find(cellfun( @(x) strcmp(x, obj.overlayStrings{get(src, 'Value')}), obj.overlayStrings));
