@@ -1,4 +1,4 @@
-classdef DrawPlot_obj < handle
+classdef DrawPlot < handle
     % DRAWPLOT plots a line profile from one or more multidimensional matrices.
     %
     %  DRAWPLOT(mat)
@@ -138,7 +138,7 @@ classdef DrawPlot_obj < handle
     
     
     methods
-        function obj = DrawPlot_obj(varargin)
+        function obj = DrawPlot(varargin)
             % CONSTRUCTOR
             obj.varargin = varargin;
             
