@@ -704,7 +704,7 @@ classdef DrawPlot_obj < handle
             % store x-data cache
             obj.currXData = obj.xaxes{obj.showDim}.tickvalues(:);
             % set axis limits automatically
-            xlim('auto')
+            xlim(obj.hAxis, 'auto')
             
             % unpress all buttons
             set(obj.hSliderLabel, 'Value', 0);

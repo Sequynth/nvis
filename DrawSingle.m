@@ -1250,7 +1250,6 @@ classdef DrawSingle < Draw
                 obj.updateExternalData()
                 obj.updateExternalPoint()
             end
-            obj.bUpdateExternal                
         end
         
         
@@ -1359,7 +1358,7 @@ classdef DrawSingle < Draw
         
         
         function saveImgBtn(obj, ~, ~)
-            % get the filepath from a UI and call saveImage funciton to save
+            % get the filepath from a UI and call saveImage function to save
             % the image
             [filename, filepath] = uiputfile({'*.jpg; *.png'}, 'Save image', '.png');
             if filepath == 0
@@ -1377,7 +1376,7 @@ classdef DrawSingle < Draw
             
             obj.prepareSliceData;       
             % apply the current azimuthal rotation to the image and save
-            imwrite(rot90(obj.sliceMixer(1), -round(obj.azimuthAng/90)), path);
+            imwrite(imrotate(obj.sliceMixer(1), -obj.azimuthAng, 'bicubic'), path);
         end
         
         
