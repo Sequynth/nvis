@@ -319,13 +319,11 @@ classdef (Abstract) Draw < handle
                 % slow max/min calculation implementation.
                 obj.Max = [double(obj.cleverMax(obj.img{1})), double(obj.cleverMax(obj.img{2}))];
                 obj.Min = [double(obj.cleverMin(obj.img{1})), double(obj.cleverMin(obj.img{2}))];
-                obj.Std = obj.Max - obj.Min;
             else
                 obj.Max = [double(max(obj.img{1}, [], 'all', 'omitnan')), double(max(obj.img{2}, [], 'all', 'omitnan'))];
-                obj.Min = [double(min(obj.img{1}, [], 'all', 'omitnan')), double(min(obj.img{2}, [], 'all', 'omitnan'))];
-                obj.Std = [double(std(obj.img{1}, 1, 'all', 'omitnan')), double(std(obj.img{2}, 1, 'all', 'omitnan'))];
-%                 obj.Std = obj.Max - obj.Min;
+                obj.Min = [double(min(obj.img{1}, [], 'all', 'omitnan')), double(min(obj.img{2}, [], 'all', 'omitnan'))];                
             end
+            obj.Std = [double(std2(obj.img{1})), double(std2(obj.img{2}))];
             
             hasInf = obj.Max == Inf;
             for ii = find(hasInf)
@@ -1438,8 +1436,8 @@ classdef (Abstract) Draw < handle
                 if ~isempty(obj.rois{2})
                     % This use does not work with resize ~= 1 !
                     Mask = obj.slice{axNo, ii}(obj.rois{2}.createMask);
-                    % input to std must ne floating point
-                    obj.noise(ii) = std(single(Mask(:)));
+                    % input to std must be floating point
+                    obj.noise(ii) = std2(Mask);
                     set(obj.hTextRoi(2, ii), 'String', num2sci(obj.noise(ii), 'padding', 'right'));
                 end
                 set(obj.hTextSNRvals(ii), 'String', num2sci(obj.signal(ii)./obj.noise(ii), 'padding', 'right'));
