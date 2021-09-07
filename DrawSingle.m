@@ -23,13 +23,18 @@ classdef DrawSingle < Draw
 	%   mode.
 	% 	Colorbar button in the matlab figure-toolbar can be used to show
 	% 	adapting colorbars.
-	%  	<- and -> change the dimensions that are schown along the image
+	%  	<- and -> change the dimensions that are shown along the image
 	%  	dimensions. Initially, dimensions 1 and 2 are shown. By presing <-
 	%  	/ -> both are decreased/increased by 1, wrapping where necessary.
 	%   'Run' starts a timer which loops through the image dimension
 	%   selected by the radio button. 'SaveImage' save the currently
 	%   visible image to file, 'SaveVideo' saves the running animation as a
 	%   video file (.avi or .gif)
+    %   The crosshair button creates a circle in the current image and the
+    %   'Plot' button opens an external window that shos the behavior of
+    %   the data through that point along different dimensions of the input
+    %   matrix. Continuous updating of the data shown in the external plot
+    %   can be switched on or off using the 'Update' button.
 	%
 	%	Name-Value-Pairs
 	%	
