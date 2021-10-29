@@ -247,7 +247,7 @@ classdef (Abstract) Draw < handle
         refreshUI(obj)
         incDecActiveDim(obj, incDec)
         mouseBtnNormal(obj, pt)
-        mouseButtonAlt(src, evtData)
+        mouseBtnAlt(src, evtData)
         recolor(obj)
         saveImgBtn(obj)
     end

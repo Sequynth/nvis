@@ -770,12 +770,18 @@ classdef DrawSlider < Draw
         end
         
         
-        function mouseButtonAlt(obj, src, evtData)
+        function mouseBtnAlt(obj, src, evtData)
             Pt = round(get(gca, 'CurrentPoint')/obj.resize);
             iim = find(src == obj.hImage);
             obj.sel{obj.showDims(iim, 1), obj.showDims(iim, 1)} = Pt(1, 2);
             obj.sel{obj.showDims(iim, 2), obj.showDims(iim, 2)} = Pt(1, 1);
             obj.refreshUI()
+        end
+
+
+        function mouseBtnNormal(obj, src, evtData)
+            % code executed when the user presses the left mouse button.
+            % currently not implemented.
         end
                 
         

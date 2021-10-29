@@ -1201,7 +1201,7 @@ classdef DrawSingle < Draw
         end
         
        
-        function mouseButtonAlt(obj, src, evtData)
+        function mouseBtnAlt(obj, src, evtData)
             % code executed when the user presses the right mouse button.
             % currently not implemented.
         end
