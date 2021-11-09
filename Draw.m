@@ -1575,7 +1575,7 @@ classdef (Abstract) Draw < handle
         
         function saveVideo(obj, path)
             % save video of matrix with current windowing and each frame being
-            % one slice along the dimension connectoed to the interrupted slider.
+            % one slice along the dimension connected to the interrupted slider.
             
             if ~isempty(obj.t)
                 % get the state of the timer
@@ -1597,9 +1597,9 @@ classdef (Abstract) Draw < handle
                 v.Quality   = 100;
                 open(v);
             end
-            % select the looping slices that are currently shown in the DrawSingle
-            % window, resize image, apply the colormap and rotate according
-            % to the azimuthal angle of the view.
+            % select the looping slices that are currently shown, resize
+            % image, apply the colormap and rotate according to the
+            % azimuthal angle of the view.
             for ii = 1:obj.S(obj.mapSliderToDim(obj.interruptedSlider))
                 obj.sel{obj.mapSliderToDim(obj.interruptedSlider)} = ii;
                 obj.prepareSliceData
