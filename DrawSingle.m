@@ -266,7 +266,11 @@ classdef DrawSingle < Draw
             obj.prepareColors()                        
             
             % requires InitSlice to be set
-            obj.createSelector()            
+            obj.createSelector()
+
+            if obj.p.Results.InitShift ~= 0
+                obj.shiftDims(obj.p.Results.InitShift);
+            end
                         
             % necessary for view orientation, already needed when saving image or video
             obj.azimuthAng   = obj.p.Results.InitRot;
@@ -306,9 +310,6 @@ classdef DrawSingle < Draw
             
             obj.recolor()
             
-            if obj.p.Results.InitShift ~= 0
-                obj.shiftDims(obj.p.Results.InitShift);
-            end
             
             set(obj.f, 'Visible', 'on');
             
@@ -1454,33 +1455,39 @@ classdef DrawSingle < Draw
                     obj.activeDim = shifted(3);
                 end
             end
-            
+
             obj.showDims        = shifted(1:2);
             obj.mapSliderToDim  = shifted(3:end);
-                        
+
             % renew slice selector for dimensions 3 and higher
             obj.sel        = repmat({':'}, 1, obj.nDims);
             %obj.sel(ismember(1:obj.nDims, obj.mapSliderToDim)) = num2cell(round(obj.S(obj.mapSliderToDim)/2));
             obj.sel(obj.mapSliderToDim) = num2cell(round(obj.S(obj.mapSliderToDim)/2));
             % consider singleton dimensions
             obj.sel(obj.S == 1) = {1};
-            
-            obj.initializeSliders()
-            obj.initializeAxis(false)
-            
-            if obj.pointEnabled
-                % if point is shown, make sure its coordinates are within the limits
-                round(obj.S(obj.showDims)/2);
-                obj.point = round(obj.S(obj.showDims)/2);
+
+            if contains('SaveImage', obj.p.UsingDefaults) & contains('SaveVideo', obj.p.UsingDefaults)
+                % when no UI is created, because a video or image is saved
+                % via NVP, we dont update the (non-existent) GUI.
+
+                obj.initializeSliders()
+                obj.initializeAxis(false)
+
+                if obj.pointEnabled
+                    % if point is shown, make sure its coordinates are within the limits
+                    round(obj.S(obj.showDims)/2);
+                    obj.point = round(obj.S(obj.showDims)/2);
+                end
+
+                if ~isempty(obj.hExtPlot) && isvalid(obj.hExtPlot) && obj.bUpdateExternal
+                    % if opened, update dimensions in external plot
+                    obj.externalDim = obj.mapSliderToDim(1);
+                    obj.hExtPlot.setDimension(obj.mapSliderToDim(1))
+                end
+
+                obj.recolor()
+
             end
-            
-            if ~isempty(obj.hExtPlot) && isvalid(obj.hExtPlot) && obj.bUpdateExternal
-                % if opened, update dimensions in external plot
-                obj.externalDim = obj.mapSliderToDim(1);
-                obj.hExtPlot.setDimension(obj.mapSliderToDim(1))
-            end
-            
-            obj.recolor()
         end
         
         
