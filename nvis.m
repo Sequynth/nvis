@@ -1,6 +1,6 @@
-classdef DrawSingle < Draw
-	%DrawSingle visualizes 2D slices from higherdimensional data
-	% 	DRAWSINGLE(I) opens a UI that displays one 2D slice from the input
+classdef nvis < nvisBase
+	%nvis visualizes 2D slices from higherdimensional data
+	% 	NVIS(I) opens a UI that displays one 2D slice from the input
 	% 	matrix I with N dimensions (N>2). Sliders allow to navigate thorugh
 	% 	the remaining, non-singleton dimensions. The windowing of the
 	% 	colormaps can be dynamically changed by pressing the middle mouse
@@ -8,7 +8,7 @@ classdef DrawSingle < Draw
 	% 	left/right(width). ROIs can be drawn to measure Signal to Noise
 	% 	ratio in image data.
 	%
-	% 	DRAWSINGLE(I1, I2): Data from the matrices I1 and I2 are overlaid
+	% 	NVIS(I1, I2): Data from the matrices I1 and I2 are overlaid
 	% 	by adding (default) the RGB values attributed by the individual
 	% 	colormaps. The windowing for the second image can be adjusted by
 	% 	using the left mouse button. Image sizes must not be identical, but
@@ -114,6 +114,9 @@ classdef DrawSingle < Draw
 	%                               to specify the dimension along which
 	%                               the video loops.
 	
+    %______________________________________________________________________
+    % Authors:  Johannes Fischer
+    %           Yanis Taege
 	
     % TODO:
     % - RadioGroup Buttons for animated sliders
@@ -181,13 +184,13 @@ classdef DrawSingle < Draw
     end
     
     methods
-        function obj = DrawSingle(in, varargin)
+        function obj = nvis(in, varargin)
             %% CONSTRUCTOR
-            obj@Draw(in, varargin{:})
+            obj@nvisBase(in, varargin{:})
             % set the type
-            obj.Type = 'DrawSingle';
+            obj.Type = 'nvis';
             
-            % only one Axis in DrawSingle
+            % only one Axis in nvis
             obj.nAxes    = 1;
             obj.activeAx = 1;
             
@@ -1276,7 +1279,7 @@ classdef DrawSingle < Draw
                 obj.externalDim = obj.mapSliderToDim(1);
                 
                 % create and open plot figure
-                obj.hExtPlot = DrawPlot(obj.img{:}, ...
+                obj.hExtPlot = nplot(obj.img{:}, ...
                     'Unit',             obj.unit, ...
                     'DimLabel',         obj.dimLabel, ....
                     'DimVal',           obj.dimVal, ....

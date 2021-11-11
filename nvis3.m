@@ -1,20 +1,19 @@
-classdef DrawSlider < Draw
-    %DrawSlider visualizes 2D slices from higherdimensional data
-	% 	DRAWSLIDER(I) opens a UI that displays three orthogonal 2D slices
-	% 	from the input matrix I with N dimensions (N>3). Sliders allow to
-	% 	navigate thorugh the first 3 dimensions. From left to right, the
-	% 	axes show a slice perpendicular to the first, second and third
-	% 	dimension. The windowing of the colormaps can be dynamically
-	% 	changed by pressing the middle mouse button on any image and moving
-	% 	the mouse up/down (center) or left/right(width). ROIs can be drawn
-	% 	to measure Signal to Noise ratio in image data.
+classdef nvis3 < nvisBase
+    %nvis3 visualizes 2D slices from higherdimensional data
+	% 	NVIS3(I) opens a UI that displays three orthogonal 2D slices from the
+	% 	input matrix I with N dimensions (N>3). Sliders allow to navigate
+	% 	thorugh the first 3 dimensions. From left to right, the axes show a
+	% 	slice perpendicular to the first, second and third dimension. The
+	% 	windowing of the colormaps can be dynamically changed by pressing the
+	% 	middle mouse button on any image and moving the mouse up/down (center)
+	% 	or left/right(width). ROIs can be drawn to measure Signal to Noise
+	% 	ratio in image data.
 	%
-	% 	DRAWSLIDER(I1, I2): Data from the matrices I1 and I2 are overlaid
-	% 	by adding (default) the RGB values attributed by the individual
-	% 	colormaps. The windowing for the second image can be adjusted by
-	% 	using the left mouse button. Image sizes must not be identical, but
-	% 	for dimensions, where the size is different, one matrix must be of
-	% 	size one.
+	% 	NVIS3(I1, I2): Data from the matrices I1 and I2 are overlaid by adding
+	% 	(default) the RGB values attributed by the individual colormaps. The
+	% 	windowing for the second image can be adjusted by using the left mouse
+	% 	button. Image sizes must not be identical, but for dimensions, where
+	% 	the size is different, one matrix must be of size one.
 	%
 	%	Usage
 	%
@@ -86,7 +85,10 @@ classdef DrawSlider < Draw
 	%                               inputs, but no figure is shown. The
 	%                               three slices are concatenated and saved
 	%                               to file under filename.
-
+    
+    %______________________________________________________________________
+    % Authors:  Johannes Fischer
+    %           Yanis Taege
     
     % TODO:
     % - implement ROI_Signal nvp
@@ -128,11 +130,11 @@ classdef DrawSlider < Draw
     
     
     methods
-        function obj = DrawSlider(in, varargin)
+        function obj = nvis3(in, varargin)
             % CONSTRUCTOR
-            obj@Draw(in, varargin{:})
+            obj@nvisBase(in, varargin{:})
             
-            % Three axes are shown in DrawSlider
+            % Three axes are shown in nvis3
             obj.nAxes = 3;
             % one of the following two should be thrown away
             obj.activeAx  = 1;
@@ -141,7 +143,7 @@ classdef DrawSlider < Draw
             obj.cbDirection = 'horizontal';
             
             if obj.nDims < 4
-                % TODO: if obj.nDims == 2: open DrawSingle instead
+                % TODO: if obj.nDims == 2: open nvis instead
                 obj.nSlider = 3;
                 obj.mapSliderToImage = num2cell(1:3);
             elseif obj.nDims == 4
@@ -267,7 +269,7 @@ classdef DrawSlider < Draw
             obj.hGuides = gobjects(obj.nAxes, 4);
             
             for iim = 1:obj.nAxes
-                % axes are not members of Draw or DrawSlider, to get the
+                % axes are not members of nvisBase or nvis3, to get the
                 % handle to an axis use: get(hImage(i), 'Parent')
                 ax(iim) = axes('Parent', obj.pImage(iim), 'Units', 'normal', 'Position', [0 0 1 1]);
                 obj.hImage(iim)  = imagesc(obj.sliceMixer(iim), 'Parent', ax(iim));  % plot image
@@ -836,7 +838,7 @@ classdef DrawSlider < Draw
                 
                 adjColorStr = {'', '', ''};
                 for iImg = 1:obj.nImages
-                    % in DrawSlider, always the first three dimensions are
+                    % in nvis3, always the first three dimensions are
                     % shown
                     match = ismember([1 2 3], obj.ston{iImg});
                     for iDim = find(match)

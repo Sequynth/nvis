@@ -1,5 +1,8 @@
-classdef DrawRGB < Draw
+classdef nvisRGB < nvisBase
     
+%__________________________________________________________________________
+% Authors:  Johannes Fischer
+%           Yanis Taege
     properties (Access = private)
         
         % DISPLAYING
@@ -41,23 +44,39 @@ classdef DrawRGB < Draw
     end
     
     methods
-        function obj = DrawRGB(in, varargin)
+        function obj = nvisRGB(in, varargin)
             % CONSTRUCTOR
-            obj@Draw(in, varargin{:})
+            obj@nvisBase(in, varargin{:})
             
-            % only one Axis in DrawSingle
+            % only one Axis in nvisRGB
             obj.nAxes    = 1;
             obj.activeAx = 1;
-            obj.nSlider  = numel(obj.S) - 3;
-            obj.mapSliderToImage = num2cell(ones(1, obj.nSlider));
+
+             % only show slider for a dimension with a length higher than 1
+            if obj.nDims > 2
+                % we dont need sliders for the first two and the last dimension
+                tmp = 3:obj.nDims-1;
+                obj.mapSliderToDim  = tmp(obj.S(3:end-1) > 1);
+                obj.nSlider         = numel(obj.mapSliderToDim);
+                obj.activeDim       = obj.mapSliderToDim(1);
+            else
+                % there is no dimension to slide through anyway
+                obj.nSlider   = 0;
+                obj.activeDim = 3;
+            end
+            
+            
             obj.standardTitle = inputname(1);
+            % since we expect only real valued data, we set the
+            % complex-part to the real-part
             obj.complexMode = 3;
             if isa(in, 'integer')
                 obj.isUint = true;
             else
                 obj.isUint = false;
             end
-            
+
+            obj.mapSliderToImage = num2cell(ones(1, obj.nSlider));
             if obj.nImages == 2
                 obj.inputNames{1} = inputname(1);
                 obj.inputNames{2} = inputname(2);
@@ -70,26 +89,32 @@ classdef DrawRGB < Draw
             obj.prepareParser()
             
             % additional parameters
-            addParameter(obj.p, 'InitSlice',        round(obj.S(3:end)/2),              @isnumeric);
-            addParameter(obj.p, 'LoopDimension',    3,                                  @(x) isnumeric(x) && x <= obj.nDims && obj.nDims >= 3);
-            addParameter(obj.p, 'DimensionLabel',   strcat(repmat({'Dim'}, 1, numel(obj.S)), ...
-                                                    cellfun(@num2str, num2cell(1:obj.nDims), 'UniformOutput', false)), ...
-                                                                                        @(x) iscell(x) && numel(x) == obj.nSlider+2);
+             addParameter(obj.p, 'InitSlice',        round(obj.S(obj.mapSliderToDim)/2), @isnumeric);
+%             addParameter(obj.p, 'InitSlice',        round(obj.S(3:end)/2),              @isnumeric);
+%             addParameter(obj.p, 'LoopDimension',    3,                                  @(x) isnumeric(x) && x <= obj.nDims && obj.nDims >= 3);
+%             addParameter(obj.p, 'DimensionLabel',   strcat(repmat({'Dim'}, 1, numel(obj.S)), ...
+%                                                     cellfun(@num2str, num2cell(1:obj.nDims), 'UniformOutput', false)), ...
+%                                                                                         @(x) iscell(x) && numel(x) == obj.nSlider+2);
           
             parse(obj.p, varargin{:});
                         
-            if contains('dimensionLabel', obj.p.UsingDefaults)
-                for ff = 1:obj.nDims
-                    obj.dimensionLabel{ff} = [obj.p.Results.DimensionLabel{ff} num2str(ff)];
-                end
-            else
-                obj.dimensionLabel = obj.p.Results.DimensionLabel;
-            end
+%             if contains('dimensionLabel', obj.p.UsingDefaults)
+%                 for ff = 1:obj.nDims
+%                     obj.dimensionLabel{ff} = [obj.p.Results.DimensionLabel{ff} num2str(ff)];
+%                 end
+%             else
+%                 obj.dimensionLabel = obj.p.Results.DimensionLabel;
+%             end
                         
             obj.cmap{1}             = obj.p.Results.Colormap;
             obj.fps                 = obj.p.Results.fps;
             obj.resize              = obj.p.Results.Resize;
-               
+
+            % set default values for dimLabel
+            obj.dimLabel = strcat(repmat({'Dim'}, 1, numel(obj.S)), cellfun(@num2str, num2cell(1:obj.nDims), 'UniformOutput', false));
+
+            obj.parseDimLabelsVals()
+
             obj.prepareGUIElements()
             
             obj.createSelector()            
@@ -191,10 +216,10 @@ classdef DrawRGB < Draw
                 'Parent',               obj.pControls, ...
                 'Style',                'pushbutton', ...
                 'Units',                'pixel', ...
-                'String',               '<-', ...
+                'String',               char(8592), ...
                 'Callback',             { @obj.shiftDims}, ...
                 'FontUnits',            'normalized', ...
-                'FontSize',             0.45, ...
+                'FontSize',             0.75, ...
                 'BackgroundColor',      obj.COLOR_BG, ...
                 'ForegroundColor',      obj.COLOR_F);
             
@@ -202,10 +227,10 @@ classdef DrawRGB < Draw
                 'Parent',               obj.pControls, ...
                 'Style',                'pushbutton', ...
                 'Units',                'pixel', ...
-                'String',               'rotL', ...
+                'String',               char(11119), ...
                 'Callback',             { @obj.rotateView}, ...
                 'FontUnits',            'normalized', ...
-                'FontSize',             0.45, ...
+                'FontSize',             0.75, ...
                 'BackgroundColor',      obj.COLOR_BG, ...
                 'ForegroundColor',      obj.COLOR_F);
             
@@ -213,10 +238,10 @@ classdef DrawRGB < Draw
                 'Parent',               obj.pControls, ...
                 'Style',                'pushbutton', ...
                 'Units',                'pixel', ...
-                'String',               'rotR', ...
+                'String',               char(11118), ...
                 'Callback',             { @obj.rotateView}, ...
                 'FontUnits',            'normalized', ...
-                'FontSize',             0.45, ...
+                'FontSize',             0.75, ...
                 'BackgroundColor',      obj.COLOR_BG, ...
                 'ForegroundColor',      obj.COLOR_F);
             
@@ -224,10 +249,10 @@ classdef DrawRGB < Draw
                 'Parent',               obj.pControls, ...
                 'Style',                'pushbutton', ...
                 'Units',                'pixel', ...
-                'String',               '->', ...
+                'String',               char(8594), ...
                 'Callback',             { @obj.shiftDims}, ...
                 'FontUnits',            'normalized', ...
-                'FontSize',             0.45, ...
+                'FontSize',             0.75, ...
                 'BackgroundColor',      obj.COLOR_BG, ...
                 'ForegroundColor',      obj.COLOR_F);
             
@@ -390,11 +415,8 @@ classdef DrawRGB < Draw
         
         
         function cImage = sliceMixer(obj)
-            % calculates an RGB image depending on the windowing values,
-            % the used colormaps and the current slice position. when the
-            % slice position was changed, obj.prepareSliceData should be
-            % run before calling the slice mixer.
-            % axNo defines the axis for which the image is prepared.
+            % overrides the sliceMixer function from nvisBase and treats
+            % the current data in obj.slice as truecolor values.
             if obj.isUint
                 cImage = double(obj.slice{1, 1})/255;
             else
@@ -431,7 +453,6 @@ classdef DrawRGB < Draw
                 'YTickLabel',   '', ...
                 'XTick',        [], ...
                 'YTick',        []);
-            set(obj.hImage, 'ButtonDownFcn', @obj.startDragFcn)
             colormap(ax, obj.cmap{1});
             
             view([obj.azimuthAng 90])
@@ -441,7 +462,7 @@ classdef DrawRGB < Draw
         function initializeSliders(obj)
             % get the size, dimensionNo, and labels only for the sliders
             s = size(obj.img{1});
-            labels = obj.dimensionLabel;
+            labels = obj.dimLabel;
             s(     obj.showDims) = [];
             labels(obj.showDims) = [];
             
@@ -547,9 +568,9 @@ classdef DrawRGB < Draw
                 set(obj.locAndVals, 'String', ...
                     sprintf('\\color[rgb]{%.2f,%.2f,%.2f}%s:%4d\n%s:%4d\n\\color[rgb]{1,0.3,0.3}%s\n\\color[rgb]{0.3,1,0.3}%s\n\\color[rgb]{0.3,0.3,1}%s', ...
                     obj.COLOR_F, ...
-                    obj.dimensionLabel{obj.showDims(1)}, ...
+                    obj.dimLabel{obj.showDims(1)}, ...
                     point{1}, ...
-                    obj.dimensionLabel{obj.showDims(2)}, ...
+                    obj.dimLabel{obj.showDims(2)}, ...
                     point{2}, ...
                     num2sci(val(1)), num2sci(val(2)), num2sci(val(3))));
             else
@@ -593,7 +614,10 @@ classdef DrawRGB < Draw
         end
         
         
-        function mouseButtonAlt(obj, src, evtData)
+        function mouseBtnAlt(obj, src, evtData)
+        end
+
+        function mouseBtnNormal(obj, pt)
         end
         
         
@@ -735,7 +759,7 @@ classdef DrawRGB < Draw
         
         
         function recolor(obj)
-            % is never called in DrawRGB
+            % is never called in nvisRGB
         end
     end
 end

@@ -1,10 +1,10 @@
-classdef DrawPlot < handle
-    % DRAWPLOT plots a line profile from one or more multidimensional matrices.
+classdef nplot < handle
+    % NPLOT plots a line profile from one or more multidimensional matrices.
     %
-    %  DRAWPLOT(mat)
+    %  NPLOT(mat)
     % opens a figure that can plot data along all dimensions of mat.
     %
-    %  DRAWPLOT(mat1, mat2, ...)
+    %  NPLOT(mat1, mat2, ...)
     % opens a figure that can simultaneously plot data along all dimensions of
     % the input matrices mat1, mat2, ...
     %
@@ -138,7 +138,7 @@ classdef DrawPlot < handle
     
     
     methods
-        function obj = DrawPlot(varargin)
+        function obj = nplot(varargin)
             % CONSTRUCTOR
             obj.varargin = varargin;
             

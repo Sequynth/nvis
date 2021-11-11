@@ -25,7 +25,6 @@ function str = num2sci(val, varargin)
 %   
 
 %__________________________________________________________________________
-%            2019-07-03
 % Author:    Johannes Fischer
 %            University Medical Center FREIBURG
 %            Dept. of Radiology, Medical Physics

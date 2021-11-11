@@ -1,12 +1,16 @@
-classdef (Abstract) Draw < handle
-    %Draw Baseclass for Draw. GUIs
-    %   This class serves as a base class for the 'Draw...' classes,
+classdef (Abstract) nvisBase < handle
+    %nvisBase Baseclass for nvis GUIs
+    %   This class serves as a base class for the 'nvis...' classes,
     % 	which are optimized for visualizing multidimensional (complex)
-    % 	matrices. Draw.m provides the building block for the GUI which are
+    % 	matrices. nvisBase.m provides the building block for the GUI which are
     % 	placed in the figure by the inheriting classes.
     %
     %   Many of the UI features (windowing, colormap overlay,...) are
-    %   handled by Draw member functions. 
+    %   handled by nvis member functions.
+    
+    %______________________________________________________________________
+    % Authors:  Johannes Fischer
+    %           Yanis Taege
    
     properties (Access = public)
         f
@@ -37,7 +41,7 @@ classdef (Abstract) Draw < handle
         %% INPUT PROPERTIES
         
         nImages         % number of images (1 or 2)
-        nAxes           % number of displayed image Axes (DrawSingle: 1, DrawSlider: 3)
+        nAxes           % number of displayed image Axes (nvis: 1, nvis3: 3)
         img             % cell array in which the input matrices are stored
         nDims           % number of image dimensions
         ston            % cell array for dimensions where a matrix is the only singleton
@@ -254,7 +258,7 @@ classdef (Abstract) Draw < handle
         
     
     methods
-        function obj = Draw(in, varargin)
+        function obj = nvisBase(in, varargin)
             % CONSTRUCTOR
             obj.varargin = varargin;
             
