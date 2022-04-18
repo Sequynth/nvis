@@ -51,7 +51,8 @@ classdef nvisRGB < nvisBase
             % only one Axis in nvisRGB
             obj.nAxes    = 1;
             obj.activeAx = 1;
-
+            
+            %obj.nDims = obj.nDims-1;
              % only show slider for a dimension with a length higher than 1
             if obj.nDims > 2
                 % we dont need sliders for the first two and the last dimension

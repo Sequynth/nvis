@@ -1022,6 +1022,8 @@ classdef (Abstract) nvisBase < handle
             % tracking of mouse movements
             callingAx = src.Parent;
             Pt = get(callingAx, 'CurrentPoint');
+
+           
             
             
             % activate the axis in which the windowing occurrs.
@@ -1053,6 +1055,7 @@ classdef (Abstract) nvisBase < handle
                         obj.f.WindowButtonMotionFcn = {@obj.draggingFcn, callingAx, Pt, sCenter, sWidth, cStep, wStep};
                     end
                 case 'normal'
+                    % inheriting class dependent functionality:
                     obj.mouseBtnNormal(Pt)
             end
         end
@@ -1358,6 +1361,10 @@ classdef (Abstract) nvisBase < handle
         function stopDragFcn(obj, ~, ~)
             % on realease of middle mouse button, stop tracking mouse movement
             set(obj.f, 'WindowButtonMotionFcn', { @obj.mouseMovement});  %reattach mouse movement function
+            
+            % make mouse arrow again
+            % make pointer hand
+            set(gcf,'Pointer','arrow')
         end
         
         

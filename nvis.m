@@ -1228,6 +1228,10 @@ classdef nvis < nvisBase
                     obj.updateExternalData()
                     obj.updateExternalPoint()
                 end
+            else
+                % not selecting a new point but initiating canvas drag ->
+                % make cursor to fleur
+                set(gcf,'Pointer','fleur')
             end
         end
         
