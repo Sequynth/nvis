@@ -306,8 +306,13 @@ classdef (Abstract) nvisBase < handle
         end
         
         
-        function delete(obj)
-            delete(obj)
+        function delete(obj)            
+            if isvalid(obj.f)
+                close(obj.f)
+                % close also calls the destructor on obj (again)
+            else
+                delete(obj)
+            end
         end
         
         

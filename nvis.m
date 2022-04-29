@@ -1408,7 +1408,9 @@ classdef nvis < nvisBase
             catch
             end
             
+            % close the figure
             delete(obj.f);
+            % and delete the handle to the nvis object
             delete(obj)
         end
         
