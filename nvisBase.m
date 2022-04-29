@@ -1608,17 +1608,31 @@ classdef (Abstract) nvisBase < handle
                 v.Quality   = 100;
                 open(v);
             end
+            
+
+            % Start with the initial frame defined by InitSlice along the
+            % interruptedSlider dimension.
+            % But only if InitSlice is provided by the user
+            if ~ismember('InitSlice', obj.p.UsingDefaults) && isfield(obj.p.Results, 'InitSlice')
+                startFrame = obj.p.Results.InitSlice(obj.interruptedSlider);                
+            else
+                startFrame = 1;
+            end
+
+            length = obj.S(obj.mapSliderToDim(obj.interruptedSlider));
+            frameOrder = [startFrame:length 1:startFrame-1];
+
             % select the looping slices that are currently shown, resize
             % image, apply the colormap and rotate according to the
             % azimuthal angle of the view.
-            for ii = 1:obj.S(obj.mapSliderToDim(obj.interruptedSlider))
+            for ii = frameOrder
                 obj.sel{obj.mapSliderToDim(obj.interruptedSlider)} = ii;
                 obj.prepareSliceData
                 imgOut = rot90(obj.sliceMixer(), -round(obj.azimuthAng/90));
                 
                 if gif
                     [gifImg, cm] = rgb2ind(imgOut, 256);
-                    if ii == 1
+                    if ii == startFrame
                         imwrite(gifImg, cm, path, 'gif', ...
                             'WriteMode',    'overwrite', ...
                             'DelayTime',    1/obj.fps, ...

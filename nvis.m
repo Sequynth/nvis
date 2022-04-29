@@ -112,7 +112,8 @@ classdef nvis < nvisBase
 	%                               under filename. Only '.avi' and '.gif'
 	%                               supported so far. 'LoopDim' can be used
 	%                               to specify the dimension along which
-	%                               the video loops.
+	%                               the video loops. Use InitSlice to specify
+    %                               starting frame.
 	
     %______________________________________________________________________
     % Authors:  Johannes Fischer
