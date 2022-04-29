@@ -1224,7 +1224,7 @@ classdef nvis < nvisBase
                 obj.point = round(pt(1, [2 1]));
                 set(obj.hMarker, 'YData', obj.point(1))
                 set(obj.hMarker, 'XData', obj.point(2))
-                if ~isempty(obj.hExtPlot) && isvalid(obj.hExtPlot)
+                if obj.bUpdateExternal && (~isempty(obj.hExtPlot) && isvalid(obj.hExtPlot))
                     obj.updateExternalData()
                     obj.updateExternalPoint()
                 end
@@ -1250,21 +1250,23 @@ classdef nvis < nvisBase
                 
         end
         
-        
+
         function toggleUpdateExternal(obj, ~, ~)
-            
-            if obj.bUpdateExternal == 1
+
+            if obj.bUpdateExternal
                 % button is not pressed
                 obj.bUpdateExternal = 0;
                 set(obj.hBtnUpdateExternal, 'String', 'Updating: off')
-            elseif obj.bUpdateExternal == 0 && ~(isempty(obj.hExtPlot) || ~isvalid(obj.hExtPlot))
+            elseif ~obj.bUpdateExternal
                 % button is pressed
                 obj.bUpdateExternal = 1;
                 set(obj.hBtnUpdateExternal, 'String', 'Updating: on')
-                % update external data
-                obj.updateExternalDimension()
-                obj.updateExternalData()
-                obj.updateExternalPoint()
+                if ~(isempty(obj.hExtPlot) || ~isvalid(obj.hExtPlot))
+                    % update external data
+                    obj.updateExternalDimension()
+                    obj.updateExternalData()
+                    obj.updateExternalPoint()
+                end
             end
         end
         
@@ -1655,7 +1657,7 @@ classdef nvis < nvisBase
                 set(obj.hEditF,     'Position', position(2, :))
                 set(obj.hTextFPS,   'Position', position(3, :))
                 n = n + 1.5;
-                position = obj.divPosition(n, 2);                
+                position = obj.positionN(n, 3);                
                 set(obj.hBtnPoint,          'Position', position(1, :))
                 set(obj.hBtnPlot,           'Position', position(2, :))
                 set(obj.hBtnUpdateExternal, 'Position', position(3, :))
