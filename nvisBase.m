@@ -1612,6 +1612,8 @@ classdef (Abstract) nvisBase < handle
             for ii = 1:obj.S(obj.mapSliderToDim(obj.interruptedSlider))
                 obj.sel{obj.mapSliderToDim(obj.interruptedSlider)} = ii;
                 obj.prepareSliceData
+                
+                %rotate images to have same orientation as in GUI
                 imgOut = rot90(obj.sliceMixer(), -round(obj.azimuthAng/90));
                 
                 if gif
