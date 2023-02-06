@@ -64,8 +64,9 @@ classdef nplot < handle
         p               % input parser
         S               % size of input matrices
         unit            % physical unit of the input data
-        minVal          % minVal of all inputData
-        maxVal          % maxVal of all inputData
+        minmax
+        %minVal          % minVal of all inputData
+        %maxVal          % maxVal of all inputData
         
         %% DISPLAYING
         
@@ -208,6 +209,7 @@ classdef nplot < handle
                 % check if this matrix actually has data
                 if isempty(obj.varargin{1})
                     obj.nMats = obj.nMats - 1;
+                    warning('input matrix no. %d is empty.', idx);
                 else
                     obj.isComplex(fixidx) = ~isreal(obj.varargin{1});
                     obj.mat{fixidx} = obj.varargin{1};
@@ -217,6 +219,9 @@ classdef nplot < handle
                 % at the same time, remove matrices from varargin to save space
                 obj.varargin(1) = [];
             end
+
+            % get min max values for all input matrices and complex modes
+            obj.calculateMinMaxAll();
             
             obj.S = size(obj.mat{1});
             
@@ -243,7 +248,6 @@ classdef nplot < handle
             addParameter(obj.p, 'DimVal',       cellfun(@(x) 1:x, num2cell(obj.S), 'UniformOutput', false), @iscell);
             addParameter(obj.p, 'Unit',         '',                             @(x) ischar(x) || iscell(x));
             addParameter(obj.p, 'InitDim',      1,                              @isnumeric);
-            addParameter(obj.p, 'MinMax',       [0 1],                          @isnumeric);
             addParameter(obj.p, 'ExternalCall', 0,                              @(x) (x == 0 || x == 1));
             
             parse(obj.p, obj.varargin{:});
@@ -254,10 +258,7 @@ classdef nplot < handle
             obj.unit                = obj.p.Results.Unit;
             obj.showDim             = obj.p.Results.InitDim;
             obj.bCalledFromExternal = obj.p.Results.ExternalCall;
-            
-            obj.minVal = obj.p.Results.MinMax(1);
-            obj.maxVal = obj.p.Results.MinMax(2);
-            
+                        
             obj.parseDimLabelsVals()
         end
         
@@ -508,9 +509,39 @@ classdef nplot < handle
             
         end
         
-        
+
+        function calculateMinMaxAll(obj)
+
+            for ii = 1:obj.nMats
+                obj.calculateMinMax(ii)
+            end
+        end
+
+
+        function calculateMinMax(obj, idx)
+
+            % real part
+            obj.minmax{3}(idx, :) = [min(real(obj.mat{idx}), [], 'all') max(real(obj.mat{idx}), [], 'all')];
+            if obj.isComplex(idx)
+                % complex modes only when necessary
+                obj.minmax{1}(idx, :) = [min(abs(obj.mat{idx}), [], 'all') max(abs(obj.mat{idx}), [], 'all')];
+                obj.minmax{2}(idx, :) = [min(angle(obj.mat{idx}), [], 'all') max(angle(obj.mat{idx}), [], 'all')];
+                obj.minmax{4}(idx, :) = [min(imag(obj.mat{idx}), [], 'all') max(imag(obj.mat{idx}), [], 'all')];                
+            end
+        end
+
+
+        function minmax = getGlobalMinMax(obj)
+            % returns global [min max] value for current complex mode and
+            % all displayed matrices.
+
+            minmax = [min(obj.minmax{obj.complexMode}(:, 1), [], 'all') max(obj.minmax{obj.complexMode}(:, 2), [], 'all')];
+
+        end
+
+
         function prepareXaxes(obj)
-            
+
             % find axis with values that cannot be converted to numbers
             for ii = 1:numel(obj.dimVal)
                 obj.xaxes{ii}.ticklabels = obj.dimVal{ii};
@@ -541,16 +572,15 @@ classdef nplot < handle
             tempSel{obj.showDim} = ':';
             
             % clear yData cache
-            obj.currYData = [];
+            obj.currYData = zeros(obj.nMats, obj.S(obj.showDim));
             
             % replot data from all inputs
             for idm = 1:obj.nMats
-                y = obj.mat{idm}(tempSel{:});
-                if obj.isComplex(idm)
-                    y = obj.complexPart(y);
-                end
-                set(obj.hPlot(idm), 'YData', y(:));
-                obj.currYData(idm, :) = y;
+
+                obj.currYData(idm, :) = obj.complexPart(obj.mat{idm}(tempSel{:}));
+
+                set(obj.hPlot(idm), 'YData', obj.currYData(idm, :));
+                
             end
             
             % reposition vertical line
@@ -764,15 +794,19 @@ classdef nplot < handle
             %
             % called by:    globalscale button
             %
-            % set the x- and y-limits to the min and max values of the
-            % input data
+            % set the x- and y-limits to the min and max values of all
+            % shown input data
             
+            % x limits
             set(obj.hAxis, 'XLim', [min(obj.currXData) max(obj.currXData)]);
+            % y limits
+            minAndMax = obj.getGlobalMinMax();
+
             % in case of a constant line
-            if obj.minVal == obj.maxVal
-                set(obj.hAxis, 'YLim', [obj.minVal-1 obj.minVal+1]);
+            if minAndMax(1) == minAndMax(2)
+                set(obj.hAxis, 'YLim', minAndMax + [-1 1]);
             else
-                set(obj.hAxis, 'YLim', [obj.minVal obj.maxVal]);
+                set(obj.hAxis, 'YLim', minAndMax);
             end
         end
         
