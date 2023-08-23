@@ -57,6 +57,7 @@ classdef nplot < handle
         nMats           % number of input matrices
         nSlider         % number of non-singleton dimensions
         nDims           % number of dimensions
+        valNames        % names of input matrices
         mat             % cell array containing the input matrices
         isComplex       % is one of the inputs complex
         inputNames      % names of the input matrices, shown in legend
@@ -114,6 +115,8 @@ classdef nplot < handle
         hSliderLabel
         hSlider
         hIndex
+        % locVal handle
+        hLocAndVals
         
         % button handles
         hBtnCmp
@@ -130,6 +133,12 @@ classdef nplot < handle
         bCalledFromExternal
         bUpdateCaller
         hBtnToggleUpdateCaller 
+    end
+
+
+    properties (Constant = true, Hidden = true)
+        % max number of letters for variable names in the locVal section
+        maxLetters = 6;
     end
     
     
@@ -166,6 +175,12 @@ classdef nplot < handle
             obj.prepareXaxes();
             
             obj.initializeGUI();
+
+            % collect/generate names for input matrices
+            for idm = 1:obj.nMats
+                obj.inputNames{idm} = inputname(idm);
+            end
+            obj.setValNames();
             
             % set initial plot-dimension
             obj.changeDimension(obj.hSliderLabel(1))
@@ -312,6 +327,7 @@ classdef nplot < handle
             division = [0.15 0.1 0.75];
             % top and bottom padding in normalized units
             tb_pad = 0.05;
+            % reserve area at the bottom for display of current data value
             sliderHeight = (1-2*tb_pad)/(obj.nSlider+1);
             
             for iSlider = 1:obj.nSlider
@@ -365,6 +381,21 @@ classdef nplot < handle
                 addlistener(obj.hSlider(iSlider), ...
                     'ContinuousValueChange', @obj.sliderMove);
             end
+
+
+            % add loc and val information in last row
+            obj.hLocAndVals = uicontrol(... 
+                'Parent',               obj.pSlider, ...
+                'Style',                'text', ...
+                'Units',                'normalized', ...
+                'Position',             [0 ...
+                1-tb_pad-(iSlider+1)*sliderHeight-tb_pad/2 ...
+                1 ...
+                sliderHeight], ...
+                'String',               '', ...
+                'HorizontalAlignment',  'left', ...
+                'FontUnits',            'normalized', ...
+                'FontSize',             0.8);
             
             % -------------------------------------------------------------------------
             % initialize elements in control panel
@@ -590,6 +621,9 @@ classdef nplot < handle
             if obj.bUpdateCaller
                 notify(obj, 'selChanged')
             end
+
+            % update the locVal string
+            obj.locVal()
             
         end
         
@@ -608,6 +642,40 @@ classdef nplot < handle
                 
                 set(obj.hIndex(iSldr), 'String', obj.xaxes{iSldr}.ticklabels{obj.sel{iSldr}})
             end
+        end
+
+
+        function setValNames(obj)
+
+            for ii = 1:obj.nMats
+                % create default val name
+                obj.valNames{ii} = ['val' num2str(ii)];
+
+                % if available, take the name of the input variable
+                if ~isempty(obj.inputNames{ii})
+                    if numel(obj.inputNames{ii}) > obj.maxLetters
+                        obj.valNames{ii} = obj.inputNames{ii}(1:obj.maxLetters);
+                    else
+                        obj.valNames{ii} = obj.inputNames{ii};
+                    end
+                    % text is shown using the LaTeX interpreter. We need to
+                    % escape underscores
+                    obj.valNames{ii} = strrep(obj.valNames{ii}, '_', '\_');
+                end
+            end
+
+            % to get the number of the displayed characters correct, we
+            % need to know howm many '_' are in each name to compensate the
+            % result from numel
+            usNo = cellfun(@(x) sum(x == '_'), obj.valNames);
+
+            % find number of trailing whitespace
+            wsToAdd = max(cellfun(@numel, obj.valNames) - usNo) - (cellfun(@numel, obj.valNames) - usNo);
+            ws = cell(1, obj.nMats);
+            for ii = 1:obj.nMats
+                ws{ii} = repmat(' ', [1, wsToAdd(ii)]);
+            end
+            obj.valNames = strcat(obj.valNames, ws);
         end
         
         
@@ -745,9 +813,27 @@ classdef nplot < handle
             obj.refreshUI()
             
         end
-        
+
+
+        function locVal(obj)
+            % called by:    refreshUI
+            %
+            % everytime the UI is refreshed, the string containing the
+            % current point ant value is refreshed too.
+
+            str = [];
+            for idm = 1:obj.nMats
+                if idm~=1
+                    str = [str '   '];
+                end
+                val = obj.complexPart(obj.mat{idm}(obj.sel{:}));
+                str = [str sprintf('%s = %f', obj.valNames{idm}, val)];
+            end
+            set(obj.hLocAndVals, 'String', str);
+        end
+
         %% functions for button callbacks
-        
+
         function toggleComplex(obj, source, ~)
             % toggleComplex(source, ~)
             % source:       handle to uicontrol button
@@ -759,10 +845,10 @@ classdef nplot < handle
             % complex data.
             % Depending on which button was pressed last, the magnitude, phase,
             % real part or imaginary part of complex data is shown.
-            
+
             % set all buttons unpreessed
             set(obj.hBtnCmp, 'Value', 0)
-            
+
             % find the index of the pressed button
             btnIdx = find(source == obj.hBtnCmp);
             obj.complexMode = btnIdx;
