@@ -46,6 +46,7 @@ classdef (Abstract) nvisBase < handle
         nDims           % number of image dimensions
         ston            % cell array for dimensions where a matrix is the only singleton
         isComplex       % is one of the inputs complex
+        isFloat         % are the inputs float or integer
         S               % size of the image(s)
         p               % input parser
         standardTitle   % name of the figure, default depends on inputnames
@@ -332,8 +333,24 @@ classdef (Abstract) nvisBase < handle
                 obj.Max = [double(max(obj.img{1}, [], 'all', 'omitnan')), double(max(obj.img{2}, [], 'all', 'omitnan'))];
                 obj.Min = [double(min(obj.img{1}, [], 'all', 'omitnan')), double(min(obj.img{2}, [], 'all', 'omitnan'))];                
             end
-            obj.Std = [double(std2(obj.img{1})), double(std2(obj.img{2}))];
-            
+
+            % std  is much more efficient for complex data
+            % std  is more efficient for single and double
+            % std2 is more time and memory efficient for non-float values
+            obj.Std = [NaN NaN];
+            for ii = 1:obj.nImages
+                if obj.isComplex(ii)
+                    % complex integer types are currently not allowed
+                    obj.Std(ii) = double(std(obj.img{ii}, 1, 'all'));
+                else
+                    if obj.isFloat(ii)
+                        obj.Std(ii) = double(std(obj.img{ii}, 1, 'all'));
+                    else
+                        obj.Std(ii) = double(std2(obj.img{ii}));
+                    end
+                end
+            end
+
             hasInf = obj.Max == Inf;
             for ii = find(hasInf)
                 warning('Inf values present in input %d. For large input matrices this can cause memory overflow and long startup time.', ii)
@@ -372,6 +389,7 @@ classdef (Abstract) nvisBase < handle
                     % neither is empty
                     obj.nImages     = 2;
                     obj.isComplex   = ~cellfun(@isreal, obj.img);
+                    obj.isFloat     = cellfun(@isfloat, obj.img);
                     obj.layerShown  = [1, 1];
                     obj.checkSize()
                 elseif sum(isEmpt) == 1
@@ -379,6 +397,7 @@ classdef (Abstract) nvisBase < handle
                     warning('Input %d is empty! Only non-empty iputs are shown', find(isEmpt))
                     obj.nImages     = 1;
                     obj.isComplex   = ~cellfun(@isreal, obj.img);
+                    obj.isFloat     = cellfun(@isfloat, obj.img);
                     obj.img(isEmpt) = [];
                     % for nImages=1, the second cell must be explicitly
                     % empty
@@ -394,11 +413,16 @@ classdef (Abstract) nvisBase < handle
                 obj.img{2}       = [];
                 obj.nImages      = 1;                
                 obj.isComplex    = ~isreal(obj.img{1});
+                obj.isFloat      = isfloat(obj.img{1});
                 obj.layerShown   = [1, 0];
                 obj.S = size(obj.img{1});
                 obj.ston{1} = [];
             end            
             obj.nDims = numel(obj.S);
+
+            if any(obj.isComplex .* ~obj.isFloat)
+                error('Complex integer types are currently not supported!')
+            end
         end
         
         
