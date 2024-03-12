@@ -1,49 +1,49 @@
 classdef nvis < nvisBase
-	%nvis visualizes 2D slices from higherdimensional data
-	% 	NVIS(I) opens a UI that displays one 2D slice from the input
-	% 	matrix I with N dimensions (N>2). Sliders allow to navigate thorugh
-	% 	the remaining, non-singleton dimensions. The windowing of the
-	% 	colormaps can be dynamically changed by pressing the middle mouse
-	% 	button on the image and moving the mouse up/down (center) or
-	% 	left/right(width). ROIs can be drawn to measure Signal to Noise
-	% 	ratio in image data.
-	%
-	% 	NVIS(I1, I2): Data from the matrices I1 and I2 are overlaid
-	% 	by adding (default) the RGB values attributed by the individual
-	% 	colormaps. The windowing for the second image can be adjusted by
-	% 	using the left mouse button. Image sizes must not be identical, but
-	% 	for dimensions, where the size is different, one matrix must be of
-	% 	size one.
-	%
-	%	Usage
-	%
-	%   Values in the lower left show the array indices of the datapoint
-	%   under the cursor as well as the matrix-values at that location. In
-	%   case of complex data, the value is shown in the current complex
-	%   mode.
-	% 	Colorbar button in the matlab figure-toolbar can be used to show
-	% 	adapting colorbars.
-	%  	<- and -> change the dimensions that are shown along the image
-	%  	dimensions. Initially, dimensions 1 and 2 are shown. By presing <-
-	%  	/ -> both are decreased/increased by 1, wrapping where necessary.
-	%   'Run' starts a timer which loops through the image dimension
-	%   selected by the radio button. 'SaveImage' save the currently
-	%   visible image to file, 'SaveVideo' saves the running animation as a
-	%   video file (.avi or .gif)
+    %nvis visualizes 2D slices from higherdimensional data
+    % 	NVIS(I) opens a UI that displays one 2D slice from the input
+    % 	matrix I with N dimensions (N>2). Sliders allow to navigate thorugh
+    % 	the remaining, non-singleton dimensions. The windowing of the
+    % 	colormaps can be dynamically changed by pressing the middle mouse
+    % 	button on the image and moving the mouse up/down (center) or
+    % 	left/right(width). ROIs can be drawn to measure Signal to Noise
+    % 	ratio in image data.
+    %
+    % 	NVIS(I1, I2): Data from the matrices I1 and I2 are overlaid
+    % 	by adding (default) the RGB values attributed by the individual
+    % 	colormaps. The windowing for the second image can be adjusted by
+    % 	using the left mouse button. Image sizes must not be identical, but
+    % 	for dimensions, where the size is different, one matrix must be of
+    % 	size one.
+    %
+    %	Usage
+    %
+    %   Values in the lower left show the array indices of the datapoint
+    %   under the cursor as well as the matrix-values at that location. In
+    %   case of complex data, the value is shown in the current complex
+    %   mode.
+    % 	Colorbar button in the matlab figure-toolbar can be used to show
+    % 	adapting colorbars.
+    %  	<- and -> change the dimensions that are shown along the image
+    %  	dimensions. Initially, dimensions 1 and 2 are shown. By presing <-
+    %  	/ -> both are decreased/increased by 1, wrapping where necessary.
+    %   'Run' starts a timer which loops through the image dimension
+    %   selected by the radio button. 'SaveImage' save the currently
+    %   visible image to file, 'SaveVideo' saves the running animation as a
+    %   video file (.avi or .gif)
     %   The crosshair button creates a circle in the current image and the
     %   'Plot' button opens an external window that shos the behavior of
     %   the data through that point along different dimensions of the input
     %   matrix. Continuous updating of the data shown in the external plot
     %   can be switched on or off using the 'Update' button.
-	%
-	%	Name-Value-Pairs
-	%	
-	% 	Name------------Value-------Descripton-----------------------------
     %
-	% 	'CW'            1x2 double  Initial values for center and width.
-	%                               For two input matrices, Value must be
-	%                               2x2 matrix, or values are applied to
-	%                               both.
+    %	Name-Value-Pairs
+    %	
+    % 	Name------------Value-------Descripton-----------------------------
+    %
+    % 	'CW'            1x2 double  Initial values for center and width.
+    %                               For two input matrices, Value must be
+    %                               2x2 matrix, or values are applied to
+    %                               both.
     %   'Colormap'      Nx3 | char	initial colormaps for the image. The
     %                               user can either supply a custom
     %                               colormap or chose from the available
@@ -54,70 +54,70 @@ classdef nvis < nvisBase
     %                               available if 'colorcet.m' is found on
     %                               the MATLAB path (Peter Kovesi,
     %                               https://peterkovesi.com/projects/colourmaps/)
-	%   'Contrast'      char        redundant NVP, will be removed in
-	%                               future versions.
-	%	'Overlay' 		int 		inital overlay mode for two input
-	%                               matrices (1: add (default), 2:
-	%                               multiply)
-	%	'ComplexMode'   int 		For complex data, chooses the initially
-	%                               displayed complex part (1: magnitude
-	%                               (default), 2: phase, 3: real part, 4:
-	%                               imaginary part).
-	% 	'AspectRatio'   'image'     the displayed axes have the same aspect
-	%                               ratio as the input matrix for that
-	%                               slice, i.e. pixels will be squares.
-	% 					'square' 	The displayed axes always have a square
-	%                               shape.
-	% 	'Resize' 		double      uses 'imresize' to resize the currently
-	%                               displayed slice by the given value.
-	%   'Title' 		char 	    title of the figure window
-	%	'Position',     1x4 int 	Position of the figure in pixel    
-	%   'Unit'          char        physical unit of the provided image
-	%                               data. For two input matrices, value
-	%                               must be 1x2 cell array, or both are
-	%                               assigned the same unit
-	%	'InitSlice',    1xN-2       set the slice that is shown when the
-	%                               figure is opened.
-	%	'InitRot',      int         initial rotation angle of the displayed
-	%                               image
+    %   'Contrast'      char        redundant NVP, will be removed in
+    %                               future versions.
+    %	'Overlay' 		int 		inital overlay mode for two input
+    %                               matrices (1: add (default), 2:
+    %                               multiply)
+    %	'ComplexMode'   int 		For complex data, chooses the initially
+    %                               displayed complex part (1: magnitude
+    %                               (default), 2: phase, 3: real part, 4:
+    %                               imaginary part).
+    % 	'AspectRatio'   'image'     the displayed axes have the same aspect
+    %                               ratio as the input matrix for that
+    %                               slice, i.e. pixels will be squares.
+    % 					'square' 	The displayed axes always have a square
+    %                               shape.
+    % 	'Resize' 		double      uses 'imresize' to resize the currently
+    %                               displayed slice by the given value.
+    %   'Title' 		char 	    title of the figure window
+    %	'Position',     1x4 int 	Position of the figure in pixel    
+    %   'Unit'          char        physical unit of the provided image
+    %                               data. For two input matrices, value
+    %                               must be 1x2 cell array, or both are
+    %                               assigned the same unit
+    %	'InitSlice',    1xN-2       set the slice that is shown when the
+    %                               figure is opened.
+    %	'InitRot',      int         initial rotation angle of the displayed
+    %                               image
     %   'InitPoint',    1x2         coordinates along the first 2
     %                               dimensions of img, where the marker is
     %                               placed
-	%	'DimLabel',     cell{char}  char arrays to label the individual
-	%                               dimensions in the input data. Cell
-	%                               entries can be empty to use default
-	%                               label.
+    %	'DimLabel',     cell{char}  char arrays to label the individual
+    %                               dimensions in the input data. Cell
+    %                               entries can be empty to use default
+    %                               label.
     %	'DimVal', cell{cell{char}}  char arrays containing the axis-values
     %                or cell{int}   for each dimension. Cell entries can be
     %                               empty to use default enumeration. Vals
     %                               must not be char, but is encouraged.
-	%	'fps',          double      defines how many times per second the
-	%                               slider value provided by 'LoopDim' is
-	%                               increased.
-	%	'LoopDim',      int     	Dimension, along which the slider is
-	%                               incremented 'fps' times per second
-	%	'ROI_Signal',   Nx2 		vertices polygon that defines a ROI in
-	%                               the initial slice.
-	%	'ROI_Noise',    Nx2 		vertices polygon that defines a ROI in
-	%                               the initial slice.
-	%	'SaveImage',    filename    When provided, the image data is
-	%                               prepared according to the other inputs,
-	%                               but no figure is shown. The prepared
-	%                               image data is directly saved to file
-	%                               under filename.
-	%	'SaveVideo',    filename    When provided, the image data is
-	%                               prepared according to the other inputs,
-	%                               but no figure is shown. 'fps' gives the
-	%                               framerate for the video that is saved
-	%                               under filename. Only '.avi' and '.gif'
-	%                               supported so far. 'LoopDim' can be used
-	%                               to specify the dimension along which
-	%                               the video loops.
-	
+    %	'fps',          double      defines how many times per second the
+    %                               slider value provided by 'LoopDim' is
+    %                               increased.
+    %	'LoopDim',      int     	Dimension, along which the slider is
+    %                               incremented 'fps' times per second
+    %	'ROI_Signal',   Nx2 		vertices polygon that defines a ROI in
+    %                               the initial slice.
+    %	'ROI_Noise',    Nx2 		vertices polygon that defines a ROI in
+    %                               the initial slice.
+    %	'SaveImage',    filename    When provided, the image data is
+    %                               prepared according to the other inputs,
+    %                               but no figure is shown. The prepared
+    %                               image data is directly saved to file
+    %                               under filename.
+    %	'SaveVideo',    filename    When provided, the image data is
+    %                               prepared according to the other inputs,
+    %                               but no figure is shown. 'fps' gives the
+    %                               framerate for the video that is saved
+    %                               under filename. Only '.avi' and '.gif'
+    %                               supported so far. 'LoopDim' can be used
+    %                               to specify the dimension along which
+    %                               the video loops.
+    
     %______________________________________________________________________
     % Authors:  Johannes Fischer
     %           Yanis Taege
-	
+    
     % TODO:
     % - RadioGroup Buttons for animated sliders
     % - make 'SaveVideo' button only active, when timer is running
