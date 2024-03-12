@@ -271,9 +271,7 @@ classdef nvis < nvisBase
             % requires InitSlice to be set
             obj.createSelector()
 
-            if obj.p.Results.InitShift ~= 0
-                obj.shiftDims(obj.p.Results.InitShift);
-            end
+            
                         
             % necessary for view orientation, already needed when saving image or video
             obj.azimuthAng   = obj.p.Results.InitRot;
@@ -312,7 +310,10 @@ classdef nvis < nvisBase
             obj.guiResize()
             
             obj.recolor()
-            
+
+            if obj.p.Results.InitShift ~= 0
+                obj.shiftDims(obj.p.Results.InitShift);
+            end            
             
             set(obj.f, 'Visible', 'on');
             
@@ -1286,7 +1287,6 @@ classdef nvis < nvisBase
                     'DimLabel',         obj.dimLabel, ....
                     'DimVal',           obj.dimVal, ....
                     'initDim',          obj.externalDim, ...
-                    'MinMax',           obj.getMinMax, ...
                     'ExternalCall',     1);
                 obj.updateExternalDimension()
                 obj.updateExternalData()
