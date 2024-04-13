@@ -184,6 +184,8 @@ classdef (Abstract) nvisBase < handle
         % saving images and videos
         hBtnSaveImg
         hBtnSaveVid
+        % minimize/maximize control panel
+        hBtnMinimMaxim
         
         %% GUI ELEMENT PROPERTIES
         
@@ -219,6 +221,9 @@ classdef (Abstract) nvisBase < handle
         
         % are both images windowed simultaneously?
         linkedWindowing
+
+        % keeps the state of the control panel (bool)
+        maximized
         
         %% other
         
@@ -255,6 +260,7 @@ classdef (Abstract) nvisBase < handle
         mouseBtnAlt(src, evtData)
         recolor(obj)
         saveImgBtn(obj)
+        minimMaximBtn(obj)
     end
         
     
@@ -275,6 +281,8 @@ classdef (Abstract) nvisBase < handle
             % set the default value for max Number of letters is locVal
             % section
             obj.maxLetters = 6;
+            % start control panel in maximized state
+            obj.maximized = true;
             
             % prepare roi parameters
             obj.rois         = {[], []};
@@ -555,7 +563,8 @@ classdef (Abstract) nvisBase < handle
             
             % create figure handle, but hide figure
             obj.f = figure('Color', obj.COLOR_BG, ...
-                'Visible',              'off');
+                'Visible',              'off',...
+                'AutoResizeChildren',   'off');
             
             % create UI elements for center and width
             obj.hTextC = uicontrol( ...
@@ -807,6 +816,13 @@ classdef (Abstract) nvisBase < handle
                 'Callback',             {@obj.saveVidBtn}, ...
                 'BackgroundColor',      obj.COLOR_BG, ...
                 'ForegroundColor',      obj.COLOR_F);
+
+            obj.hBtnMinimMaxim = uicontrol( ...
+                'Style',                'pushbutton', ...
+                'String',               '<', ...
+                'Callback',             {@obj.minimMaximBtn}, ...
+                'BackgroundColor',      obj.COLOR_BG, ...
+                'ForegroundColor',      obj.COLOR_F);
             
             obj.t = timer(...
                 'BusyMode',         'queue', ...
@@ -911,8 +927,8 @@ classdef (Abstract) nvisBase < handle
             if any(~cellfun(@isreal, obj.slice(:)))
                 % at least one of the slices has complex values, that
                 % means:
-                % show the complex Buttons
-                set(obj.hBtnCmplx, 'Visible', 'on');
+                % show the complex Buttons (if pControl is not minimized)
+                set(obj.hBtnCmplx, 'Visible', obj.maximized);
                 % convert the displayed data to the complex mode chosen by
                 % the user and then to datatype single
                 obj.slice = cellfun(@single, ...

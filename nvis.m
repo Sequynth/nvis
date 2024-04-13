@@ -178,9 +178,10 @@ classdef nvis < nvisBase
     properties (Constant, Access = private)
         %% UI PROPERTIES
         % absolute width of Control panel in pixel
-        controlWidth  = 300; % px        
-        sliderHeight  = 20;  % px 
-        sliderPadding = 4;   % px
+        controlWidth            = 300; % px
+        controlWidthMinimized   = 30 ; % px
+        sliderHeight            = 20;  % px 
+        sliderPadding           = 4;   % px
     end
     
     methods
@@ -355,7 +356,7 @@ classdef nvis < nvisBase
             obj.pSliderHeight   = obj.nSlider * (obj.sliderHeight + 2*obj.sliderPadding); % px
             % colorbar panel is invisible at first
             obj.colorbarWidth = 0; % px
-            obj.setPanelPos()
+            obj.calcPanelPos()
             
             % create and place panels
             obj.pImage  = uipanel( ...
@@ -764,12 +765,14 @@ classdef nvis < nvisBase
                 'BackgroundColor',      obj.COLOR_BG, ...
                 'Interpreter',          'Tex');
             
+            width_BtnMinimMaxim = obj.controlWidthMinimized - 2*obj.margin;
+
             set(obj.hBtnSaveImg, ...
                 'Parent',               obj.pControls, ...
                 'Units',                'pixel', ...
                 'Position',             [obj.margin ...
                                         obj.margin ...
-                                        (obj.controlWidth-3*obj.margin)/2 ...
+                                        (obj.controlWidth-width_BtnMinimMaxim-4*obj.margin)/2 ...
                                         obj.height], ...
                 'String',               'Save Image', ...
                 'FontUnits',            'normalized', ...
@@ -778,12 +781,24 @@ classdef nvis < nvisBase
             set(obj.hBtnSaveVid, ...
                 'Parent',               obj.pControls, ...
                 'Units',                'pixel', ...
-                'Position',             [(obj.controlWidth+obj.margin)/2 ...
+                'Position',             [(obj.controlWidth-width_BtnMinimMaxim)/2 ...
                                         obj.margin ...
-                                        (obj.controlWidth-3*obj.margin)/2 ...
+                                        (obj.controlWidth-width_BtnMinimMaxim-4*obj.margin)/2 ...
                                         obj.height], ...
                 'FontUnits',            'normalized', ...
                 'FontSize',             0.45);
+
+            set(obj.hBtnMinimMaxim, ...
+                'Parent',               obj.pControls, ...
+                'Units',                'pixel', ...
+                'Position',             [obj.controlWidth-width_BtnMinimMaxim-obj.margin ...
+                                        obj.margin ...
+                                        width_BtnMinimMaxim ...
+                                        obj.height], ...
+                'FontUnits',            'normalized', ...
+                'FontSize',             0.45);
+
+
             
             if obj.nDims <= 2
                 set(obj.hBtnSaveVid, 'Visible', 'off')
@@ -1049,26 +1064,32 @@ classdef nvis < nvisBase
         end
         
         
-        function setPanelPos(obj)
+        function calcPanelPos(obj)
             % create a 3x4 array that stores the 'Position' information for
             % the four panels pImage, pSlider, pControl and pColorbar
             
             obj.figurePos = get(obj.f, 'Position');
+
+            if obj.maximized
+                controlW = obj.controlWidth;
+            else
+                controlW = obj.controlWidthMinimized;
+            end
             
             % pImage
-            obj.panelPos(1, :) =    [obj.controlWidth ...
+            obj.panelPos(1, :) =    [controlW ...
                                     obj.pSliderHeight ...
-                                    obj.figurePos(3) - obj.controlWidth - obj.colorbarWidth...
+                                    obj.figurePos(3) - controlW - obj.colorbarWidth...
                                     obj.figurePos(4) - obj.pSliderHeight];
             % pSlider                    
-            obj.panelPos(2, :) =    [obj.controlWidth ...
+            obj.panelPos(2, :) =    [controlW ...
                                     0 ...
-                                    obj.figurePos(3) - obj.controlWidth ...
+                                    obj.figurePos(3) - controlW ...
                                     obj.pSliderHeight];
             % pControl                    
             obj.panelPos(3, :) =    [0 ...
                                     0 ...
-                                    obj.controlWidth ...
+                                    controlW ...
                                     obj.figurePos(4)];
                                 
             % pColorbar                    
@@ -1076,6 +1097,18 @@ classdef nvis < nvisBase
                                     obj.pSliderHeight ...
                                     obj.colorbarWidth ...
                                     obj.figurePos(4) - obj.pSliderHeight];
+        end
+
+
+        function setPanelPos(obj)
+            % change the position of the 4 panels according to the values
+            % in pbj.panelPos
+
+            set(obj.pImage,     'Position', obj.panelPos(1, :));
+            set(obj.pSlider,    'Position', obj.panelPos(2, :));
+            set(obj.pControls,  'Position', obj.panelPos(3, :));
+            set(obj.pColorbar,  'Position', obj.panelPos(4, :));
+
         end
         
         
@@ -1188,11 +1221,6 @@ classdef nvis < nvisBase
                 obj.updateExternalPoint()
             end
             
-            
-%             if ~isempty(Sroi) | ~isempty(Nroi)
-%                 % only calculate SNR, when there are ROIs to calculate
-%                 calcROI();
-%             end
         end
         
         
@@ -1396,7 +1424,103 @@ classdef nvis < nvisBase
             % apply the current azimuthal rotation to the image and save
             imwrite(imrotate(obj.sliceMixer(1), -obj.azimuthAng, 'bicubic'), path);
         end
-        
+
+
+        function minimMaximBtn(obj, ~, ~)
+
+            % toggle the state
+            obj.maximized = ~obj.maximized;
+
+            % recalculate panel positions
+            obj.calcPanelPos()
+            obj.setPanelPos()
+
+            obj.setMinimMaximBtnPos()
+
+            % reclaculate content (e.g. to check inf complex buttons need
+            % to be shown)
+            obj.guiResize()
+            obj.refreshUI()
+            
+
+        end
+
+
+        function setMinimMaximBtnPos(obj)
+
+            if obj.maximized
+                set(obj.hBtnMinimMaxim, 'String', '<')
+                set(obj.hBtnMinimMaxim, 'Position',...
+                    [obj.controlWidth-obj.controlWidthMinimized+obj.margin ...
+                    obj.margin ...
+                    obj.controlWidthMinimized - 2*obj.margin ...
+                    obj.height])
+
+                % show all elements in pControl
+                obj.setControlElementsVisibility()
+                % set( findobj('Parent', obj.pControls, '-not', 'String', '<'), 'Visible', 1)
+            else
+
+                
+
+                set(obj.hBtnMinimMaxim, 'String', '>')
+                set(obj.hBtnMinimMaxim, 'Position',...
+                    [obj.margin ...
+                    obj.margin ...
+                    obj.controlWidthMinimized - 2*obj.margin ...
+                    obj.height])
+
+                % hide all elements in pControl
+                obj.setControlElementsVisibility()
+                % set( findobj('Parent', obj.pControls, '-not', 'String', '>'), 'Visible', 0)
+                
+            end
+
+        end
+
+
+        function setControlElementsVisibility(obj)
+            
+            set(obj.hBtnCwHome,         'Visible', obj.maximized)
+            set(obj.hBtnCwSlice,        'Visible', obj.maximized)
+            set(obj.hBtnCwCopy,         'Visible', obj.maximized)
+            set(obj.hBtnCwLink,         'Visible', obj.maximized)
+            set(obj.hTextC,             'Visible', obj.maximized)
+            set(obj.hTextW,             'Visible', obj.maximized)
+            set(obj.hEditC,             'Visible', obj.maximized)
+            set(obj.hEditW,             'Visible', obj.maximized)
+            set(obj.hBtnHide,           'Visible', obj.maximized)
+            set(obj.hBtnToggle,         'Visible', obj.maximized)
+            set(obj.hPopCm,             'Visible', obj.maximized)
+            set(obj.hPopOverlay,        'Visible', obj.maximized)
+            set(obj.hBtnShiftL,         'Visible', obj.maximized)
+            set(obj.hBtnRotL,           'Visible', obj.maximized)
+            set(obj.hBtnRotR,           'Visible', obj.maximized)
+            set(obj.hBtnShiftR,         'Visible', obj.maximized)
+            set(obj.hBtnRoi,            'Visible', obj.maximized)
+            set(obj.hTextRoi,           'Visible', obj.maximized)
+            set(obj.hTextSNR,           'Visible', obj.maximized)
+            set(obj.hTextSNRvals,       'Visible', obj.maximized)
+            set(obj.hTextRoiType,       'Visible', obj.maximized)
+            set(obj.hPopRoiType,        'Visible', obj.maximized)
+            set(obj.hBtnDelRois,        'Visible', obj.maximized)
+            set(obj.hBtnSaveRois,       'Visible', obj.maximized)
+            set(obj.hBtnFFT,            'Visible', obj.maximized)
+            set(obj.hBtnCmplx,          'Visible', obj.maximized*any(obj.isComplex))
+
+            set(obj.hBtnRun,            'Visible', obj.maximized*(obj.nDims > 2))
+            set(obj.hEditF,             'Visible', obj.maximized*(obj.nDims > 2))
+            set(obj.hTextFPS,           'Visible', obj.maximized*(obj.nDims > 2))
+            set(obj.hBtnPoint,          'Visible', obj.maximized*(obj.nDims > 2))
+            set(obj.hBtnPlot,           'Visible', obj.maximized*(obj.nDims > 2))
+            set(obj.hBtnUpdateExternal, 'Visible', obj.maximized*(obj.nDims > 2))
+
+            set(obj.locAndVals,         'Visible', obj.maximized)
+            set(obj.hBtnSaveImg,        'Visible', obj.maximized)
+            set(obj.hBtnSaveVid,        'Visible', obj.maximized*(obj.nDims > 2))
+
+        end
+
         
         function closeRqst(obj, ~, ~)
             % closeRqst is called, when the user closes the figure (by 'x' or
@@ -1524,19 +1648,16 @@ classdef nvis < nvisBase
                  obj.f.Position(3) = obj.controlWidth;
             end
             
-            obj.setPanelPos()            
-            set(obj.pImage,     'Position', obj.panelPos(1, :));
-            set(obj.pSlider,    'Position', obj.panelPos(2, :));
-            set(obj.pControls,  'Position', obj.panelPos(3, :));
-            set(obj.pColorbar,  'Position', obj.panelPos(4, :));
-                  
+            obj.calcPanelPos()
+            obj.setPanelPos()  
+            
             % set Slider positions
             RadioBtnWidth = 30; % px 
             sliderWidth   = obj.pSlider.Position(3) - obj.sliderStartPos - RadioBtnWidth - 10;
             
             if sliderWidth <= 20
                 obj.f.Position(3) = obj.controlWidth + obj.sliderStartPos + RadioBtnWidth + 10 + 21;
-                obj.setPanelPos()
+                obj.calcPanelPos()
                 set(obj.pControls,  'Position', obj.panelPos(3, :));
                 sliderWidth       = obj.pSlider.Position(3) - obj.sliderStartPos - RadioBtnWidth - 10;
             end
