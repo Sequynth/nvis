@@ -334,23 +334,6 @@ classdef (Abstract) nvisBase < handle
                 obj.Min = [double(min(obj.img{1}, [], 'all', 'omitnan')), double(min(obj.img{2}, [], 'all', 'omitnan'))];                
             end
 
-            % std  is much more efficient for complex data
-            % std  is more efficient for single and double
-            % std2 is more time and memory efficient for non-float values
-            obj.Std = [NaN NaN];
-            for ii = 1:obj.nImages
-                if obj.isComplex(ii)
-                    % complex integer types are currently not allowed
-                    obj.Std(ii) = double(std(obj.img{ii}, 1, 'all'));
-                else
-                    if obj.isFloat(ii)
-                        obj.Std(ii) = double(std(obj.img{ii}, 1, 'all'));
-                    else
-                        obj.Std(ii) = double(std2(obj.img{ii}));
-                    end
-                end
-            end
-
             hasInf = obj.Max == Inf;
             for ii = find(hasInf)
                 warning('Inf values present in input %d. For large input matrices this can cause memory overflow and long startup time.', ii)
@@ -370,7 +353,6 @@ classdef (Abstract) nvisBase < handle
             
             obj.Max(obj.isComplex)  = abs(obj.Max(obj.isComplex));
             obj.Min(obj.isComplex)  = abs(obj.Min(obj.isComplex));
-            obj.Std(obj.isComplex)  = abs(obj.Std(obj.isComplex));
         end
         
         
@@ -495,7 +477,7 @@ classdef (Abstract) nvisBase < handle
                                                 obj.Max(1)-obj.Min(1); ...
                                                 (obj.Max(2) - obj.Min(2))/2+obj.Min(2), ...
                                                 obj.Max(2)-obj.Min(2)],         @isnumeric);            
-            addParameter(obj.p, 'widthMin',     single(1e-3*obj.Std),@isnumeric);
+            addParameter(obj.p, 'widthMin',     0,@isnumeric);
             addParameter(obj.p, 'Unit',         {[], []},                       @(x) (iscell(x) && numel(x) <= 2) | ischar(x));
             addParameter(obj.p, 'DimLabel',     strcat(repmat({}, 1, numel(obj.S))), @(x) iscell(x) && numel(x) >= obj.nDims);
             addParameter(obj.p, 'DimVal',       cellfun(@(x) 1:x, num2cell(obj.S), 'UniformOutput', false), @iscell);
@@ -535,7 +517,7 @@ classdef (Abstract) nvisBase < handle
                 set(obj.hPopCm(2), 'String', obj.cmapStrings)
             end
         
-            obj.widthMin = obj.p.Results.widthMin;
+            obj.widthMin = [0 0];
             obj.center = zeros(1, 2);
             obj.width = zeros(1, 2);
             for idh = 1:obj.nImages
