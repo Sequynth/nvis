@@ -914,6 +914,11 @@ classdef nvis3 < nvisBase
         function saveImgBtn(obj)
             fprinf('Functionality currently not implemented')
         end
+
+
+        function minimMaximBtn(obj, ~, ~)
+            % functionality not yet implemented
+        end
         
         
         function closeRqst(obj, ~, ~)
