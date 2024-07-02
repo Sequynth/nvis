@@ -70,7 +70,7 @@ classdef (Abstract) nvisBase < handle
         % dimensions shows the input data along its third dimension, the
         % second axis shows the input data along its fourth dimension.
         showDims
-        
+
         % cell array that stores the location information in the input data
         % of each currently shown slice.
         % obj.sel{2, :} contains the subscripts to obtain the image shown

@@ -173,6 +173,9 @@ classdef nvis < nvisBase
         figurePos
         pointEnabled
         color_ma
+
+        
+
     end
     
     properties (Constant, Access = private)
