@@ -71,6 +71,10 @@ classdef (Abstract) nvisBase < handle
         % second axis shows the input data along its fourth dimension.
         showDims
 
+        % if fixedDim ~= 0, this dimension remains the dimension looped by
+        % the timer, and will never be one of the selected dimensions
+        fixedDim
+                
         % cell array that stores the location information in the input data
         % of each currently shown slice.
         % obj.sel{2, :} contains the subscripts to obtain the image shown
@@ -281,6 +285,7 @@ classdef (Abstract) nvisBase < handle
             % set the default value for max Number of letters is locVal
             % section
             obj.maxLetters = 6;
+
             % start control panel in maximized state
             obj.maximized = true;
             
@@ -494,6 +499,7 @@ classdef (Abstract) nvisBase < handle
             addParameter(obj.p, 'fps',          0,                              @isnumeric);
             addParameter(obj.p, 'LoopDimension',3,                              @(x) isnumeric(x) && x <= obj.nDims && obj.nDims >= 3);
             addParameter(obj.p, 'LoopCount',    Inf,                            @isnumeric);
+            addParameter(obj.p, 'fixedDim',     0,                              @isnumeric);
 
         end
         

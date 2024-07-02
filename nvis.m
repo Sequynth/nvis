@@ -259,8 +259,13 @@ classdef nvis < nvisBase
             obj.overlay             = obj.p.Results.Overlay;
             obj.unit                = obj.p.Results.Unit;
             obj.point               = obj.p.Results.InitPoint;
-            obj.color_ma            = obj.p.Results.MarkerColor;
-            obj.interruptedSlider   = obj.p.Results.LoopDimension - 2;
+            obj.color_ma            = obj.p.Results.MarkerColor;            
+            obj.fixedDim            = obj.p.Results.fixedDim;
+            if obj.fixedDim ~= 0
+                obj.interruptedSlider = obj.p.Results.fixedDim - 2;
+            else
+                obj.interruptedSlider   = obj.p.Results.LoopDimension - 2;
+            end
             
             
             % set default values for dimLabel
@@ -1036,7 +1041,7 @@ classdef nvis < nvisBase
         end
         
         
-         function toggleCb(obj, ~, ~)
+        function toggleCb(obj, ~, ~)
             %% show/hide custom colorbar(s)
             images = allchild(obj.hAxCb);
             if ~obj.cbShown
@@ -1227,7 +1232,7 @@ classdef nvis < nvisBase
         end
         
         
-       function incDecActiveDim(obj, incDec)
+        function incDecActiveDim(obj, incDec)
             % change the active dimension by incDec
             obj.sel{1, obj.activeDim} = obj.sel{1, obj.activeDim} + incDec;
             % check whether the value is too large and take the modulus
@@ -1554,7 +1559,6 @@ classdef nvis < nvisBase
             view([obj.azimuthAng 90])
         end
         
-        
 
         function shiftCallback(obj, src, ~)
             % called by the '<-' and '->' UI buttons to trigger a dimension
@@ -1574,11 +1578,18 @@ classdef nvis < nvisBase
         
         
         function shiftDims(obj, shifts)
+            stop(obj.t)
+
             % this line ignores singleton dimensions, because they dont get
             % a slider and are boring to look at
             dimArray = [obj.showDims obj.mapSliderToDim];
             
-            shifted = circshift(dimArray, shifts);
+            if obj.fixedDim ~= 0
+                shifted = obj.circshiftWithFixed(dimArray, shifts);
+                fixedSel = obj.sel{obj.fixedDim};
+            else
+                shifted = circshift(dimArray, shifts);
+            end
             
             % activeDim defines the active slider and cant be one
             % of the shown dimensions
@@ -1599,6 +1610,10 @@ classdef nvis < nvisBase
             obj.sel(obj.mapSliderToDim) = num2cell(round(obj.S(obj.mapSliderToDim)/2));
             % consider singleton dimensions
             obj.sel(obj.S == 1) = {1};
+            % restore selection for fixed dimension
+            if obj.fixedDim ~= 0
+                obj.sel{obj.fixedDim} = fixedSel;
+            end
 
             if contains('SaveImage', obj.p.UsingDefaults) & contains('SaveVideo', obj.p.UsingDefaults)
                 % when no UI is created, because a video or image is saved
@@ -1622,6 +1637,23 @@ classdef nvis < nvisBase
                 obj.recolor()
 
             end
+
+            start(obj.t)
+        end
+
+
+        function out = circshiftWithFixed(obj, array, shifts)
+
+            % find the index of the fixed dimension
+            idx = find(array == obj.fixedDim);
+
+            A = array(1:idx-1);
+            B = array(idx+1:end);
+
+            out = circshift([A, B], shifts);
+
+            out = [out(1:idx-1) obj.fixedDim out(idx:end)];
+
         end
         
         
