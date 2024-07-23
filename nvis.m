@@ -262,7 +262,12 @@ classdef nvis < nvisBase
             obj.color_ma            = obj.p.Results.MarkerColor;            
             obj.fixedDim            = obj.p.Results.fixedDim;
             if obj.fixedDim ~= 0
-                obj.interruptedSlider = obj.p.Results.fixedDim - 2;
+                if (obj.S(obj.p.Results.fixedDim) > 1)
+                obj.interruptedSlider = find(obj.mapSliderToDim == obj.p.Results.fixedDim, 1);
+                else
+                    warning('fixedDim was set to singleton dimension and will be ignored.')
+                    obj.fixedDim = 0;
+                end
             else
                 obj.interruptedSlider   = obj.p.Results.LoopDimension - 2;
             end
@@ -1578,7 +1583,10 @@ classdef nvis < nvisBase
         
         
         function shiftDims(obj, shifts)
-            stop(obj.t)
+            runningState = obj.t.Running;
+            if strcmp(runningState, 'on')
+                stop(obj.t)
+            end
 
             % this line ignores singleton dimensions, because they dont get
             % a slider and are boring to look at
@@ -1638,7 +1646,9 @@ classdef nvis < nvisBase
 
             end
 
-            start(obj.t)
+            if strcmp(runningState, 'on')
+                start(obj.t)
+            end
         end
 
 
