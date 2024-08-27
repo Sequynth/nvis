@@ -248,7 +248,7 @@ classdef (Abstract) nvisBase < handle
         zoomInFac  = 1.1;
         zoomOutFac = 0.9;
         
-        BtnHideKey = ['w' 'e'];
+        BtnHideKey = {'w' 'e'};
         BtnTgglKey = 'q';
         
         overlayStrings = {'add', 'multiply'}
@@ -552,7 +552,7 @@ classdef (Abstract) nvisBase < handle
             % create figure handle, but hide figure
             obj.f = figure('Color', obj.COLOR_BG, ...
                 'Visible',              'off',...
-                'AutoResizeChildren',   'off');
+                'AutoResizeChildren',   'off');            
             
             % create UI elements for center and width
             obj.hTextC = uicontrol( ...
@@ -1224,6 +1224,19 @@ classdef (Abstract) nvisBase < handle
                 set(obj.hBtnCwLink, 'Tooltip', 'unlink windowing in both images');
             end
         end
+
+
+        function keyPressedFcn(obj, src, ~)
+            % listen to keypress and toggle between or hide/show the images
+            key = get(src, 'CurrentCharacter');
+
+            switch (key)
+                case obj.BtnHideKey
+                    obj.toggleLayer(find(ismember(obj.BtnHideKey, lower(key))))
+                case obj.BtnTgglKey
+                    obj.BtnToggleCallback()
+            end
+        end
         
         
         function BtnToggleCallback(obj, ~, ~)
@@ -1246,10 +1259,10 @@ classdef (Abstract) nvisBase < handle
             obj.layerShown(layer) = ~obj.layerShown(layer);
             
             if obj.layerShown(layer)
-                string = ['Hide (' obj.BtnHideKey(layer) ')'];
+                string = ['Hide (' obj.BtnHideKey{layer} ')'];
                 set(obj.hBtnHide(layer), 'String', string)
             else
-                string = ['Show (' obj.BtnHideKey(layer) ')'];
+                string = ['Show (' obj.BtnHideKey{layer} ')'];
                 set(obj.hBtnHide(layer), 'String', string)
             end
             set(obj.hBtnHide(layer), 'Value', obj.layerShown(layer))
