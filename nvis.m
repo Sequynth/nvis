@@ -91,6 +91,13 @@ classdef nvis < nvisBase
     %                or cell{int}   for each dimension. Cell entries can be
     %                               empty to use default enumeration. Vals
     %                               must not be char, but is encouraged.
+    %   'Permute'       1xN         permutation vector, that works similar
+    %                               to matlabs permute function. It is used
+    %                               to access image information in
+    %                               different order. Use this when working
+    %                               with large image matrices, to avoid
+    %                               additional memory usage from calling
+    %                               permute.
     %	'fps',          double      defines how many times per second the
     %                               slider value provided by 'LoopDim' is
     %                               increased.
@@ -145,6 +152,8 @@ classdef nvis < nvisBase
         
         hBtnG
         hRadioBtnSlider
+
+        InitSlice
         
         %% external plot parameters
         % point for external plots
@@ -202,25 +211,7 @@ classdef nvis < nvisBase
             
             % per default, update external plots
             obj.bUpdateExternal = 1;
-            
-            % which dimensions are shown initially
-            obj.showDims = [1 2];
-            
-            % only show slider for a dimension with a length higher than 1
-            if obj.nDims > 2
-                tmp = 3:obj.nDims;
-                obj.mapSliderToDim  = tmp(obj.S(3:end) > 1);
-                obj.nSlider         = numel(obj.mapSliderToDim);
-                obj.activeDim       = obj.mapSliderToDim(1);
-                obj.externalDim     = obj.mapSliderToDim(1);
-            else
-                % there is no dimension to slide through anyway
-                obj.nSlider   = 0;
-                obj.activeDim = 3;
-                obj.externalDim = [];
-            end
-            
-            obj.mapSliderToImage = num2cell(ones(1, obj.nSlider));
+
             if obj.nImages == 2
                 obj.inputNames{1} = inputname(1);
                 obj.inputNames{2} = inputname(2);
@@ -232,17 +223,60 @@ classdef nvis < nvisBase
                  
             obj.prepareParser()
             
-            % additional parameters
-            addParameter(obj.p, 'InitRot',          0,                                  @(x) isnumeric(x));
-            addParameter(obj.p, 'InitSlice',        round(obj.S(obj.mapSliderToDim)/2), @isnumeric);
-            addParameter(obj.p, 'InitPoint',        round(obj.S(obj.showDims)/2),       @isnumeric);
-            addParameter(obj.p, 'InitShift',        0,                                  @(x) isnumeric(x) && isscalar(x));
-            addParameter(obj.p, 'MarkerColor',      [1 0 0],                            @(x) isnumeric(x) && numel(x) == 3);
-            addParameter(obj.p, 'ROI_Signal',       [0 0; 0 0; 0 0],                    @isnumeric);
-            addParameter(obj.p, 'ROI_Noise',        [0 0; 0 0; 0 0],                    @isnumeric);
-            
+            % additional parameters 
+            addParameter(obj.p, 'InitRot',          0,                                              @(x) isnumeric(x));
+            addParameter(obj.p, 'InitSlice',        round(obj.S([false false obj.S(3:end) > 2])/2), @isnumeric);
+            addParameter(obj.p, 'InitPoint',        [1 1],                                          @isnumeric);
+            addParameter(obj.p, 'InitShift',        0,                                              @(x) isnumeric(x) && isscalar(x));
+            addParameter(obj.p, 'MarkerColor',      [1 0 0],                                        @(x) isnumeric(x) && numel(x) == 3);
+            addParameter(obj.p, 'ROI_Signal',       [0 0; 0 0; 0 0],                                @isnumeric);
+            addParameter(obj.p, 'ROI_Noise',        [0 0; 0 0; 0 0],                                @isnumeric);
+            addParameter(obj.p, 'Permute',          1:obj.nDims,                                    @(x) isnumeric(x) && numel(x) >= obj.nDims && isequal(sort(x, 'ascend'), 1:numel(x)) );            
                   
             parse(obj.p, obj.varargin{:});
+
+            % remove all entries from permute, where obj.S is 1. Create a
+            % temporary size variable with trailing 1s to mimick behaviour
+            % of matlabs inbuilt permute function
+            s = [obj.S ones(1, max(obj.p.Results.Permute)-numel(obj.S))];
+            permute = obj.p.Results.Permute(s(obj.p.Results.Permute) > 1);
+            % which dimensions are shown initially
+            obj.showDims = permute([1 2]);
+
+            % only show slider for a dimension with a length higher than 1
+            if obj.nDims > 2
+                tmp = permute(3:end);
+                % create a temporary size variable with trailing 1s to
+                % mimick behaviour of matlabs inbuilt permute function
+                
+                obj.mapSliderToDim  = tmp(s(tmp) > 1);
+                obj.nSlider         = numel(obj.mapSliderToDim);
+                obj.activeDim       = obj.mapSliderToDim(1);
+                obj.externalDim     = obj.mapSliderToDim(1);
+            else
+                % there is no dimension to slide through anyway
+                obj.nSlider         = 0;
+                obj.activeDim       = 3;
+                obj.externalDim     = [];
+            end
+
+            % after parsing the Permute vector, initially shown slices and
+            % dimensions might have changed. p.Results is write protected,
+            % so we have to provide our own parameter
+            if contains('InitSlice', obj.p.UsingDefaults)
+                obj.InitSlice = round(obj.S(obj.mapSliderToDim)/2);
+            else
+                obj.InitSlice = obj.p.Results.InitSlice;
+            end
+
+            if contains('InitPoint', obj.p.UsingDefaults)
+                obj.point = round(obj.S(obj.showDims)/2);
+            else
+                obj.point = obj.p.Results.InitPoint;
+            end
+
+             % only one image in nvis
+            obj.mapSliderToImage = num2cell(ones(1, obj.nSlider));
                         
             % if not specified, start with plotpoint disabled
             if contains('InitPoint', obj.p.UsingDefaults)
@@ -258,7 +292,6 @@ classdef nvis < nvisBase
             obj.contrast            = obj.p.Results.Contrast;
             obj.overlay             = obj.p.Results.Overlay;
             obj.unit                = obj.p.Results.Unit;
-            obj.point               = obj.p.Results.InitPoint;
             obj.color_ma            = obj.p.Results.MarkerColor;            
             obj.fixedDim            = obj.p.Results.fixedDim;
             if obj.fixedDim ~= 0
@@ -1116,7 +1149,7 @@ classdef nvis < nvisBase
 
         function setPanelPos(obj)
             % change the position of the 4 panels according to the values
-            % in pbj.panelPos
+            % in obj.panelPos
 
             set(obj.pImage,     'Position', obj.panelPos(1, :));
             set(obj.pSlider,    'Position', obj.panelPos(2, :));
@@ -1129,7 +1162,7 @@ classdef nvis < nvisBase
         function createSelector(obj)
             % create slice selector
             obj.sel        = repmat({':'}, 1, obj.nDims);
-            obj.sel(ismember(1:obj.nDims, obj.mapSliderToDim)) = num2cell(obj.p.Results.InitSlice);
+            obj.sel(obj.mapSliderToDim) = num2cell(obj.InitSlice);
             % consider singleton dimensions            
             obj.sel(obj.S == 1) = {1};
             % obj.sel{obj.S == 1} = 1; does not work here, because the
@@ -1592,7 +1625,11 @@ classdef nvis < nvisBase
             % this line ignores singleton dimensions, because they dont get
             % a slider and are boring to look at
             dimArray = [obj.showDims obj.mapSliderToDim];
-            
+
+            % before calculating new obj.sel values, keep slider values for
+            % dimensions that are mapped to a slider after the shift.
+            sliderVals = cell2mat(obj.sel(obj.mapSliderToDim));
+
             if obj.fixedDim ~= 0
                 shifted = obj.circshiftWithFixed(dimArray, shifts);
                 fixedSel = obj.sel{obj.fixedDim};
@@ -1612,11 +1649,21 @@ classdef nvis < nvisBase
 
             obj.showDims        = shifted(1:2);
             obj.mapSliderToDim  = shifted(3:end);
+         
+            % remove one slider and enter value for incoming slider
+            if shifts < 0
+                sliderVals(1) = [];
+                newVals = [sliderVals round(obj.S(obj.mapSliderToDim(end))/2)];
+            else
+                sliderVals(end) = [];
+                newVals = [round(obj.S(obj.mapSliderToDim(1))/2) sliderVals];
+            end
 
             % renew slice selector for dimensions 3 and higher
             obj.sel        = repmat({':'}, 1, obj.nDims);
             %obj.sel(ismember(1:obj.nDims, obj.mapSliderToDim)) = num2cell(round(obj.S(obj.mapSliderToDim)/2));
-            obj.sel(obj.mapSliderToDim) = num2cell(round(obj.S(obj.mapSliderToDim)/2));
+            % if possible, keep slider values
+            obj.sel(obj.mapSliderToDim) = num2cell(newVals);
             % consider singleton dimensions
             obj.sel(obj.S == 1) = {1};
             % restore selection for fixed dimension
