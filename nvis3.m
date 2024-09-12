@@ -107,6 +107,7 @@ classdef nvis3 < nvisBase
         pImage
         pSlider
         pControls
+        pAdditionalSliders
         locAndVals
         hGuides         % RGB plot guides in the axes
         hBtnGuides
@@ -115,6 +116,7 @@ classdef nvis3 < nvisBase
         pSliderHeight
         panelPos
         controlPanelPos
+        sliderPos
         figurePos
         cr
     end
@@ -146,11 +148,9 @@ classdef nvis3 < nvisBase
                 % TODO: if obj.nDims == 2: open nvis instead
                 obj.nSlider = 3;
                 obj.mapSliderToImage = num2cell(1:3);
-            elseif obj.nDims == 4
-                obj.nSlider = 4;
-                obj.mapSliderToImage = cat(2, num2cell(1:3), {':'});
             else
-                error('Input-size not supported')
+                obj.nSlider = obj.nDims;
+                obj.mapSliderToImage = cat(2, num2cell(1:3), repmat({':'}, [1, obj.nSlider-3]));
             end
             
             if obj.nImages == 2
@@ -179,10 +179,7 @@ classdef nvis3 < nvisBase
             obj.unit                = obj.p.Results.Unit;
             
             % set default values for dimLabel
-            obj.dimLabel = {'X', 'Y', 'Z'};
-            if obj.nDims == 4
-                obj.dimLabel{4} = 't';
-            end
+            obj.dimLabel = strcat(repmat({'Dim'}, 1, numel(obj.S)), cellfun(@num2str, num2cell(1:obj.nDims), 'UniformOutput', false));
             
             obj.parseDimLabelsVals()
             
@@ -261,6 +258,13 @@ classdef nvis3 < nvisBase
                 'BackgroundColor',  obj.COLOR_BG, ...
                 'HighLightColor',   obj.COLOR_BG, ...
                 'ShadowColor',      obj.COLOR_B);
+
+            obj.pAdditionalSliders  = uipanel( ...
+                'Units',            'pixels', ...
+                'Position',         obj.panelPos(9, :), ...
+                'BackgroundColor',  obj.COLOR_BG, ...
+                'HighLightColor',   obj.COLOR_BG, ...
+                'ShadowColor',      obj.COLOR_B);
             
             %% set UI elements
             
@@ -292,16 +296,22 @@ classdef nvis3 < nvisBase
                 'YTick',        []);
             
             % populate slider panels
-            for iSlider = 1:3
+            for iSlider = 1:obj.nDims
                 % if dimension is singleton, set slider steps to 0
                 if obj.S(iSlider) == 1
                     steps = [0 0];
                 else
                     steps = [1/(obj.S(iSlider)-1) 10/(obj.S(iSlider)-1)];
                 end
+
+                if iSlider <= 3
+                    panel = obj.pSlider(iSlider);
+                else
+                    panel = obj.pAdditionalSliders;
+                end
                 
                 obj.hTextSlider(iSlider) = uicontrol( ...
-                    'Parent',           obj.pSlider(iSlider), ...
+                    'Parent',           panel, ...
                     'Style',            'text', ...
                     'Units',            'normalized', ...
                     'Position',         [0.01 1/8 0.04 6/8], ...
@@ -312,11 +322,11 @@ classdef nvis3 < nvisBase
                     'ForegroundColor',  obj.COLOR_F);
                 
                 obj.hEditSlider(iSlider) = uicontrol( ...
-                    'Parent',           obj.pSlider(iSlider), ...
+                    'Parent',           panel, ...
                     'Style',            'edit', ...
                     'Units',            'normalized', ...
                     'Position',         [0.07 1/8 0.1 6/8], ...
-                    'String',           obj.dimVal{iSlider}{obj.sel{iSlider, iSlider}}, ...
+                    'String',           obj.dimVal{iSlider}{obj.sel{min(3, iSlider), iSlider}}, ...
                     'FontUnits',        'normalized', ...
                     'FontSize',         0.8, ...
                     'Enable',           'on', ...
@@ -328,13 +338,13 @@ classdef nvis3 < nvisBase
                 
 
                 obj.hSlider(iSlider) = uicontrol( ...
-                    'Parent',           obj.pSlider(iSlider), ...
+                    'Parent',           panel, ...
                     'Style',            'slider', ...
                     'Units',            'normalized', ...
                     'Position',         [0.17 1/8 0.6 6/8], ...
                     'Min',              1, ...
                     'Max',              obj.S(iSlider), ...
-                    'Value',            obj.sel{obj.mapSliderToDim(iSlider), obj.mapSliderToDim(iSlider)}, ...
+                    'Value',            obj.sel{min(3, obj.mapSliderToDim(iSlider)), obj.mapSliderToDim(iSlider)}, ...
                     'SliderStep',       steps, ...
                     'Callback',         @(src, eventdata) obj.newSlice(src, eventdata), ...
                     'BackgroundColor',  obj.COLOR_BG, ...
@@ -348,8 +358,7 @@ classdef nvis3 < nvisBase
                     % dont show the slider, if both inputs are singleton,
                     % or if the single input is singleton (i.e. obj.S ~= 1)
                     set(obj.hSlider(iSlider), 'Visible', 'off');
-                end
-                
+                end                
             end
             
             % populate control panel
@@ -586,7 +595,13 @@ classdef nvis3 < nvisBase
             % pControls
             obj.panelPos(8, :) = [0 ...
                 0 ...
-                pos(3) ...
+                2/3*pos(3) ...
+                controlHeight];
+
+            % pAdditionalSliders
+            obj.panelPos(9, :) = [2/3*pos(3) ...
+                0 ...
+                1/3*pos(3) ...
                 controlHeight];
         end
         
@@ -621,6 +636,26 @@ classdef nvis3 < nvisBase
             h0 = repmat(h0', [1 obj.gridSize(2)]);
             obj.controlPanelPos = cat(3, w0, h0, width, height);
         end
+
+
+        function setSliderPos(obj)
+        
+            maxHeight = 22;
+            vPadding  = 2;
+
+            % get panel size
+            pos = get(obj.pAdditionalSliders, 'Position');
+            sliderHeight = min(maxHeight, (pos(4) - (obj.nSlider+1)*vPadding) / (obj.nSlider-3));
+
+            obj.sliderPos = zeros(obj.nSlider, 4);
+            for iSlider = 1:obj.nSlider
+                if iSlider > 3
+                    set(obj.hSlider(iSlider), 'units', 'pixels')
+                    obj.sliderPos(iSlider, :) = [0.17*pos(3) pos(4)-(iSlider-3)*(vPadding+sliderHeight) 0.6*pos(3) sliderHeight];
+                end
+            end
+        
+        end
         
         
         function guidePos = calcGuidePos(obj)
@@ -653,15 +688,15 @@ classdef nvis3 < nvisBase
         function createSelector(obj)
             % which dimensions are shown initially
             obj.showDims = [2 3; 1 3; 1 2];
-            obj.mapSliderToDim   = 1:4;
+            obj.mapSliderToDim   = 1:obj.nDims;
             % create slice selector for dimensions 3 and higher
             obj.sel        = repmat({':'}, obj.nAxes, ndims(obj.img{1}));
             for iim = 1:obj.nAxes
                 obj.sel(iim, obj.mapSliderToDim == iim) = num2cell(obj.p.Results.InitSlice(iim));
             end
             
-            if obj.nSlider == 4
-                obj.sel(:, 4) = num2cell(round(obj.S(4)));
+            for iSlider = 4:obj.nDims
+                obj.sel(:, iSlider) = num2cell(round(obj.S(iSlider)/2));
             end
             
             % consider singleton dimensions            
@@ -958,6 +993,7 @@ classdef nvis3 < nvisBase
         function guiResize(obj, ~, ~)
             obj.setPanelPos()
             obj.genControlPanelGrid()
+            obj.setSliderPos()
             
             for iim = 1:obj.nAxes
                 set(obj.pImage(iim),  'Position', obj.panelPos(iim, :));
@@ -965,6 +1001,7 @@ classdef nvis3 < nvisBase
             end
             set(obj.pColorbar, 'Position', obj.panelPos(7, :));
             set(obj.pControls, 'Position', obj.panelPos(8, :));
+            set(obj.pAdditionalSliders, 'Position', obj.panelPos(9, :));
             
             set(obj.hTextC, 'Position', obj.controlPanelPos(1, 1, :));
             set(obj.hTextW, 'Position', obj.controlPanelPos(2, 1, :));
@@ -1004,7 +1041,11 @@ classdef nvis3 < nvisBase
             lavWidth = 250; % px
             set(obj.locAndVals, ...
                 'Position', [obj.panelPos(8, 3)-lavWidth 0 lavWidth obj.panelPos(8, 4)]);
-            
+
+            % additional Slider panel
+            for iSlider = 4:obj.nSlider
+                set(obj.hSlider(iSlider), 'Position', obj.sliderPos(iSlider, :));
+            end
         end
         
         

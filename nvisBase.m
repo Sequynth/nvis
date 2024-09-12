@@ -1312,7 +1312,14 @@ classdef (Abstract) nvisBase < handle
             % called when slider is moved, get current slice
             dim = obj.mapSliderToDim(obj.hSlider == src);
             im  = obj.mapSliderToImage{obj.hSlider == src};
-            obj.sel{im, dim} = round(src.Value);
+
+            if strcmp(im, ':')
+                for ii = 1:size(obj.sel, 1)
+                    obj.sel{ii, dim} = round(src.Value);
+                end
+            else
+                obj.sel{im, dim} = round(src.Value);
+            end
             
             obj.activateSlider(dim);
             obj.refreshUI();
