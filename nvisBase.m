@@ -931,8 +931,8 @@ classdef (Abstract) nvisBase < handle
                 obj.slice = cellfun(@single, obj.slice, 'UniformOutput', false);
             end
             
-            % Why is this here? Just curious. But somebody might want to
-            % add some comment here (@Johannes?)
+            % Since the content in the axes changes, also recalculate the
+            % values inside the ROIs.
             obj.calcROI
         end
         
@@ -1476,7 +1476,10 @@ classdef (Abstract) nvisBase < handle
                 case 3
                     obj.rois{roiNo} = images.roi.Freehand('Parent', gca, 'Color', obj.COLOR_roi(roiNo, :));
             end
-            
+
+            axNo = obj.getAxNo(gca);
+            obj.rois{roiNo}.Tag = num2str(axNo);
+
             addlistener(obj.rois{roiNo}, 'MovingROI', @obj.calcROI);
             draw(obj.rois{roiNo})
             
@@ -1486,20 +1489,20 @@ classdef (Abstract) nvisBase < handle
         
         function calcROI(obj, ~, ~)
             % calculate masks, mean/std and display values and SNR
-            
-            % TODO: write code that finds the axes for both rois
-            % hard fix:
-            axNo = 1;
-            
+                        
             % get current image
             for ii = 1:obj.nImages
                 if ~isempty(obj.rois{1})
+                    % get axis
+                    axNo = str2num(obj.rois{1}.Tag);
                     % This use does not work with resize ~= 1 !
                     Mask = obj.slice{axNo, ii}(obj.rois{1}.createMask);
                     obj.signal(ii) = mean(Mask(:));
                     set(obj.hTextRoi(1, ii), 'String', num2sci(obj.signal(ii), 'padding', 'right'));
                 end
                 if ~isempty(obj.rois{2})
+                    % get axis
+                    axNo = str2num(obj.rois{2}.Tag);
                     % This use does not work with resize ~= 1 !
                     Mask = obj.slice{axNo, ii}(obj.rois{2}.createMask);
                     % input to std must be floating point
@@ -1508,7 +1511,20 @@ classdef (Abstract) nvisBase < handle
                 end
                 set(obj.hTextSNRvals(ii), 'String', num2sci(obj.signal(ii)./obj.noise(ii), 'padding', 'right'));
             end
-        end        
+        end
+
+
+        function axNo = getAxNo(obj, ax)
+
+            % get hImage from parent axis
+            children = ax.Children;
+            for iCh = 1:numel(children)
+                if isa(children(iCh), 'matlab.graphics.primitive.Image')
+                    axNo = find(obj.hImage == children(iCh));
+                end
+            end
+
+        end
         
         
         function deleteRoi(obj, roiNo)

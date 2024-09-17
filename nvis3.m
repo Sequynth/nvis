@@ -269,13 +269,17 @@ classdef nvis3 < nvisBase
             %% set UI elements
             
             % populate image panels
-            ax = gobjects(3, 1);
+            ax = gobjects(1, obj.nAxes);
             obj.hGuides = gobjects(obj.nAxes, 4);
+            obj.hImage = gobjects(1, obj.nAxes);
             
             for iim = 1:obj.nAxes
                 % axes are not members of nvisBase or nvis3, to get the
                 % handle to an axis use: get(hImage(i), 'Parent')
-                ax(iim) = axes('Parent', obj.pImage(iim), 'Units', 'normal', 'Position', [0 0 1 1]);
+                ax(iim) = axes(...
+                    'Parent',   obj.pImage(iim), ...
+                    'Units',    'normalized', ...
+                    'Position', [0 0 1 1]);
                 obj.hImage(iim)  = imagesc(obj.sliceMixer(iim), 'Parent', ax(iim));  % plot image
                 hold on
                 eval(['axis ', obj.p.Results.AspectRatio]);
@@ -793,20 +797,26 @@ classdef nvis3 < nvisBase
             end
         end
         
-        
+
         function incDecActiveDim(obj, incDec)
             % change the active dimension by incDec
-            if obj.activeDim == 4
-                obj.sel{1:obj.nAxes, obj.activeDim} = obj.sel{1:obj.nAxes, obj.activeDim} + incDec;
-            else
+
+            if obj.activeDim <= obj.nAxes
                 obj.sel{obj.activeAx, obj.activeDim} = obj.sel{obj.activeAx, obj.activeDim} + incDec;
+                % check whether the value is too large and take the modulus
+                obj.sel{obj.activeAx, obj.activeDim} = mod(obj.sel{obj.activeAx, obj.activeDim}-1, obj.S(obj.activeDim))+1;
+            else
+                % change selector in all visible axes
+                for iAx = 1:obj.nAxes
+                    obj.sel{iAx, obj.activeDim} = obj.sel{iAx, obj.activeDim} + incDec;
+                    obj.sel{iAx, obj.activeDim} = mod(obj.sel{iAx, obj.activeDim}-1, obj.S(obj.activeDim))+1;
+                end
             end
-            % check whether the value is too large and take the modulus
-            obj.sel{obj.activeAx, obj.activeDim} = mod(obj.sel{obj.activeAx, obj.activeDim}-1, obj.S(obj.activeDim))+1;
+
             obj.refreshUI();
         end
-        
-        
+
+
         function mouseBtnAlt(obj, src, evtData)
             Pt = round(get(gca, 'CurrentPoint')/obj.resize);
             iim = find(src == obj.hImage);
