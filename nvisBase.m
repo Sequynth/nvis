@@ -153,6 +153,9 @@ classdef (Abstract) nvisBase < handle
         hBtnCwHome
         hBtnCwSlice
         hBtnCwLink
+
+        hBtnRotL
+        hBtnRotR
         
         % select the colormap for each input image
         hPopCm
@@ -500,6 +503,7 @@ classdef (Abstract) nvisBase < handle
             addParameter(obj.p, 'LoopDimension',3,                              @(x) isnumeric(x) && x <= obj.nDims && obj.nDims >= 3);
             addParameter(obj.p, 'LoopCount',    Inf,                            @isnumeric);
             addParameter(obj.p, 'fixedDim',     0,                              @isnumeric);
+            addParameter(obj.p, 'InitRot',      0,                              @(x) isnumeric(x));
 
         end
         
@@ -595,7 +599,7 @@ classdef (Abstract) nvisBase < handle
                     'Callback',             {@obj.BtnCwSliceCallback}, ...
                     'String',               char(9633), ...
                     'Tooltip',              'window current slice');
-                
+
                 if obj.nImages == 2
                     obj.hBtnHide(idh) = uicontrol( ...
                         'Style',                'togglebutton', ...
@@ -624,8 +628,7 @@ classdef (Abstract) nvisBase < handle
                     'ForegroundColor',      obj.COLOR_F, ...
                     'Tooltip',              'link windowing in both images', ...
                     'String',               sprintf('<html><img src="file:/%sunlinked.png" height="15" width="15"/></html>', obj.resPath), ...
-                    'Callback',             {@obj.BtnCwLinkCallback});
-                obj.linkedWindowing = false;
+                    'Callback',             {@obj.BtnCwLinkCallback});                
                 
                 obj.hBtnToggle = uicontrol( ...
                     'Style',                'pushbutton', ...
@@ -634,6 +637,7 @@ classdef (Abstract) nvisBase < handle
                     'ForegroundColor',      obj.COLOR_F, ...
                     'Callback',             {@obj.BtnToggleCallback});                
             end
+            obj.linkedWindowing = false;
                         
             obj.hPopCm(1) = uicontrol( ...
                 'Style',                'popup', ...
@@ -1095,16 +1099,17 @@ classdef (Abstract) nvisBase < handle
             % track motion of mouse and change center and width variables
             % accordingly
             cPoint = get(callingAx, 'CurrentPoint');
+            axNo = find([obj.hImage.Parent] == callingAx);
             
             dx = (cPoint(1, 1)-StartPt(1, 1)) / obj.nrmFac(2); % width-direction (LR)
             dy = (cPoint(1, 2)-StartPt(1, 2)) / obj.nrmFac(1); % center direction (UD)
             
-             % dVec = [dx, dy];
+            % dVec = [dx, dy]
             
             % from the rotated axis coordinate system, rotate back into the
             % figure (screen) coordinate system
-            dVecRot = [cosd(obj.azimuthAng) * dx - sind(obj.azimuthAng) * dy, ...
-                sind(obj.azimuthAng) * dx + cosd(obj.azimuthAng) * dy];
+            dVecRot = [cosd(obj.azimuthAng(axNo)) * dx - sind(obj.azimuthAng(axNo)) * dy, ...
+                sind(obj.azimuthAng(axNo)) * dx + cosd(obj.azimuthAng(axNo)) * dy];
 
             obj.width  = sWidth  + wStep .* dVecRot(1);
             obj.center = sCenter - cStep .* dVecRot(2);
@@ -1563,6 +1568,21 @@ classdef (Abstract) nvisBase < handle
             else
                 fprintf('ROI_Noise not found\n');
             end
+        end
+
+
+        function rotateView(obj, src, ~, angle)
+            % function is called by the BtnRotL or BtnRotR
+            
+            if angle > 0
+                %rotate right
+                axNo = find(obj.hBtnRotR == src);
+            else
+                % rotate left
+                axNo = find(obj.hBtnRotL == src);
+            end
+            obj.azimuthAng(axNo) = mod(obj.azimuthAng(axNo) + angle, 360);
+            set(obj.hImage(axNo).Parent, 'View', [obj.azimuthAng(axNo) 90])
         end
                 
         
