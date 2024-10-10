@@ -1361,9 +1361,9 @@ classdef (Abstract) nvisBase < handle
                 end
             else
                 % scroll mode
-                if evtData.VerticalScrollCount < 0 && obj.nDims > 2
+                if evtData.VerticalScrollCount < 0 && obj.nSlider > 0
                     obj.incDecActiveDim(-1);
-                elseif evtData.VerticalScrollCount > 0 && obj.nDims > 2
+                elseif evtData.VerticalScrollCount > 0 && obj.nSlider > 0
                     obj.incDecActiveDim(+1);
                 end
             end

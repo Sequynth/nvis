@@ -243,8 +243,8 @@ classdef nvis < nvisBase
             % which dimensions are shown initially
             obj.showDims = permute([1 2]);
 
-            % only show slider for a dimension with a length higher than 1
-            if obj.nDims > 2
+            % are there more than 2 dimensions with size > 1?
+            if numel(permute) > 2
                 tmp = permute(3:end);
                 % create a temporary size variable with trailing 1s to
                 % mimick behaviour of matlabs inbuilt permute function
