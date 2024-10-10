@@ -503,7 +503,7 @@ classdef (Abstract) nvisBase < handle
             addParameter(obj.p, 'LoopDimension',3,                              @(x) isnumeric(x) && x <= obj.nDims && obj.nDims >= 3);
             addParameter(obj.p, 'LoopCount',    Inf,                            @isnumeric);
             addParameter(obj.p, 'fixedDim',     0,                              @isnumeric);
-            addParameter(obj.p, 'InitRot',      0,                              @(x) isnumeric(x));
+            addParameter(obj.p, 'InitRot',      zeros(1, obj.nAxes),            @(x) isnumeric(x));
 
         end
         

@@ -68,6 +68,8 @@ classdef nvis3 < nvisBase
 	%                               assigned the same unit
 	%	'InitSlice',    1x3         set the slices that are shown when the
 	%                               figure is opened.
+    %	'InitRot',      1x3         initial rotation angle of the displayed
+    %                               image
 	%	'DimLabel',     cell{char}  char arrays to label the individual
 	%                               dimensions in the input data. Cell
 	%                               entries can be empty to use default
@@ -1092,7 +1094,6 @@ classdef nvis3 < nvisBase
         end
         
         
-%         function vertPos(obj, N)
     end
 end
     
