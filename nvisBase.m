@@ -981,6 +981,10 @@ classdef (Abstract) nvisBase < handle
             
             % make sure no channel has values above 1
             cImage(cImage > 1) = 1;
+
+            % if at least one of the inputs is a gpuArray, gather it in
+            % order to be able to show it
+            cImage = gather(cImage);
         end
         
         
