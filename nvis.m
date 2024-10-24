@@ -143,8 +143,6 @@ classdef nvis < nvisBase
         pColorbar
         hBtnShiftL
         hBtnShiftR
-        hBtnRotL
-        hBtnRotR
         hBtnPoint
         hBtnPlot
         hBtnUpdateExternal
@@ -224,7 +222,6 @@ classdef nvis < nvisBase
             obj.prepareParser()
             
             % additional parameters 
-            addParameter(obj.p, 'InitRot',          0,                                              @(x) isnumeric(x));
             addParameter(obj.p, 'InitSlice',        round(obj.S([false false obj.S(3:end) > 2])/2), @isnumeric);
             addParameter(obj.p, 'InitPoint',        [1 1],                                          @isnumeric);
             addParameter(obj.p, 'InitShift',        0,                                              @(x) isnumeric(x) && isscalar(x));
@@ -318,8 +315,6 @@ classdef nvis < nvisBase
             % requires InitSlice to be set
             obj.createSelector()
 
-            
-                        
             % necessary for view orientation, already needed when saving image or video
             obj.azimuthAng   = obj.p.Results.InitRot;
                         
@@ -587,30 +582,31 @@ classdef nvis < nvisBase
                 'BackgroundColor',      obj.COLOR_BG, ...
                 'ForegroundColor',      obj.COLOR_F);
             
+                      
             obj.hBtnRotL = uicontrol( ...
                 'Parent',               obj.pControls, ...
                 'Style',                'pushbutton', ...
                 'Units',                'pixel', ...
                 'String',               char(11119), ...
                 'Tooltip',              'rotate image counter-clockwise by 90°', ...
-                'Callback',             { @obj.rotateView}, ...
+                'Callback',             { @obj.rotateView, -90}, ...
                 'FontUnits',            'normalized', ...
                 'FontSize',             0.75, ...
                 'BackgroundColor',      obj.COLOR_BG, ...
                 'ForegroundColor',      obj.COLOR_F);
-            
+
             obj.hBtnRotR = uicontrol( ...
                 'Parent',               obj.pControls, ...
                 'Style',                'pushbutton', ...
                 'Units',                'pixel', ...
                 'String',               char(11118), ...
                 'Tooltip',              'rotate image clockwise by 90°', ...
-                'Callback',             { @obj.rotateView}, ...
+                'Callback',             { @obj.rotateView, 90}, ...
                 'FontUnits',            'normalized', ...
                 'FontSize',             0.75, ...
                 'BackgroundColor',      obj.COLOR_BG, ...
                 'ForegroundColor',      obj.COLOR_F);
-            
+
             obj.hBtnShiftR = uicontrol( ...
                 'Parent',               obj.pControls, ...
                 'Style',                'pushbutton', ...
@@ -1285,6 +1281,12 @@ classdef nvis < nvisBase
             % code executed when the user presses the right mouse button.
             % currently not implemented.
         end
+
+
+        function mouseBtnDouble(obj, src, evtData)
+            % code executed when the user uses left double-click.
+            % currently not implemented.
+        end
         
         
         function btnGselection(obj, ~, evtData)
@@ -1583,19 +1585,6 @@ classdef nvis < nvisBase
             delete(obj.f);
             % and delete the handle to the nvis object
             delete(obj)
-        end
-        
-        
-        function rotateView(obj, src, ~)
-            % function is called by the two buttons (rotL, rotR)
-            
-            switch (src)
-                case obj.hBtnRotL
-                    obj.azimuthAng = mod(obj.azimuthAng - 90, 360);
-                case obj.hBtnRotR
-                    obj.azimuthAng = mod(obj.azimuthAng + 90, 360);
-            end
-            view([obj.azimuthAng 90])
         end
         
 

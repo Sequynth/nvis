@@ -153,6 +153,9 @@ classdef (Abstract) nvisBase < handle
         hBtnCwHome
         hBtnCwSlice
         hBtnCwLink
+
+        hBtnRotL
+        hBtnRotR
         
         % select the colormap for each input image
         hPopCm
@@ -265,6 +268,7 @@ classdef (Abstract) nvisBase < handle
         recolor(obj)
         saveImgBtn(obj)
         minimMaximBtn(obj)
+        mouseBtnDouble(obj)
     end
         
     
@@ -500,6 +504,7 @@ classdef (Abstract) nvisBase < handle
             addParameter(obj.p, 'LoopDimension',3,                              @(x) isnumeric(x) && x <= obj.nDims && obj.nDims >= 3);
             addParameter(obj.p, 'LoopCount',    Inf,                            @isnumeric);
             addParameter(obj.p, 'fixedDim',     0,                              @isnumeric);
+            addParameter(obj.p, 'InitRot',      zeros(1, obj.nAxes),            @(x) isnumeric(x));
 
         end
         
@@ -595,7 +600,7 @@ classdef (Abstract) nvisBase < handle
                     'Callback',             {@obj.BtnCwSliceCallback}, ...
                     'String',               char(9633), ...
                     'Tooltip',              'window current slice');
-                
+
                 if obj.nImages == 2
                     obj.hBtnHide(idh) = uicontrol( ...
                         'Style',                'togglebutton', ...
@@ -624,8 +629,7 @@ classdef (Abstract) nvisBase < handle
                     'ForegroundColor',      obj.COLOR_F, ...
                     'Tooltip',              'link windowing in both images', ...
                     'String',               sprintf('<html><img src="file:/%sunlinked.png" height="15" width="15"/></html>', obj.resPath), ...
-                    'Callback',             {@obj.BtnCwLinkCallback});
-                obj.linkedWindowing = false;
+                    'Callback',             {@obj.BtnCwLinkCallback});                
                 
                 obj.hBtnToggle = uicontrol( ...
                     'Style',                'pushbutton', ...
@@ -634,6 +638,7 @@ classdef (Abstract) nvisBase < handle
                     'ForegroundColor',      obj.COLOR_F, ...
                     'Callback',             {@obj.BtnToggleCallback});                
             end
+            obj.linkedWindowing = false;
                         
             obj.hPopCm(1) = uicontrol( ...
                 'Style',                'popup', ...
@@ -931,8 +936,8 @@ classdef (Abstract) nvisBase < handle
                 obj.slice = cellfun(@single, obj.slice, 'UniformOutput', false);
             end
             
-            % Why is this here? Just curious. But somebody might want to
-            % add some comment here (@Johannes?)
+            % Since the content in the axes changes, also recalculate the
+            % values inside the ROIs.
             obj.calcROI
         end
         
@@ -1058,13 +1063,16 @@ classdef (Abstract) nvisBase < handle
             % when middle mouse button is pressed, save current point and start
             % tracking of mouse movements
             callingAx = src.Parent;
-            Pt = get(callingAx, 'CurrentPoint');
-            
+            Pt = get(callingAx, 'CurrentPoint');            
             
             % activate the axis in which the windowing occurrs.
             imgIdx = find(obj.hImage == src);
             if obj.nAxes > 1
                 obj.activateAx(imgIdx)
+            end
+
+            if strcmp(obj.f.SelectionType, 'open')
+                obj.mouseBtnDouble(src, evtData);
             end
             
             % store start values for window and center
@@ -1099,16 +1107,17 @@ classdef (Abstract) nvisBase < handle
             % track motion of mouse and change center and width variables
             % accordingly
             cPoint = get(callingAx, 'CurrentPoint');
+            axNo = find([obj.hImage.Parent] == callingAx);
             
             dx = (cPoint(1, 1)-StartPt(1, 1)) / obj.nrmFac(2); % width-direction (LR)
             dy = (cPoint(1, 2)-StartPt(1, 2)) / obj.nrmFac(1); % center direction (UD)
             
-             % dVec = [dx, dy];
+            % dVec = [dx, dy]
             
             % from the rotated axis coordinate system, rotate back into the
             % figure (screen) coordinate system
-            dVecRot = [cosd(obj.azimuthAng) * dx - sind(obj.azimuthAng) * dy, ...
-                sind(obj.azimuthAng) * dx + cosd(obj.azimuthAng) * dy];
+            dVecRot = [cosd(obj.azimuthAng(axNo)) * dx - sind(obj.azimuthAng(axNo)) * dy, ...
+                sind(obj.azimuthAng(axNo)) * dx + cosd(obj.azimuthAng(axNo)) * dy];
 
             obj.width  = sWidth  + wStep .* dVecRot(1);
             obj.center = sCenter - cStep .* dVecRot(2);
@@ -1316,7 +1325,14 @@ classdef (Abstract) nvisBase < handle
             % called when slider is moved, get current slice
             dim = obj.mapSliderToDim(obj.hSlider == src);
             im  = obj.mapSliderToImage{obj.hSlider == src};
-            obj.sel{im, dim} = round(src.Value);
+
+            if strcmp(im, ':')
+                for ii = 1:size(obj.sel, 1)
+                    obj.sel{ii, dim} = round(src.Value);
+                end
+            else
+                obj.sel{im, dim} = round(src.Value);
+            end
             
             obj.activateSlider(dim);
             obj.refreshUI();
@@ -1473,7 +1489,10 @@ classdef (Abstract) nvisBase < handle
                 case 3
                     obj.rois{roiNo} = images.roi.Freehand('Parent', gca, 'Color', obj.COLOR_roi(roiNo, :));
             end
-            
+
+            axNo = obj.getAxNo(gca);
+            obj.rois{roiNo}.Tag = num2str(axNo);
+
             addlistener(obj.rois{roiNo}, 'MovingROI', @obj.calcROI);
             draw(obj.rois{roiNo})
             
@@ -1483,20 +1502,20 @@ classdef (Abstract) nvisBase < handle
         
         function calcROI(obj, ~, ~)
             % calculate masks, mean/std and display values and SNR
-            
-            % TODO: write code that finds the axes for both rois
-            % hard fix:
-            axNo = 1;
-            
+                        
             % get current image
             for ii = 1:obj.nImages
                 if ~isempty(obj.rois{1})
+                    % get axis
+                    axNo = str2num(obj.rois{1}.Tag);
                     % This use does not work with resize ~= 1 !
                     Mask = obj.slice{axNo, ii}(obj.rois{1}.createMask);
                     obj.signal(ii) = mean(Mask(:));
                     set(obj.hTextRoi(1, ii), 'String', num2sci(obj.signal(ii), 'padding', 'right'));
                 end
                 if ~isempty(obj.rois{2})
+                    % get axis
+                    axNo = str2num(obj.rois{2}.Tag);
                     % This use does not work with resize ~= 1 !
                     Mask = obj.slice{axNo, ii}(obj.rois{2}.createMask);
                     % input to std must be floating point
@@ -1505,7 +1524,20 @@ classdef (Abstract) nvisBase < handle
                 end
                 set(obj.hTextSNRvals(ii), 'String', num2sci(obj.signal(ii)./obj.noise(ii), 'padding', 'right'));
             end
-        end        
+        end
+
+
+        function axNo = getAxNo(obj, ax)
+
+            % get hImage from parent axis
+            children = ax.Children;
+            for iCh = 1:numel(children)
+                if isa(children(iCh), 'matlab.graphics.primitive.Image')
+                    axNo = find(obj.hImage == children(iCh));
+                end
+            end
+
+        end
         
         
         function deleteRoi(obj, roiNo)
@@ -1544,6 +1576,21 @@ classdef (Abstract) nvisBase < handle
             else
                 fprintf('ROI_Noise not found\n');
             end
+        end
+
+
+        function rotateView(obj, src, ~, angle)
+            % function is called by the BtnRotL or BtnRotR
+            
+            if angle > 0
+                %rotate right
+                axNo = find(obj.hBtnRotR == src);
+            else
+                % rotate left
+                axNo = find(obj.hBtnRotL == src);
+            end
+            obj.azimuthAng(axNo) = mod(obj.azimuthAng(axNo) + angle, 360);
+            set(obj.hImage(axNo).Parent, 'View', [obj.azimuthAng(axNo) 90])
         end
                 
         
