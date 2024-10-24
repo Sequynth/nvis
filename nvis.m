@@ -1281,6 +1281,12 @@ classdef nvis < nvisBase
             % code executed when the user presses the right mouse button.
             % currently not implemented.
         end
+
+
+        function mouseBtnDouble(obj, src, evtData)
+            % code executed when the user uses left double-click.
+            % currently not implemented.
+        end
         
         
         function btnGselection(obj, ~, evtData)

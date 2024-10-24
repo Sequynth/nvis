@@ -729,7 +729,7 @@ classdef nvis3 < nvisBase
             obj.showDims = [2 3; 1 3; 1 2];
             obj.mapSliderToDim   = 1:obj.nDims;
             % create slice selector for dimensions 3 and higher
-            obj.sel        = repmat({':'}, obj.nAxes, ndims(obj.img{1}));
+            obj.sel        = repmat({':'}, obj.nAxes, max(ndims(obj.img{1}), ndims(obj.img{1})));
             for iim = 1:obj.nAxes
                 obj.sel(iim, obj.mapSliderToDim == iim) = num2cell(obj.p.Results.InitSlice(iim));
             end
@@ -857,6 +857,28 @@ classdef nvis3 < nvisBase
             iim = find(src == obj.hImage);
             obj.sel{obj.showDims(iim, 1), obj.showDims(iim, 1)} = Pt(1, 2);
             obj.sel{obj.showDims(iim, 2), obj.showDims(iim, 2)} = Pt(1, 1);
+            obj.refreshUI()
+        end
+
+
+        function mouseBtnDouble(obj, src, ~)
+
+            axNo = find(obj.hImage == src);
+
+            callingAx = src.Parent;
+            Pt = get(callingAx, 'CurrentPoint');
+            coords = [Pt(1, 2) Pt(1, 1)];
+            
+            
+            dims = obj.showDims(axNo, :);
+
+            for iAx = 1:3
+                if iAx ~= axNo
+                    dim = iAx == dims;
+                    obj.sel{iAx, dims(dim)} = round(coords(dim));
+                end
+            end
+
             obj.refreshUI()
         end
 

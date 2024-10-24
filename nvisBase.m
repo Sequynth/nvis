@@ -268,6 +268,7 @@ classdef (Abstract) nvisBase < handle
         recolor(obj)
         saveImgBtn(obj)
         minimMaximBtn(obj)
+        mouseBtnDouble(obj)
     end
         
     
@@ -1058,13 +1059,16 @@ classdef (Abstract) nvisBase < handle
             % when middle mouse button is pressed, save current point and start
             % tracking of mouse movements
             callingAx = src.Parent;
-            Pt = get(callingAx, 'CurrentPoint');
-            
+            Pt = get(callingAx, 'CurrentPoint');            
             
             % activate the axis in which the windowing occurrs.
             imgIdx = find(obj.hImage == src);
             if obj.nAxes > 1
                 obj.activateAx(imgIdx)
+            end
+
+            if strcmp(obj.f.SelectionType, 'open')
+                obj.mouseBtnDouble(src, evtData);
             end
             
             % store start values for window and center
