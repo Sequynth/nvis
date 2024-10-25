@@ -1883,7 +1883,16 @@ classdef (Abstract) nvisBase < handle
             if exist('inferno.m', 'file') == 2
                 obj.availableCmaps.inferno = inferno;
             end
-            
+
+            % check 'colormap' folder for additional colormaps
+            [currentPath, ~, ~] = fileparts(mfilename('fullpath'));
+            files = dir([currentPath '/colormaps']);
+            for iFile = 3:numel(files)
+                % skip '.' and '..'
+                [~, mapName, ~] = fileparts(files(iFile).name);
+                obj.availableCmaps.(mapName) = feval(mapName, cmapResolution);
+            end
+
             obj.cmapStrings = fieldnames(obj.availableCmaps);
         end
         
