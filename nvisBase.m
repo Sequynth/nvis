@@ -1164,6 +1164,8 @@ classdef (Abstract) nvisBase < handle
                         % min color of the colormap. Show only those in
                         % colorbar, and only the tick at the thresholdvalue
                         % in the middle
+                        set(allchild(obj.hAxCb(idi)), 'CData', [0; 1])
+
                         set(allchild(obj.hAxCb(idi)), ...
                             Data,    [0 1])
                         set(obj.hAxCb(idi), ...
@@ -1174,6 +1176,8 @@ classdef (Abstract) nvisBase < handle
                         ticks_new = {};
                         ticks_new{1} = [sprintf('\\color[rgb]{%.3f,%.3f,%.3f} ', obj.COLOR_m(idi,  :)) num2str(obj.center(idi))];
                     else
+                        set(allchild(obj.hAxCb(idi)), 'CData', linspace(0, 1, size(obj.cmap{idi}, 1))')
+
                         set(obj.hAxCb(idi), [Tick 'Mode'], 'auto')
                         set(allchild(obj.hAxCb(idi)), ...
                             Data,    linspace(obj.center(idi)-obj.width(idi)/2, obj.center(idi)+obj.width(idi)/2, size(obj.cmap{idi}, 1)))
