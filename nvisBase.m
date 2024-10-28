@@ -966,7 +966,7 @@ classdef (Abstract) nvisBase < handle
             for idd = 1:obj.nImages
                 % map images to range [0, cmapResolution]
                 cLimLow  = single(obj.center(obj.complexMode, idd) - obj.width(obj.complexMode, idd)/2);
-                imgMapped = (obj.slice{axNo, idd} - cLimLow)/single(obj.width(idd)) * size(obj.cmap{idd}, 1);
+                imgMapped = (obj.slice{axNo, idd} - cLimLow)/single(obj.width(obj.complexMode, idd)) * size(obj.cmap{idd}, 1);
                 if obj.resize ~= 1
                     imgMapped = imresize(imgMapped, obj.resize);
                 end
@@ -1072,8 +1072,8 @@ classdef (Abstract) nvisBase < handle
             sCenter = obj.center(obj.complexMode, :);
             sWidth  = obj.width(obj.complexMode, :);
             % and the steps for both images
-            cStep   = [obj.centerStep(1), obj.centerStep(2)];
-            wStep   = [obj.widthStep(1), obj.widthStep(2)];
+            cStep   = obj.centerStep(obj.complexMode, :);
+            wStep   = obj.widthStep(obj.complexMode, :);
             
             % normalization factor
             obj.nrmFac = [obj.S(find(obj.showDims(imgIdx, :), 1, 'first')) obj.S(find(obj.showDims(imgIdx, :), 1, 'last'))]*obj.resize;
