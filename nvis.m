@@ -1066,7 +1066,7 @@ classdef nvis < nvisBase
                     'Color',            obj.COLOR_m(idh, :));
                 imagesc(linspace(0, 1, size(obj.cmap{idh}, 1))');
                 colormap(obj.hAxCb(idh), obj.cmap{idh});
-                caxis(obj.hAxCb(idh), [0 1])
+                clim(obj.hAxCb(idh), [0 1])
                 
                 % change the y direction of the colorbars
                 set(obj.hAxCb(idh), 'YDir', 'normal')
@@ -1288,13 +1288,13 @@ classdef nvis < nvisBase
         end
         
        
-        function mouseBtnAlt(obj, src, evtData)
+        function mouseBtnAlt(obj, ~, ~)
             % code executed when the user presses the right mouse button.
             % currently not implemented.
         end
 
 
-        function mouseBtnDouble(obj, src, evtData)
+        function mouseBtnDouble(obj, ~, ~)
             % code executed when the user uses left double-click.
             % currently not implemented.
         end
@@ -1671,7 +1671,7 @@ classdef nvis < nvisBase
                 obj.sel{obj.fixedDim} = fixedSel;
             end
 
-            if contains('SaveImage', obj.p.UsingDefaults) & contains('SaveVideo', obj.p.UsingDefaults)
+            if contains('SaveImage', obj.p.UsingDefaults) && contains('SaveVideo', obj.p.UsingDefaults)
                 % when no UI is created, because a video or image is saved
                 % via NVP, we dont update the (non-existent) GUI.
 
