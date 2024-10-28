@@ -1801,36 +1801,36 @@ classdef (Abstract) nvisBase < handle
         end
         
         
-        function setCmap(obj, src, ~)            
+        function setCmap(obj, src, ~)
             % which colormap is selected
             idx = find(src == obj.hPopCm);
             cm = obj.cmapStrings{get(src, 'Value')};
             obj.cmap{idx} = obj.availableCmaps.(cm);
-            
+
             % set UI text colors
-                obj.COLOR_m(idx, :) = obj.cmap{idx}(round(size(obj.availableCmaps.(cm), 1) * 0.9), :);
-                
-                % change color of c/w edit fields
-                set(obj.hEditC(idx), 'ForegroundColor', obj.COLOR_m(idx, :))
-                set(obj.hEditW(idx), 'ForegroundColor', obj.COLOR_m(idx, :))
-                if obj.nImages == 2
+            obj.COLOR_m(idx, :) = obj.cmap{idx}(round(size(obj.availableCmaps.(cm), 1) * 0.9), :);
+
+            % change color of c/w edit fields
+            set(obj.hEditC(idx), 'ForegroundColor', obj.COLOR_m(idx, :))
+            set(obj.hEditW(idx), 'ForegroundColor', obj.COLOR_m(idx, :))
+            if obj.nImages == 2
                 set(obj.hBtnHide(idx), 'ForegroundColor', obj.COLOR_m(idx, :))
-                end
-                
+            end
+
             % change colorbar axes
             if ~isempty(obj.hAxCb)
                 % many UI elements dont exist when prepare colors is called
                 % the first time
                 colormap(obj.hAxCb(idx), obj.cmap{idx})
                 % recolor the ticks on the colorbars
-            	obj.cw()
+                obj.cw()
             end
-                                  
+
             if obj.nImages == 2 && strcmp(get(obj.f, 'Visible'), 'on')
                 % the first time setCmap is called, not all UI Elements are
                 % created yet, so we wait until obj.f is actually shown to
                 % the user
-                                
+
                 obj.recolor()
             end
         end

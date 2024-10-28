@@ -391,8 +391,11 @@ classdef nvis < nvisBase
                 'CloseRequestFcn',      @obj.closeRqst, ...
                 'WindowButtonMotionFcn',@obj.mouseMovement, ...
                 'WindowButtonUpFcn',    @obj.stopDragFcn, ...
-                'WindowScrollWheelFcn', @obj.scrollSlider, ...
-                'KeyPressFcn',          @obj.keyPressedFcn);
+                'WindowScrollWheelFcn', @obj.scrollSlider)
+            
+            if obj.nImages > 1
+                set(obj.f, 'KeyPressFcn', @obj.keyPressedFcn)
+            end
                         
             % absolute height of slider panel            
             obj.pSliderHeight   = obj.nSlider * (obj.sliderHeight + 2*obj.sliderPadding); % px

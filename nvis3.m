@@ -230,6 +230,10 @@ classdef nvis3 < nvisBase
                 'WindowButtonMotionFcn',@obj.mouseMovement, ...
                 'WindowButtonUpFcn',    @obj.stopDragFcn, ...
                 'WindowScrollWheelFcn', @obj.scrollSlider);
+
+            if obj.nImages > 1
+                set(obj.f, 'KeyPressFcn', @obj.keyPressedFcn)
+            end
             
             obj.setPanelPos()
             
