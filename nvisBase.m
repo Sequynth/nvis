@@ -1157,18 +1157,36 @@ classdef (Abstract) nvisBase < handle
                     TickLabel = 'YTickLabel';
                 end
                 
-                for idi = 1:obj.nImages                    
-                    set(allchild(obj.hAxCb(idi)), ...
-                        Data,    linspace(obj.center(idi)-obj.width(idi)/2, obj.center(idi)+obj.width(idi)/2, size(obj.cmap{idi}, 1)))
-                    set(obj.hAxCb(idi), ...
-                        Lim,     [obj.center(idi)-obj.width(idi)/2, obj.center(idi)+obj.width(idi)/2])
-                    
-                    % get tick positions
-                    ticks = get(obj.hAxCb(idi), Tick);
-                    % prepend a color for each tick label
-                    ticks_new = cell(size(ticks));
-                    for ii = 1:length(ticks)
-                        ticks_new{ii} = [sprintf('\\color[rgb]{%.3f,%.3f,%.3f} ', obj.COLOR_m(idi,  :)) num2str(ticks(ii))];
+                for idi = 1:obj.nImages
+
+                    if obj.width(idi) == 0
+                        % only two colors are present in the image: max and
+                        % min color of the colormap. Show only those in
+                        % colorbar, and only the tick at the thresholdvalue
+                        % in the middle
+                        set(allchild(obj.hAxCb(idi)), ...
+                            Data,    [0 1])
+                        set(obj.hAxCb(idi), ...
+                            Lim,     [0 1])
+
+                        ticks = 0.5;
+                        set(obj.hAxCb(idi), Tick, ticks);
+                        ticks_new = {};
+                        ticks_new{1} = [sprintf('\\color[rgb]{%.3f,%.3f,%.3f} ', obj.COLOR_m(idi,  :)) num2str(obj.center(idi))];
+                    else
+                        set(obj.hAxCb(idi), [Tick 'Mode'], 'auto')
+                        set(allchild(obj.hAxCb(idi)), ...
+                            Data,    linspace(obj.center(idi)-obj.width(idi)/2, obj.center(idi)+obj.width(idi)/2, size(obj.cmap{idi}, 1)))
+                        set(obj.hAxCb(idi), ...
+                            Lim,     [obj.center(idi)-obj.width(idi)/2, obj.center(idi)+obj.width(idi)/2])
+
+                        % get tick positions
+                        ticks = get(obj.hAxCb(idi), Tick);
+                        % prepend a color for each tick label
+                        ticks_new = cell(size(ticks));
+                        for ii = 1:length(ticks)
+                            ticks_new{ii} = [sprintf('\\color[rgb]{%.3f,%.3f,%.3f} ', obj.COLOR_m(idi,  :)) num2str(ticks(ii))];
+                        end
                     end
                     set(obj.hAxCb(idi), TickLabel, ticks_new);
                 end
