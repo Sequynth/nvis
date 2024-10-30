@@ -918,26 +918,19 @@ classdef (Abstract) nvisBase < handle
                     end
                 end
             end
-            
-            if any(~cellfun(@isreal, obj.slice(:)))
-                % at least one of the slices has complex values, that
-                % means:
-                % show the complex Buttons (if pControl is not minimized)
-                set(obj.hBtnCmplx, 'Visible', obj.maximized);
+
+            if any(obj.isComplex)
                 % convert the displayed data to the complex mode chosen by
                 % the user and then to datatype single
                 obj.slice = cellfun(@single, ...
                     cellfun(@obj.complexPart, obj.slice, 'UniformOutput', false), ...
                     'UniformOutput', false);
             else
-                % none of the slices has complex data
-                % when hBtnCmplx are hidden, complexMode must be 3
-                obj.complexMode = 3;
-                set(obj.hBtnCmplx, 'Visible', 'off');
                 % convert the displayed data to datatype single
                 obj.slice = cellfun(@single, obj.slice, 'UniformOutput', false);
             end
-            
+
+
             % Since the content in the axes changes, also recalculate the
             % values inside the ROIs.
             obj.calcROI
