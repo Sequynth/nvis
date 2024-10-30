@@ -738,7 +738,7 @@ classdef (Abstract) nvisBase < handle
                 'Style',                'togglebutton', ...
                 'String',               'abs', ...
                 'Tooltip',              'Show absolute value of data', ...
-                'Callback',             {@obj.toggleComplex},...
+                'Callback',             {@obj.BtnCmplxCallback},...
                 'BackgroundColor',      obj.COLOR_BG, ...
                 'ForegroundColor',      obj.COLOR_F);
             
@@ -746,7 +746,7 @@ classdef (Abstract) nvisBase < handle
                 'Style',                'togglebutton', ...
                 'String',               'phase', ...
                 'Tooltip',              'Show phase value of data', ...
-                'Callback',             {@obj.toggleComplex},...
+                'Callback',             {@obj.BtnCmplxCallback},...
                 'BackgroundColor',      obj.COLOR_BG, ...
                 'ForegroundColor',      obj.COLOR_F);
             
@@ -754,7 +754,7 @@ classdef (Abstract) nvisBase < handle
                 'Style',                'togglebutton', ...
                 'String',               'real', ...
                 'Tooltip',              'Show real part of data', ...
-                'Callback',             {@obj.toggleComplex},...
+                'Callback',             {@obj.BtnCmplxCallback},...
                 'BackgroundColor',      obj.COLOR_BG, ...
                 'ForegroundColor',      obj.COLOR_F);
             
@@ -762,7 +762,7 @@ classdef (Abstract) nvisBase < handle
                 'Style',                'togglebutton', ...
                 'String',               'imag', ...
                 'Tooltip',              'Show imaginary part of data', ...
-                'Callback',             {@obj.toggleComplex},...
+                'Callback',             {@obj.BtnCmplxCallback},...
                 'BackgroundColor',      obj.COLOR_BG, ...
                 'ForegroundColor',      obj.COLOR_F);
             
@@ -986,64 +986,7 @@ classdef (Abstract) nvisBase < handle
             % order to be able to show it
             cImage = gather(cImage);
         end
-        
-        
-        function out = complexPart(obj, in)
-            % complexPart(obj, in)
-            % in:           array with (potentially) complex data
-            % complexMode:  int defining the complex part of out
-            %               1: Magnitude
-            %               2: Phase
-            %               3: real part
-            %               4: imaginary part
-            %
-            % out:    magnitude, phase, real or imaginary part of in
-            %
-            % depending on the value in 'complexMode' either the magnitude,
-            % phase, real part or imaginary part is returned
             
-            switch(obj.complexMode)
-                case 1
-                    out = abs(in);
-                case 2
-                    out = angle(in);
-                case 3
-                    out = real(in);
-                case 4
-                    out = imag(in);
-            end
-        end
-        
-        
-        function toggleComplex(obj, source, ~)
-            % toggleComplex(source, ~)
-            % source:       handle to uicontrol button
-            %
-            % called by:    uicontrol togglebutton: Callback
-            %
-            % Is called when one of the 4 complex data buttons is pressed.
-            % These buttons are only visible when at least one matrix has
-            % complex data.
-            % Depending on which button was pressed last, the magnitude, phase,
-            % real part or imaginary part of complex data is shown.
-            %
-            % complexMode:
-            % 1:    magnitude
-            % 2:    phase
-            % 3:    real
-            % 4:    imag
-            
-            % set all buttons unpressed
-            set(obj.hBtnCmplx, 'Value', 0)
-            btnIdx = find(source == obj.hBtnCmplx);
-                        
-            obj.complexMode = btnIdx;
-            set(obj.hBtnCmplx(btnIdx), 'Value', 1)
-            
-            obj.cw()
-            obj.refreshUI()
-        end
-        
         
         function startDragFcn(obj, src, evtData)
             % when middle mouse button is pressed, save current point and start
@@ -1268,6 +1211,63 @@ classdef (Abstract) nvisBase < handle
             obj.refreshUI()
         end
         
+        
+        function BtnCmplxCallback(obj, source, ~)
+            % toggleComplex(source, ~)
+            % source:       handle to uicontrol button
+            %
+            % called by:    uicontrol togglebutton: Callback
+            %
+            % Is called when one of the 4 complex data buttons is pressed.
+            % These buttons are only visible when at least one matrix has
+            % complex data.
+            % Depending on which button was pressed last, the magnitude, phase,
+            % real part or imaginary part of complex data is shown.
+            %
+            % complexMode:
+            % 1:    magnitude
+            % 2:    phase
+            % 3:    real
+            % 4:    imag
+            
+            % set all buttons unpressed
+            set(obj.hBtnCmplx, 'Value', 0)
+            btnIdx = find(source == obj.hBtnCmplx);
+                        
+            obj.complexMode = btnIdx;
+            set(obj.hBtnCmplx(btnIdx), 'Value', 1)
+            
+            obj.cw()
+            obj.refreshUI()
+        end
+
+
+        function out = complexPart(obj, in)
+            % complexPart(obj, in)
+            % in:           array with (potentially) complex data
+            % complexMode:  int defining the complex part of out
+            %               1: Magnitude
+            %               2: Phase
+            %               3: real part
+            %               4: imaginary part
+            %
+            % out:    magnitude, phase, real or imaginary part of in
+            %
+            % depending on the value in 'complexMode' either the magnitude,
+            % phase, real part or imaginary part is returned
+            
+            switch(obj.complexMode)
+                case 1
+                    out = abs(in);
+                case 2
+                    out = angle(in);
+                case 3
+                    out = real(in);
+                case 4
+                    out = imag(in);
+            end
+        end
+
         
         function setFFTStatus(obj, ~, ~)
             %called by the 'Run'/'Stop' button and controls the state of the
