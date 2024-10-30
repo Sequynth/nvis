@@ -480,7 +480,6 @@ classdef (Abstract) nvisBase < handle
             defaultPosition = [ 300, round(0.1*screenS(4)), 800, round(0.8*screenS(4))];
 
             obj.p = inputParser;
-            isboolean = @(x) x == 1 || x == 0;
             % add parameters to the input parser
             addParameter(obj.p, 'Position',     defaultPosition,                @(x) isnumeric(x) && numel(x) == 4);
             addParameter(obj.p, 'Overlay',      1,                              @(x) floor(x)==x && x >= 1); %is integer greater 1
@@ -537,13 +536,16 @@ classdef (Abstract) nvisBase < handle
             end
         
             obj.widthMin = [0 0];
-            obj.center = zeros(1, 2);
-            obj.width = zeros(1, 2);
+            obj.center = zeros(4, 2);
+            obj.width = zeros(4, 2);
             for idh = 1:obj.nImages
-                obj.center(idh)	= double(obj.p.Results.CW(idh, 1));
-                obj.width(idh)  = double(obj.p.Results.CW(idh, 2));
-                set(obj.hEditC(idh), 'String', num2sci(obj.center(idh), 'padding', 'right'));
-                set(obj.hEditW(idh), 'String', num2sci(obj.width(idh),  'padding', 'right'));
+                obj.center([1 3 4], idh) = double(obj.p.Results.CW(idh, 1));
+                obj.width([1 3 4], idh)  = double(obj.p.Results.CW(idh, 2));
+                % set phase to range 0 2*pi
+                obj.center(2, idh) = pi;
+                obj.width(2, idh)  = 2*pi;
+                set(obj.hEditC(idh), 'String', num2sci(obj.center(1, idh), 'padding', 'right'));
+                set(obj.hEditW(idh), 'String', num2sci(obj.width(1, idh),  'padding', 'right'));
                 % apply the initial colormaps to the popdown menus
                 obj.setCmap(obj.hPopCm(idh))
             end
@@ -736,7 +738,7 @@ classdef (Abstract) nvisBase < handle
                 'Style',                'togglebutton', ...
                 'String',               'abs', ...
                 'Tooltip',              'Show absolute value of data', ...
-                'Callback',             {@obj.toggleComplex},...
+                'Callback',             {@obj.BtnCmplxCallback},...
                 'BackgroundColor',      obj.COLOR_BG, ...
                 'ForegroundColor',      obj.COLOR_F);
             
@@ -744,7 +746,7 @@ classdef (Abstract) nvisBase < handle
                 'Style',                'togglebutton', ...
                 'String',               'phase', ...
                 'Tooltip',              'Show phase value of data', ...
-                'Callback',             {@obj.toggleComplex},...
+                'Callback',             {@obj.BtnCmplxCallback},...
                 'BackgroundColor',      obj.COLOR_BG, ...
                 'ForegroundColor',      obj.COLOR_F);
             
@@ -752,7 +754,7 @@ classdef (Abstract) nvisBase < handle
                 'Style',                'togglebutton', ...
                 'String',               'real', ...
                 'Tooltip',              'Show real part of data', ...
-                'Callback',             {@obj.toggleComplex},...
+                'Callback',             {@obj.BtnCmplxCallback},...
                 'BackgroundColor',      obj.COLOR_BG, ...
                 'ForegroundColor',      obj.COLOR_F);
             
@@ -760,7 +762,7 @@ classdef (Abstract) nvisBase < handle
                 'Style',                'togglebutton', ...
                 'String',               'imag', ...
                 'Tooltip',              'Show imaginary part of data', ...
-                'Callback',             {@obj.toggleComplex},...
+                'Callback',             {@obj.BtnCmplxCallback},...
                 'BackgroundColor',      obj.COLOR_BG, ...
                 'ForegroundColor',      obj.COLOR_F);
             
@@ -916,26 +918,19 @@ classdef (Abstract) nvisBase < handle
                     end
                 end
             end
-            
-            if any(~cellfun(@isreal, obj.slice(:)))
-                % at least one of the slices has complex values, that
-                % means:
-                % show the complex Buttons (if pControl is not minimized)
-                set(obj.hBtnCmplx, 'Visible', obj.maximized);
+
+            if any(obj.isComplex)
                 % convert the displayed data to the complex mode chosen by
                 % the user and then to datatype single
                 obj.slice = cellfun(@single, ...
                     cellfun(@obj.complexPart, obj.slice, 'UniformOutput', false), ...
                     'UniformOutput', false);
             else
-                % none of the slices has complex data
-                % when hBtnCmplx are hidden, complexMode must be 3
-                obj.complexMode = 3;
-                set(obj.hBtnCmplx, 'Visible', 'off');
                 % convert the displayed data to datatype single
                 obj.slice = cellfun(@single, obj.slice, 'UniformOutput', false);
             end
-            
+
+
             % Since the content in the axes changes, also recalculate the
             % values inside the ROIs.
             obj.calcROI
@@ -963,8 +958,8 @@ classdef (Abstract) nvisBase < handle
             end
             for idd = 1:obj.nImages
                 % map images to range [0, cmapResolution]
-                cLimLow  = single(obj.center(idd) - obj.width(idd)/2);
-                imgMapped = (obj.slice{axNo, idd} - cLimLow)/single(obj.width(idd)) * size(obj.cmap{idd}, 1);
+                cLimLow  = single(obj.center(obj.complexMode, idd) - obj.width(obj.complexMode, idd)/2);
+                imgMapped = (obj.slice{axNo, idd} - cLimLow)/single(obj.width(obj.complexMode, idd)) * size(obj.cmap{idd}, 1);
                 if obj.resize ~= 1
                     imgMapped = imresize(imgMapped, obj.resize);
                 end
@@ -991,73 +986,7 @@ classdef (Abstract) nvisBase < handle
             % order to be able to show it
             cImage = gather(cImage);
         end
-        
-        
-        function out = complexPart(obj, in)
-            % complexPart(obj, in)
-            % in:           array with (potentially) complex data
-            % complexMode:  int defining the complex part of out
-            %               1: Magnitude
-            %               2: Phase
-            %               3: real part
-            %               4: imaginary part
-            %
-            % out:    magnitude, phase, real or imaginary part of in
-            %
-            % depending on the value in 'complexMode' either the magnitude,
-            % phase, real part or imaginary part is returned
             
-            switch(obj.complexMode)
-                case 1
-                    out = abs(in);
-                case 2
-                    out = angle(in);
-                case 3
-                    out = real(in);
-                case 4
-                    out = imag(in);
-            end
-        end
-        
-        
-        function toggleComplex(obj, source, ~)
-            % toggleComplex(source, ~)
-            % source:       handle to uicontrol button
-            %
-            % called by:    uicontrol togglebutton: Callback
-            %
-            % Is called when one of the 4 complex data buttons is pressed.
-            % These buttons are only visible when at least one matrix has
-            % complex data.
-            % Depending on which button was pressed last, the magnitude, phase,
-            % real part or imaginary part of complex data is shown.
-            %
-            % complexMode:
-            % 1:    magnitude
-            % 2:    phase
-            % 3:    real
-            % 4:    imag
-            
-            % set all buttons unpreessed
-            set(obj.hBtnCmplx, 'Value', 0)
-            btnIdx = find(source == obj.hBtnCmplx);
-            
-            if obj.complexMode == 2
-                % restore CW values
-                obj.width  = obj.Max  - obj.Min;
-                obj.center = obj.width/2 + obj.Min;
-            elseif btnIdx == 2
-                obj.center = [0 0];
-                obj.width  = 2*pi*[1 1];
-            end
-            
-            obj.complexMode = btnIdx;
-            set(obj.hBtnCmplx(btnIdx), 'Value', 1)
-            
-            obj.cw()
-            obj.refreshUI()
-        end
-        
         
         function startDragFcn(obj, src, evtData)
             % when middle mouse button is pressed, save current point and start
@@ -1076,11 +1005,11 @@ classdef (Abstract) nvisBase < handle
             end
             
             % store start values for window and center
-            sCenter = obj.center;
-            sWidth  = obj.width;
+            sCenter = obj.center(obj.complexMode, :);
+            sWidth  = obj.width(obj.complexMode, :);
             % and the steps for both images
-            cStep   = [obj.centerStep(1), obj.centerStep(2)];
-            wStep   = [obj.widthStep(1), obj.widthStep(2)];
+            cStep   = obj.centerStep(obj.complexMode, :);
+            wStep   = obj.widthStep(obj.complexMode, :);
             
             % normalization factor
             obj.nrmFac = [obj.S(find(obj.showDims(imgIdx, :), 1, 'first')) obj.S(find(obj.showDims(imgIdx, :), 1, 'last'))]*obj.resize;
@@ -1119,8 +1048,8 @@ classdef (Abstract) nvisBase < handle
             dVecRot = [cosd(obj.azimuthAng(axNo)) * dx - sind(obj.azimuthAng(axNo)) * dy, ...
                 sind(obj.azimuthAng(axNo)) * dx + cosd(obj.azimuthAng(axNo)) * dy];
 
-            obj.width  = sWidth  + wStep .* dVecRot(1);
-            obj.center = sCenter - cStep .* dVecRot(2);
+            obj.width(obj.complexMode, :)  = sWidth  + wStep .* dVecRot(1);
+            obj.center(obj.complexMode, :) = sCenter - cStep .* dVecRot(2);
 
             obj.cw()
         end
@@ -1128,15 +1057,15 @@ classdef (Abstract) nvisBase < handle
         
         function cw(obj)
             % adjust windowing values depending on values for center and width
-            obj.width(obj.width <= obj.widthMin) = obj.widthMin(obj.width <= obj.widthMin);
+            obj.width(obj.width <= 0) = 0;%obj.widthMin(obj.width <= obj.widthMin);
             
             for ida = 1:numel(obj.hImage)
                 set(obj.hImage(ida), 'CData', obj.sliceMixer(ida));
             end
             
             for idi = 1:obj.nImages
-                set(obj.hEditC(idi), 'String', num2sci(obj.center(idi), 'padding', 'right'));
-                set(obj.hEditW(idi), 'String', num2sci(obj.width(idi) , 'padding', 'right'));
+                set(obj.hEditC(idi), 'String', num2sci(obj.center(obj.complexMode, idi), 'padding', 'right'));
+                set(obj.hEditW(idi), 'String', num2sci(obj.width(obj.complexMode, idi) , 'padding', 'right'));
             end
             
             if obj.cbShown
@@ -1174,15 +1103,15 @@ classdef (Abstract) nvisBase < handle
                         ticks = 0.5;
                         set(obj.hAxCb(idi), Tick, ticks);
                         ticks_new = {};
-                        ticks_new{1} = [sprintf('\\color[rgb]{%.3f,%.3f,%.3f} ', obj.COLOR_m(idi,  :)) num2str(obj.center(idi))];
+                        ticks_new{1} = [sprintf('\\color[rgb]{%.3f,%.3f,%.3f} ', obj.COLOR_m(idi,  :)) num2str(obj.center(obj.complexMode, idi))];
                     else
                         set(allchild(obj.hAxCb(idi)), 'CData', linspace(0, 1, size(obj.cmap{idi}, 1))')
 
                         set(obj.hAxCb(idi), [Tick 'Mode'], 'auto')
                         set(allchild(obj.hAxCb(idi)), ...
-                            Data,    linspace(obj.center(idi)-obj.width(idi)/2, obj.center(idi)+obj.width(idi)/2, size(obj.cmap{idi}, 1)))
+                        Data,    linspace(obj.center(obj.complexMode, idi)-obj.width(obj.complexMode, idi)/2, obj.center(obj.complexMode, idi)+obj.width(obj.complexMode, idi)/2, size(obj.cmap{idi}, 1)))
                         set(obj.hAxCb(idi), ...
-                            Lim,     [obj.center(idi)-obj.width(idi)/2, obj.center(idi)+obj.width(idi)/2])
+                        Lim,     [obj.center(obj.complexMode, idi)-obj.width(obj.complexMode, idi)/2, obj.center(obj.complexMode, idi)+obj.width(obj.complexMode, idi)/2])
 
                         % get tick positions
                         ticks = get(obj.hAxCb(idi), Tick);
@@ -1208,8 +1137,8 @@ classdef (Abstract) nvisBase < handle
         function BtnCwHomeCallback(obj, src, ~)
             % set center and width to the initial values
             iImg = (obj.hBtnCwHome == src);
-            obj.center(iImg) = obj.p.Results.CW(iImg, 1);
-            obj.width(iImg)  = obj.p.Results.CW(iImg, 2);
+            obj.center(:, iImg) = obj.p.Results.CW(iImg, 1);
+            obj.width(:, iImg)  = obj.p.Results.CW(iImg, 2);
             
             % apply changes to center and width
             obj.cw();
@@ -1221,8 +1150,8 @@ classdef (Abstract) nvisBase < handle
             iImg = (obj.hBtnCwSlice == src);
             
             % calculate cw values for the slice
-            obj.center(iImg) = (obj.cleverMax(obj.slice{iImg})+obj.cleverMin(obj.slice{iImg})) / 2;
-            obj.width(iImg)  = obj.cleverMax(obj.slice{iImg})-obj.cleverMin(obj.slice{iImg});
+            obj.center(obj.complexMode, iImg) = (obj.cleverMax(obj.slice{iImg})+obj.cleverMin(obj.slice{iImg})) / 2;
+            obj.width(obj.complexMode, iImg)  = obj.cleverMax(obj.slice{iImg})-obj.cleverMin(obj.slice{iImg});
             
             % apply changes to center and width
             obj.cw();
@@ -1237,13 +1166,13 @@ classdef (Abstract) nvisBase < handle
         
         function BtnCwCopyCallback(obj, src, ~)
             % copy the CW-values from one image to another
-            obj.center(obj.hBtnCwCopy == src) = obj.center(obj.hBtnCwCopy ~= src);
-            obj.width(obj.hBtnCwCopy == src)  = obj.width(obj.hBtnCwCopy ~= src);
+            obj.center(obj.complexMode, obj.hBtnCwCopy == src) = obj.center(obj.complexMode, obj.hBtnCwCopy ~= src);
+            obj.width(obj.complexMode, obj.hBtnCwCopy == src)  = obj.width(obj.complexMode, obj.hBtnCwCopy ~= src);
             obj.cw();
         end
         
         
-        function BtnCwLinkCallback(obj, src, ~)
+        function BtnCwLinkCallback(obj, ~, ~)
             % apply windowing to both images at once
             if obj.linkedWindowing == true
                 % change state
@@ -1304,6 +1233,63 @@ classdef (Abstract) nvisBase < handle
             obj.refreshUI()
         end
         
+        
+        function BtnCmplxCallback(obj, source, ~)
+            % toggleComplex(source, ~)
+            % source:       handle to uicontrol button
+            %
+            % called by:    uicontrol togglebutton: Callback
+            %
+            % Is called when one of the 4 complex data buttons is pressed.
+            % These buttons are only visible when at least one matrix has
+            % complex data.
+            % Depending on which button was pressed last, the magnitude, phase,
+            % real part or imaginary part of complex data is shown.
+            %
+            % complexMode:
+            % 1:    magnitude
+            % 2:    phase
+            % 3:    real
+            % 4:    imag
+            
+            % set all buttons unpressed
+            set(obj.hBtnCmplx, 'Value', 0)
+            btnIdx = find(source == obj.hBtnCmplx);
+                        
+            obj.complexMode = btnIdx;
+            set(obj.hBtnCmplx(btnIdx), 'Value', 1)
+            
+            obj.cw()
+            obj.refreshUI()
+        end
+
+
+        function out = complexPart(obj, in)
+            % complexPart(obj, in)
+            % in:           array with (potentially) complex data
+            % complexMode:  int defining the complex part of out
+            %               1: Magnitude
+            %               2: Phase
+            %               3: real part
+            %               4: imaginary part
+            %
+            % out:    magnitude, phase, real or imaginary part of in
+            %
+            % depending on the value in 'complexMode' either the magnitude,
+            % phase, real part or imaginary part is returned
+            
+            switch(obj.complexMode)
+                case 1
+                    out = abs(in);
+                case 2
+                    out = angle(in);
+                case 3
+                    out = real(in);
+                case 4
+                    out = imag(in);
+            end
+        end
+
         
         function setFFTStatus(obj, ~, ~)
             %called by the 'Run'/'Stop' button and controls the state of the
@@ -1429,11 +1415,11 @@ classdef (Abstract) nvisBase < handle
             
             for idi = 1:obj.nImages
                 if src == obj.hEditC(idi)
-                    obj.center(idi) = str2double(s);
-                    set(src, 'String', num2sci(obj.center(idi), 'padding', 'right'));
+                    obj.center(obj.complexMode, idi) = str2double(s);
+                    set(src, 'String', num2sci(obj.center(obj.complexMode, idi), 'padding', 'right'));
                 elseif src == obj.hEditW(idi)
-                    obj.width(idi) = str2double(s);
-                    set(src, 'String', num2sci(obj.width(idi), 'padding', 'right'));
+                    obj.width(obj.complexMode, idi) = str2double(s);
+                    set(src, 'String', num2sci(obj.width(obj.complexMode, idi), 'padding', 'right'));
                 end
             end
             
@@ -1529,7 +1515,7 @@ classdef (Abstract) nvisBase < handle
             for ii = 1:obj.nImages
                 if ~isempty(obj.rois{1})
                     % get axis
-                    axNo = str2num(obj.rois{1}.Tag);
+                    axNo = str2double(obj.rois{1}.Tag);
                     % This use does not work with resize ~= 1 !
                     Mask = obj.slice{axNo, ii}(obj.rois{1}.createMask);
                     obj.signal(ii) = mean(Mask(:));
@@ -1537,7 +1523,7 @@ classdef (Abstract) nvisBase < handle
                 end
                 if ~isempty(obj.rois{2})
                     % get axis
-                    axNo = str2num(obj.rois{2}.Tag);
+                    axNo = str2double(obj.rois{2}.Tag);
                     % This use does not work with resize ~= 1 !
                     Mask = obj.slice{axNo, ii}(obj.rois{2}.createMask);
                     % input to std must be floating point
