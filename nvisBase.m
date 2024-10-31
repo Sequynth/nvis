@@ -551,6 +551,11 @@ classdef (Abstract) nvisBase < handle
             end
             obj.centerStep  = double(obj.center);
             obj.widthStep   = double(obj.width);
+
+            % if any of the center/width values is zero, set the step to
+            % that of the other value
+            obj.centerStep(obj.centerStep == 0) = obj.widthStep(obj.centerStep == 0);
+            obj.widthStep(obj.centerStep == 0) = obj.centerStep(obj.centerStep == 0);
         end
         
         
@@ -1869,12 +1874,11 @@ classdef (Abstract) nvisBase < handle
                 obj.availableCmaps.turbo   = turbo(cmapResolution);
             end
             
-            % check whether colorcet is available
+            % check whether colorcet (https://colorcet.com/) is available
             if exist('colorcet.m',  'file') == 2
-                % replace hot with fire, maybe add more cmaps?
+                % replace hot with fire
                 obj.availableCmaps.fire = colorcet('fire', 'N', cmapResolution);
-                obj.availableCmaps = rmfield(obj.availableCmaps, 'hot');
-                
+                obj.availableCmaps = rmfield(obj.availableCmaps, 'hot');                
                 % add some more cmaps
                 obj.availableCmaps.redblue      = colorcet('D4', 'N', cmapResolution);
                 obj.availableCmaps.cyclic       = colorcet('C2', 'N', cmapResolution);
@@ -1892,21 +1896,31 @@ classdef (Abstract) nvisBase < handle
                 obj.availableCmaps.inferno = inferno;
             end
 
-            % check 'colormap' folder for additional colormaps
+            % check 'colormaps' folder for additional colormaps
             [currentPath, ~, ~] = fileparts(mfilename('fullpath'));
-            files = dir([currentPath '/colormaps']);
+            files = dir([currentPath filesep 'colormaps']);
             for iFile = 3:numel(files)
                 % skip '.' and '..'
-                [~, mapName, ~] = fileparts(files(iFile).name);
-                obj.availableCmaps.(mapName) = feval(mapName, cmapResolution);
+                [~, mapName, ext] = fileparts(files(iFile).name);
+                if strcmp(ext, '.m')
+                    obj.availableCmaps.(mapName) = feval(mapName, cmapResolution);
+                elseif strcmp(ext, '.mat')
+                    mapData = load([files(iFile).folder filesep files(iFile).name]);
+                    fNames = fieldnames(mapData);
+                    obj.availableCmaps.(mapName) = mapData.(fNames{1});
+                else
+                    warning('Colormap %s is not supported!', [mapName '.' ext])
+                end
             end
-
             obj.cmapStrings = fieldnames(obj.availableCmaps);
         end
         
         
-        function setInitialColormap(obj, inputMap)            
+        function setInitialColormap(obj, inputMap)
+
             if iscell(inputMap) & numel(inputMap)==1 & obj.nImages==2
+                % if only one map is provided for two input matrices, use
+                % it for both matrices
                 inputMap{2} = inputMap{1};
             end
             
@@ -1919,8 +1933,8 @@ classdef (Abstract) nvisBase < handle
             % counter for custom colormaps
             customCtr = 1;
             for idx = 1:obj.nImages
-                % set both popdownmenus to 'gray' (such that both cmaps are
-                % defined if only one is provided in case of nImages=2
+                % set both popdown menus to the default 'gray(256)' and overwrite when
+                % suitable maps are provided
                 obj.setPopCm(idx, 'gray')
                 if ischar(inputMap{idx})
                     % find index in colormap List
