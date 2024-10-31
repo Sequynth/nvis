@@ -542,7 +542,7 @@ classdef (Abstract) nvisBase < handle
                 obj.center([1 3 4], idh) = double(obj.p.Results.CW(idh, 1));
                 obj.width([1 3 4], idh)  = double(obj.p.Results.CW(idh, 2));
                 % set phase to range 0 2*pi
-                obj.center(2, idh) = pi;
+                obj.center(2, idh) = 0;
                 obj.width(2, idh)  = 2*pi;
                 set(obj.hEditC(idh), 'String', num2sci(obj.center(1, idh), 'padding', 'right'));
                 set(obj.hEditW(idh), 'String', num2sci(obj.width(1, idh),  'padding', 'right'));
