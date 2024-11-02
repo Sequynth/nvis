@@ -968,7 +968,7 @@ classdef (Abstract) nvisBase < handle
                 if obj.resize ~= 1
                     imgMapped = imresize(imgMapped, obj.resize);
                 end
-                imgRGB  = ind2rgb(round(imgMapped), obj.cmap{idd}) * obj.layerShown(idd);
+                imgRGB  = ind2rgb(round(imgMapped+0.5), obj.cmap{idd}) * obj.layerShown(idd);
                 imgRGB(repmat(isnan(obj.slice{axNo, idd}), [1 1 3])) = 0;
                 switch (obj.overlay)
                     % for assignment of overlay modes, see
@@ -991,8 +991,8 @@ classdef (Abstract) nvisBase < handle
             % order to be able to show it
             cImage = gather(cImage);
         end
-            
-        
+
+
         function startDragFcn(obj, src, evtData)
             % when middle mouse button is pressed, save current point and start
             % tracking of mouse movements
@@ -1096,7 +1096,7 @@ classdef (Abstract) nvisBase < handle
                     if obj.width(idi) == 0
                         % only two colors are present in the image: max and
                         % min color of the colormap. Show only those in
-                        % colorbar, and only the tick at the thresholdvalue
+                        % colorbar, and only the tick at the threshold value
                         % in the middle
                         set(allchild(obj.hAxCb(idi)), 'CData', [0; 1])
 
@@ -1110,13 +1110,18 @@ classdef (Abstract) nvisBase < handle
                         ticks_new = {};
                         ticks_new{1} = [sprintf('\\color[rgb]{%.3f,%.3f,%.3f} ', obj.COLOR_m(idi,  :)) num2str(obj.center(obj.complexMode, idi))];
                     else
+                        range = [ obj.center(obj.complexMode, idi) - obj.width(obj.complexMode, idi)/2 ...
+                                  obj.center(obj.complexMode, idi) + obj.width(obj.complexMode, idi)/2];
+                        % x/ydata for the image must be smaller by half the
+                        % width of a colorbar 'pixel ata both ends
+                        delta = diff(range) / size(obj.cmap{idi}, 1)/2;
+                        data = linspace(range(1)+delta, range(2)-delta, size(obj.cmap{idi}, 1));
+
                         set(allchild(obj.hAxCb(idi)), 'CData', linspace(0, 1, size(obj.cmap{idi}, 1))')
 
                         set(obj.hAxCb(idi), [Tick 'Mode'], 'auto')
-                        set(allchild(obj.hAxCb(idi)), ...
-                        Data,    linspace(obj.center(obj.complexMode, idi)-obj.width(obj.complexMode, idi)/2, obj.center(obj.complexMode, idi)+obj.width(obj.complexMode, idi)/2, size(obj.cmap{idi}, 1)))
-                        set(obj.hAxCb(idi), ...
-                        Lim,     [obj.center(obj.complexMode, idi)-obj.width(obj.complexMode, idi)/2, obj.center(obj.complexMode, idi)+obj.width(obj.complexMode, idi)/2])
+                        set(allchild(obj.hAxCb(idi)), Data, data)
+                        set(obj.hAxCb(idi),           Lim, range)
 
                         % get tick positions
                         ticks = get(obj.hAxCb(idi), Tick);
