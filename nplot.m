@@ -815,6 +815,24 @@ classdef nplot < handle
         end
 
 
+        function setVisibility(obj, layerShown)
+            % setVisibility(layerShown)
+            % newSel:       array containing logical values for visibility
+            %               of each plot
+            %
+            % Called by:    external
+            %
+            % Is called from external, to update the visibility of
+            % individual plots
+
+            for iMat = 1:obj.nMats
+                set(obj.hPlot(iMat), 'Visible', layerShown(iMat))
+            end
+
+
+        end
+
+
         function locVal(obj)
             % called by:    refreshUI
             %

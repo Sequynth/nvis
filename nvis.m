@@ -1439,15 +1439,12 @@ classdef nvis < nvisBase
         
         
         function updateExternalData(obj)
-            obj.updateExternalSelector();
-            %obj.externalSel{obj.externalDim} = ':';            
-            
-            %YData = squeeze(obj.complexPart(obj.img{1}(obj.externalSel{:})));
-            
-            % update the external plot
-            %obj.hExtPlot.plotData(YData(:));
-            
+
+            obj.updateExternalSelector();            
             obj.hExtPlot.setSelector(obj.externalSel)
+
+            obj.hExtPlot.setVisibility(obj.layerShown)
+
         end
         
         

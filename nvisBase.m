@@ -19,7 +19,7 @@ classdef (Abstract) nvisBase < handle
 		
     properties (Access = private)
         % DISPLAY PROPERTIES
-        layerShown      % which of the images is currently shown?
+        
         fftStatus       % keeps track of fft-button status
         
         
@@ -90,6 +90,9 @@ classdef (Abstract) nvisBase < handle
         
         % index of the currently active ax element
         activeAx
+
+        % which of the images is currently shown?
+        layerShown      
         
         % timer
         t
@@ -1223,6 +1226,9 @@ classdef (Abstract) nvisBase < handle
                 % last layer
                 obj.toggleLayer(1);
             end
+
+            % if opened, apply visibility to external plot
+
         end
         
         
