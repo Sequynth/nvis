@@ -1,22 +1,22 @@
 # nVis
 
-nvis is a matrix viewer for matrices of any size. Its aimed towards MATLAB users that need to asses a lot of higher-dimensional data in their daily workflow. A 2-dimensional slice of the matrix is shown, and higher 
+nvis is a matrix viewer for matrices of any size. Its aimed towards MATLAB users that need to asses a lot of higher-dimensional data in their daily workflow.
 
-## Design Goals
+## Features
 
-**Multidimensional**: Visualization should work with matrices independent of their dimensionality. While the display is limited to two dimensions at a time, selecting datasets along the remaining dimensions (e.g. echo, channel, time) should be quick and intuitive. Many available tools are limited to three-dimensional matrices.
+**Multidimensional**: Visualization works for matrices independent of their dimensionality. While the display is limited to two dimensions at a time, selecting datasets along the remaining dimensions is done via sliders.
 
-**Versatile**: For the development of sequences and especially image reconstruction routines, visual feedback and the ability to quickly assess images, k-spaces, raw-data, sensitivity maps or filters are key. Complex values must be supported, as well as data type such as int or bool; the content of an matrix should not be relevant.
+**Versatile**: Supports complex valued data, all numeric datatypes and gpuArrays.
 
-**Dynamic**: Dynamic data is best visualized in motion, while still allowing for easy comparison along different dimensions (e.g. channels).
+**Dynamic**: nvis allows navigating through the matrix data, while one dimension is contiuously looped.
 
-**Comparative**: Overlaying two images is a simple and intuitive way of comparing two reconstructions form the same data, prediction and ground truth, or the alignment of a ROI to the image.
+**Comparative**: Two input matrices can be displayed simultaneously.
 
-**Interactive**: Windowing allows for intuitive selection of image contrast in image space as well as k-space. Images with the current contrast can be saved from the GUI or using only command line arguments. This is also true for saving videos or animations.
+**Interactive**: Colormap limits (windowing) can be adjusted by moving the mouse (windowing).
 
-**Quantitative**: We don’t need the next fully featured image analysis tool, but extracting pixel values and drawing signal and noise ROIs should be supported.
+**Quantitative**: Two regions of interest (ROIs) can be drawn. One for signal (mean value is calculated) and one for noise (standard deviation is calculated).
 
-**Lightweight**: matrices containing medical images can require a lot of memory, especially when 3D, multi-channel or functional information are included. The requirements increase further, when data is stored as high-precision complex values. Thus, no additional memory should be required when visualizing the data.
+**Lightweight**: nvis does not create a memory copy of the inputs in order to reduce RAM load incase of large matrices.
 
 ## Examples
 
@@ -38,7 +38,7 @@ The limits of the colormap can be changed with `center` and `width` values. Thes
 
 Matrix dimensions can be labelled:
 
-`nvis(rand(100, 100, 10), 'dimLabel', {'dx', 'dy', 'time'}`
+`nvis(rand(100, 100, 10), 'dimLabel', {'dx', 'dy', 'time'})`
 
 Values along each dimension can be labelled with any string. When providing an empty matrix `[]`, the values are enumerated, e.g. `1:size(..., 1)`.
 
