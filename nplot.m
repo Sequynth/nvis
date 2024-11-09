@@ -577,7 +577,7 @@ classdef nplot < handle
             for ii = 1:numel(obj.dimVal)
                 obj.xaxes{ii}.ticklabels = obj.dimVal{ii};
                 
-                if iscell(cellfun(@str2num, obj.dimVal{ii}, 'UniformOutput', false))
+                if numel(cell2mat(cellfun(@str2num, obj.dimVal{ii}, 'UniformOutput', false))) ~= numel(obj.dimVal{ii})
                     % some entries in dimVal for this axis cannot be
                     % converted to numbers
                     obj.xaxes{ii}.tickvalues = 1:numel(obj.dimVal{ii});
@@ -610,12 +610,12 @@ classdef nplot < handle
 
                 obj.currYData(idm, :) = obj.complexPart(obj.mat{idm}(tempSel{:}));
 
-                set(obj.hPlot(idm), 'YData', obj.currYData(idm, :));
+                set(obj.hPlot(idm), 'YData', obj.currYData(idm, :), 'XData', obj.xaxes{obj.showDim}.tickvalues);
                 
             end
             
             % reposition vertical line
-            set(obj.hVertLine, 'Value', obj.sel{obj.showDim})
+            set(obj.hVertLine, 'Value', obj.xaxes{obj.showDim}.tickvalues(obj.sel{obj.showDim}))
             
             % inform the calling object, that the selector has changed
             if obj.bUpdateCaller

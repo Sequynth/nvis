@@ -328,7 +328,7 @@ classdef (Abstract) nvisBase < handle
         
         
         function delete(obj)            
-            if isvalid(obj.f)
+            if ~isempty(obj.f) && isvalid(obj.f)
                 close(obj.f)
                 % close also calls the destructor on obj (again)
             else
@@ -871,9 +871,9 @@ classdef (Abstract) nvisBase < handle
                 obj.dimVal(~emptyCell) = obj.p.Results.DimVal(~emptyCell);
                 
                 % value array for each dimension must have obj.S entries
-%                 if ~isequal(obj.S, cellfun(@numel, obj.dimVal))
-%                     error('Number of elements in DimVal for dimension(s) %s do not match image size', mat2str(find(obj.S ~= cellfun(@numel, obj.dimVal))))
-%                 end
+                if ~isequal(obj.S, cellfun(@numel, obj.dimVal))
+                    error('Number of elements in DimVal for dimension(s) %s do not match image size', mat2str(find(obj.S ~= cellfun(@numel, obj.dimVal))))
+                end
             end
             
             obj.dimVal = valsToString(obj.dimVal);
