@@ -1096,7 +1096,7 @@ classdef (Abstract) nvisBase < handle
                 
                 for idi = 1:obj.nImages
 
-                    if obj.width(idi) == 0
+                    if obj.width(obj.complexMode, idi) == 0
                         % only two colors are present in the image: max and
                         % min color of the colormap. Show only those in
                         % colorbar, and only the tick at the threshold value
