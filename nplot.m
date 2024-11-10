@@ -57,6 +57,7 @@ classdef nplot < handle
         nMats           % number of input matrices
         nSlider         % number of non-singleton dimensions
         nDims           % number of dimensions
+        ston            % cell array for dimensions where a matrix is the only singleton
         valNames        % names of input matrices
         mat             % cell array containing the input matrices
         isComplex       % is one of the inputs complex
@@ -213,7 +214,7 @@ classdef nplot < handle
             end
             
             % define mats in order to suppress warnings
-            obj.mat = cell(obj.nMats);
+            obj.mat = cell(1, obj.nMats);
             obj.isComplex = zeros(obj.nMats, 1);
             
             % create a fixed loop counter
@@ -238,7 +239,7 @@ classdef nplot < handle
             % get min max values for all input matrices and complex modes
             obj.calculateMinMaxAll();
             
-            obj.S = size(obj.mat{1});
+            obj.checkSize()
             
             % number of Sliders
             obj.nSlider   = ndims(obj.mat{1});
@@ -246,7 +247,41 @@ classdef nplot < handle
             % number of dimensions
             obj.nDims = numel(obj.S);
         end
-        
+
+
+        function checkSize(obj)
+            s = cellfun(@size, obj.mat, 'UniformOutput', false);
+            maxDim = max(cellfun(@numel, s));
+            
+            for iMat = 1:obj.nMats
+
+                if numel(s{iMat}) < maxDim
+                    s{iMat} = [s{iMat} ones(1, maxDim - numel(s{iMat}))];
+                end
+            end
+
+            % stack dimension sizes
+            s_st = cat(1, s{:});
+
+            % make sure the are at most 2 different numbers per column
+            % and one must be equal to 1.
+            for iCol = 1:maxDim
+                u = unique(s_st(:, iCol));
+                if numel(u) > 2 || numel(u) == 2 && u(1) ~= 1
+                    % there are dimensions where the size differs and
+                    % neither of the matrices has a size of one along that
+                    % dimension
+                    error('Matrix dimensions must agree.')
+                end
+            end
+
+            obj.S = max(s_st, [] , 1);
+            
+            for iMat = 1:iMat
+                obj.ston{iMat} = find(s{iMat} == 1);
+            end
+        end
+
         
         function parseNVPs(obj)
             
@@ -600,18 +635,39 @@ classdef nplot < handle
             
             % create temporary selector
             tempSel = obj.sel;
-            tempSel{obj.showDim} = ':';
-            
+
             % clear yData cache
             obj.currYData = zeros(obj.nMats, obj.S(obj.showDim));
-            
+
             % replot data from all inputs
             for idm = 1:obj.nMats
 
-                obj.currYData(idm, :) = obj.complexPart(obj.mat{idm}(tempSel{:}));
-
-                set(obj.hPlot(idm), 'YData', obj.currYData(idm, :), 'XData', obj.xaxes{obj.showDim}.tickvalues);
+                % create temporary selector
+                tempSel = obj.sel;
+                % set default line style
+                LineStyle = '-';
                 
+                if isempty(obj.ston{idm})
+                    tempSel{obj.showDim} = ':';
+                    LineStyle = '-';
+                else
+                    % use default line style if all ston dimensions are 1
+                    % in sel
+                    selAtSton = cell2mat(tempSel(obj.ston{idm}));
+                    if sum(selAtSton) ~= numel(selAtSton)
+                        LineStyle = '--';
+                    end
+                    
+                    tempSel(obj.ston{idm}) = {1};
+                    tempSel{obj.showDim} = ':';
+                end
+                
+                obj.currYData(idm, :) = obj.complexPart(obj.mat{idm}(tempSel{:}));
+                set(obj.hPlot(idm), ...
+                    'YData', obj.currYData(idm, :), ...
+                    'XData', obj.xaxes{obj.showDim}.tickvalues, ...
+                    'LineStyle', LineStyle);
+
             end
             
             % reposition vertical line
@@ -837,14 +893,20 @@ classdef nplot < handle
             % called by:    refreshUI
             %
             % everytime the UI is refreshed, the string containing the
-            % current point ant value is refreshed too.
+            % current point and value is refreshed too.
 
             str = [];
             for idm = 1:obj.nMats
                 if idm~=1
                     str = [str '   '];
                 end
-                val = obj.complexPart(obj.mat{idm}(obj.sel{:}));
+        
+                sel = obj.sel;
+                if ~isempty(obj.ston{idm})
+                    sel(obj.ston{idm}) = {1};
+                end
+
+                val = obj.complexPart(obj.mat{idm}(sel{:}));
                 str = [str sprintf('%s = %f', obj.valNames{idm}, val)];
             end
             set(obj.hLocAndVals, 'String', str);
