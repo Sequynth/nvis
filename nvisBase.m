@@ -1810,7 +1810,12 @@ classdef (Abstract) nvisBase < handle
             obj.cmap{idx} = obj.availableCmaps.(cm);
 
             % set UI text colors
-            obj.COLOR_m(idx, :) = obj.cmap{idx}(round(size(obj.availableCmaps.(cm), 1) * 0.9), :);
+            cid = obj.cmap{idx}(round(size(obj.availableCmaps.(cm), 1) * 0.9), :);
+            % set the value ('brightness') of the color to match the value
+            % of the gray colormap
+            cid_hsv = rgb2hsv(cid);
+            cid_hsv(3) = 0.9;            
+            obj.COLOR_m(idx, :) = hsv2rgb(cid_hsv);
 
             % change color of c/w edit fields
             set(obj.hEditC(idx), 'ForegroundColor', obj.COLOR_m(idx, :))
