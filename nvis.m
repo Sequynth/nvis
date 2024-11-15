@@ -232,6 +232,16 @@ classdef nvis < nvisBase
                   
             parse(obj.p, obj.varargin{:});
 
+            obj.cmap{1}             = obj.p.Results.Colormap;
+            obj.fps                 = obj.p.Results.fps;
+            obj.complexMode         = obj.p.Results.ComplexMode;
+            obj.resize              = obj.p.Results.Resize;  
+            obj.contrast            = obj.p.Results.Contrast;
+            obj.overlay             = obj.p.Results.Overlay;
+            obj.unit                = obj.p.Results.Unit;
+            obj.color_ma            = obj.p.Results.MarkerColor;            
+            obj.fixedDim            = obj.p.Results.fixedDim;
+
             % remove all entries from permute, where obj.S is 1. Create a
             % temporary size variable with trailing 1s to mimick behaviour
             % of matlabs inbuilt permute function
@@ -250,6 +260,11 @@ classdef nvis < nvisBase
                 obj.nSlider         = numel(obj.mapSliderToDim);
                 obj.activeDim       = obj.mapSliderToDim(1);
                 obj.externalDim     = obj.mapSliderToDim(1);
+                if obj.fixedDim ~= 0
+                    % make sure fixedDim is mapped to the last slider
+                    obj.mapSliderToDim(obj.mapSliderToDim == obj.fixedDim) = [];
+                    obj.mapSliderToDim = [obj.mapSliderToDim obj.fixedDim];
+                end
             else
                 % there is no dimension to slide through anyway
                 obj.nSlider         = 0;
@@ -280,17 +295,8 @@ classdef nvis < nvisBase
                 obj.pointEnabled = 0;
             else
                 obj.pointEnabled = 1;
-            end
+            end            
             
-            obj.cmap{1}             = obj.p.Results.Colormap;
-            obj.fps                 = obj.p.Results.fps;
-            obj.complexMode         = obj.p.Results.ComplexMode;
-            obj.resize              = obj.p.Results.Resize;  
-            obj.contrast            = obj.p.Results.Contrast;
-            obj.overlay             = obj.p.Results.Overlay;
-            obj.unit                = obj.p.Results.Unit;
-            obj.color_ma            = obj.p.Results.MarkerColor;            
-            obj.fixedDim            = obj.p.Results.fixedDim;
             if obj.fixedDim ~= 0
                 if (obj.S(obj.p.Results.fixedDim) > 1)
                 obj.interruptedSlider = find(obj.mapSliderToDim == obj.p.Results.fixedDim, 1);
@@ -1624,18 +1630,21 @@ classdef nvis < nvisBase
 
             % this line ignores singleton dimensions, because they dont get
             % a slider and are boring to look at
+            if obj.fixedDim ~= 0
+                % remove last dimension (the fixed dimension) before
+                % shifting. Will be re-added at the end.
+                obj.mapSliderToDim = obj.mapSliderToDim(1:end-1);
+                % remember current selection for fixedDim
+                fixedSel = obj.sel{obj.fixedDim};
+            end
+
             dimArray = [obj.showDims obj.mapSliderToDim];
 
             % before calculating new obj.sel values, keep slider values for
             % dimensions that are mapped to a slider after the shift.
-            sliderVals = cell2mat(obj.sel(obj.mapSliderToDim));
+            sliderVals = obj.sel(obj.mapSliderToDim);
 
-            if obj.fixedDim ~= 0
-                shifted = obj.circshiftWithFixed(dimArray, shifts);
-                fixedSel = obj.sel{obj.fixedDim};
-            else
-                shifted = circshift(dimArray, shifts);
-            end
+            shifted = circshift(dimArray, shifts);
             
             % activeDim defines the active slider and cant be one
             % of the shown dimensions
@@ -1649,27 +1658,27 @@ classdef nvis < nvisBase
 
             obj.showDims        = shifted(1:2);
             obj.mapSliderToDim  = shifted(3:end);
-         
-            % remove one slider and enter value for incoming slider
+
             if shifts < 0
                 sliderVals(1) = [];
-                newVals = [sliderVals round(obj.S(obj.mapSliderToDim(end))/2)];
+                sliderVals{end+1} = round(obj.S(obj.mapSliderToDim(end))/2);
             else
                 sliderVals(end) = [];
-                newVals = [round(obj.S(obj.mapSliderToDim(1))/2) sliderVals];
+                sliderVals = [round(obj.S(obj.mapSliderToDim(1))/2) sliderVals];
+            end
+
+            if obj.fixedDim ~= 0
+                % re-add fixed dimension as last slider
+                obj.mapSliderToDim(end+1) = obj.fixedDim;
+                sliderVals{end+1} = fixedSel;
             end
 
             % renew slice selector for dimensions 3 and higher
             obj.sel        = repmat({':'}, 1, obj.nDims);
-            %obj.sel(ismember(1:obj.nDims, obj.mapSliderToDim)) = num2cell(round(obj.S(obj.mapSliderToDim)/2));
             % if possible, keep slider values
-            obj.sel(obj.mapSliderToDim) = num2cell(newVals);
+            obj.sel(obj.mapSliderToDim) = sliderVals;
             % consider singleton dimensions
             obj.sel(obj.S == 1) = {1};
-            % restore selection for fixed dimension
-            if obj.fixedDim ~= 0
-                obj.sel{obj.fixedDim} = fixedSel;
-            end
 
             if contains('SaveImage', obj.p.UsingDefaults) && contains('SaveVideo', obj.p.UsingDefaults)
                 % when no UI is created, because a video or image is saved
