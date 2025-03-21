@@ -500,8 +500,9 @@ classdef (Abstract) nvisBase < handle
             addParameter(obj.p, 'Unit',         {[], []},                       @(x) (iscell(x) && numel(x) <= 2) | ischar(x));
             addParameter(obj.p, 'DimLabel',     strcat(repmat({}, 1, numel(obj.S))), @(x) iscell(x) && numel(x) >= obj.nDims);
             addParameter(obj.p, 'DimVal',       cellfun(@(x) 1:x, num2cell(obj.S), 'UniformOutput', false), @iscell);
-            addParameter(obj.p, 'SaveImage',    '',                                 @ischar);
-            addParameter(obj.p, 'SaveVideo',    '',                                 @ischar);
+            addParameter(obj.p, 'ImgLabel',     {},                             @(x) iscell(x) && numel(x) <= 2);
+            addParameter(obj.p, 'SaveImage',    '',                             @ischar);
+            addParameter(obj.p, 'SaveVideo',    '',                             @ischar);
             addParameter(obj.p, 'fps',          0,                              @isnumeric);
             addParameter(obj.p, 'LoopDimension',3,                              @(x) isnumeric(x) && x <= obj.nDims && obj.nDims >= 3);
             addParameter(obj.p, 'LoopCount',    Inf,                            @isnumeric);
@@ -836,7 +837,7 @@ classdef (Abstract) nvisBase < handle
                 'TasksToExecute',   Inf);
             
         end
-        
+
         
         function parseDimLabelsVals(obj)
             % dimension labels
@@ -1763,10 +1764,12 @@ classdef (Abstract) nvisBase < handle
         
         
         function setValNames(obj)
+
+
             
             for ii = 1:obj.nImages
-                % create default val name
-                obj.valNames{ii} = ['val' num2str(ii)];
+                % create empty val names
+                obj.valNames{ii} = {};
                 
                 % if available, take the name of the input variable
                 if ~isempty(obj.inputNames{ii})
@@ -1774,10 +1777,26 @@ classdef (Abstract) nvisBase < handle
                         obj.valNames{ii} = obj.inputNames{ii}(1:obj.maxLetters);
                     else
                         obj.valNames{ii} = obj.inputNames{ii};
+                    end                    
+                end
+
+                %if explicit names were provided, overwrite val names
+                if ~ismember('ImgLabel', obj.p.UsingDefaults)
+                    if ii <= numel(obj.p.Results.ImgLabel)
+                        obj.valNames{ii} = obj.p.Results.ImgLabel{ii};
+                    else
+                        obj.valNames{ii} = '';
                     end
-                    % text is shown using the LaTeX interpreter. We need to
-                    % escape underscores
-                    obj.valNames{ii} = strrep(obj.valNames{ii}, '_', '\_');
+                end
+
+                % text is shown using the LaTeX interpreter. We need to
+                % escape underscores
+                obj.valNames{ii} = strrep(obj.valNames{ii}, '_', '\_');
+
+                % if the val name is still empty, overwrite with default
+                % name
+                if isempty(obj.valNames{ii})
+                    obj.valNames{ii} = ['input ' num2str(ii)];
                 end
             end
             

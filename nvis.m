@@ -91,6 +91,11 @@ classdef nvis < nvisBase
     %                or cell{int}   for each dimension. Cell entries can be
     %                               empty to use default enumeration. Vals
     %                               must not be char, but is encouraged.
+    %   'ImgLabel'      cell{char}  overwrites the default image names in
+    %                               the coordinate+value string in the
+    %                               lower left corner. Should have same
+    %                               size as number of images, otherwise
+    %                               default values are used.
     %   'FixedDim'      int         Image dimension, that is not affected
     %                               when the displayed dimensions are
     %                               shifted. Useful for the temporal
