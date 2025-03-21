@@ -1822,7 +1822,7 @@ classdef (Abstract) nvisBase < handle
 
             % overwrite the default title if a title was provided
             if ismember('Title', obj.p.UsingDefaults)
-                obj.figureTitle = strjoin(obj.valNames, ', ');
+                obj.figureTitle = strrep(strjoin(obj.valNames, ', '), '\', '');
             end
 
         end
