@@ -91,6 +91,11 @@ classdef nvis < nvisBase
     %                or cell{int}   for each dimension. Cell entries can be
     %                               empty to use default enumeration. Vals
     %                               must not be char, but is encouraged.
+    %   'FixedDim'      int         Image dimension, that is not affected
+    %                               when the displayed dimensions are
+    %                               shifted. Useful for the temporal
+    %                               dimension. The corresponding slider is
+    %                               shown last.
     %   'Permute'       1xN         permutation vector, that works similar
     %                               to matlabs permute function. It is used
     %                               to access image information in
