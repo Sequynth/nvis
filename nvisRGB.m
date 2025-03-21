@@ -80,7 +80,7 @@ classdef nvisRGB < nvisBase
             if obj.nImages == 2
                 obj.inputNames{1} = inputname(1);
                 obj.inputNames{2} = inputname(2);
-                obj.standardTitle = [inputname(1) ' ' inputname(2)];
+                obj.standardTitle = [inputname(1) ', ' inputname(2)];
             else
                 obj.inputNames{1} = inputname(1);
                 obj.standardTitle = inputname(1);
@@ -136,6 +136,10 @@ classdef nvisRGB < nvisBase
                 clear obj
                 return
             end
+
+            obj.setValNames()
+
+            obj.setTitle()
                         
             obj.setLocValFunction            
             
@@ -165,7 +169,7 @@ classdef nvisRGB < nvisBase
             % adjust figure properties
             
             set(obj.f, ...
-                'name',                 obj.p.Results.Title, ...
+                'name',                 obj.figureTitle, ...
                 'Units',                'pixel', ...
                 'Position',             obj.p.Results.Position, ...
                 'Visible',              'on', ...

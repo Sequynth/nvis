@@ -234,6 +234,9 @@ classdef (Abstract) nvisBase < handle
 
         % keeps the state of the control panel (bool)
         maximized
+
+        % figure title
+        figureTitle
         
         %% other
         
@@ -1764,8 +1767,6 @@ classdef (Abstract) nvisBase < handle
         
         
         function setValNames(obj)
-
-
             
             for ii = 1:obj.nImages
                 % create empty val names
@@ -1812,6 +1813,18 @@ classdef (Abstract) nvisBase < handle
                 ws{ii} = repmat(' ', [1, wsToAdd(ii)]);
             end
             obj.valNames = strcat(obj.valNames, ws);
+        end
+
+
+        function setTitle(obj)
+
+            obj.figureTitle = obj.p.Results.Title;
+
+            % overwrite the default title if a title was provided
+            if ismember('Title', obj.p.UsingDefaults)
+                obj.figureTitle = strjoin(obj.valNames, ', ');
+            end
+
         end
         
               

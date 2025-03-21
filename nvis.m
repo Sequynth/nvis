@@ -211,7 +211,7 @@ classdef nvis < nvisBase
             % set the type
             obj.Type = 'nvis';
             
-            % only one Axis in nvis
+            % only one matlab axis in nvis
             obj.nAxes    = 1;
             obj.activeAx = 1;
             
@@ -223,7 +223,7 @@ classdef nvis < nvisBase
             if obj.nImages == 2
                 obj.inputNames{1} = inputname(1);
                 obj.inputNames{2} = inputname(2);
-                obj.standardTitle = [inputname(1) ' ' inputname(2)];
+                obj.standardTitle = [inputname(1) ', ' inputname(2)];
             else
                 obj.inputNames{1} = inputname(1);
                 obj.standardTitle = inputname(1);
@@ -355,9 +355,11 @@ classdef nvis < nvisBase
                 end
             end
             
-            % overwrite the default value fot maxLetters in locVal section
+            % overwrite the default value for maxLetters in locVal section
             obj.maxLetters = 8;
             obj.setValNames()
+
+            obj.setTitle()
             
             obj.setLocValFunction()            
             
@@ -399,7 +401,7 @@ classdef nvis < nvisBase
             %% adjust figure properties
             
             set(obj.f, ...
-                'name',                 obj.p.Results.Title, ...
+                'name',                 obj.figureTitle, ...
                 'Units',                'pixel', ...
                 'Position',             obj.p.Results.Position, ...
                 'Visible',              'off', ...
