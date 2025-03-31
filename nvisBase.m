@@ -1953,9 +1953,15 @@ classdef (Abstract) nvisBase < handle
                 if strcmp(ext, '.m')
                     obj.availableCmaps.(mapName) = feval(mapName, cmapResolution);
                 elseif strcmp(ext, '.mat')
-                    mapData = load([files(iFile).folder filesep files(iFile).name]);
+                    mapData = load([files(iFile).folder filesep files(iFile).name]);                    
                     fNames = fieldnames(mapData);
-                    obj.availableCmaps.(mapName) = mapData.(fNames{1});
+                    % loop over colormaps in file
+                    for iMap = 1:numel(fNames)
+                        % only allow 2dimensional matrices with 3 columns
+                        if ismatrix(mapData.(fNames{iMap})) && size(mapData.(fNames{iMap}), 2) == 3
+                            obj.availableCmaps.(fNames{iMap}) = mapData.(fNames{iMap});
+                        end
+                    end
                 else
                     warning('Colormap %s is not supported!', [mapName '.' ext])
                 end
