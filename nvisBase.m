@@ -33,6 +33,7 @@ classdef (Abstract) nvisBase < handle
         centerStep      % how much 'center' changes when windowing
         widthStep       % how much 'width' changes when windowing
         nrmFac          % normalization factor for windowing process
+        nanColor        % color that used for data values 'NaN'
         
         
     end
@@ -47,6 +48,7 @@ classdef (Abstract) nvisBase < handle
         ston            % cell array for dimensions where a matrix is the only singleton
         isComplex       % is one of the inputs complex
         isFloat         % are the inputs float or integer
+        hasNan          % a currently shown slice contains NaN values
         S               % size of the image(s)
         p               % input parser
         standardTitle   % name of the figure, default depends on inputnames
@@ -133,6 +135,9 @@ classdef (Abstract) nvisBase < handle
         
         % values for each dimension
         dimVal
+
+        % mask of nan values in currently displayed image
+        nanLocs
         
         %% GUI ELEMENTS
         
@@ -510,7 +515,8 @@ classdef (Abstract) nvisBase < handle
             addParameter(obj.p, 'LoopDimension',3,                              @(x) isnumeric(x) && x <= obj.nDims && obj.nDims >= 3);
             addParameter(obj.p, 'LoopCount',    Inf,                            @isnumeric);
             addParameter(obj.p, 'fixedDim',     0,                              @isnumeric);
-            addParameter(obj.p, 'InitRot',      zeros(1, obj.nAxes),            @(x) isnumeric(x));
+            addParameter(obj.p, 'InitRot',      zeros(1, obj.nAxes),            @isnumeric);
+            addParameter(obj.p, 'NaNColor',     [1 0 0],                        @isnumeric);
 
         end
         
@@ -563,6 +569,18 @@ classdef (Abstract) nvisBase < handle
             % that of the other value
             obj.centerStep(obj.centerStep == 0) = obj.widthStep(obj.centerStep == 0);
             obj.widthStep(obj.centerStep == 0) = obj.centerStep(obj.centerStep == 0);
+
+            color = obj.p.Results.NaNColor(:);
+
+             for iImage = 1:obj.nImages
+                if any(sqrt(sum((obj.cmap{iImage} - color').^2, 2)) < 0.01)
+                    warning('NaNColor is part of, or very close to one colormap. Change either to avoid ambiguity!')
+                end
+            end
+
+            % prepare the NaN-Color
+            obj.nanColor = reshape(color, [1, 1, 3]);
+
         end
         
         
@@ -928,6 +946,15 @@ classdef (Abstract) nvisBase < handle
                         % Data
                         obj.slice{iax, iImg} = fftshift(fftn(fftshift(obj.slice{iax, iImg})));
                     end
+
+                    % check if any slice contains nan values and where
+                    if any(isnan(obj.slice{iax, iImg}(:)))
+                        obj.hasNan(iImg) = 1;
+                        obj.nanLocs{iImg} = find(isnan(obj.slice{iax, iImg}));
+                    else
+                        obj.hasNan(iImg) = 0;
+                        obj.nanLocs{iImg} = [];
+                    end
                 end
             end
 
@@ -941,7 +968,6 @@ classdef (Abstract) nvisBase < handle
                 % convert the displayed data to datatype single
                 obj.slice = cellfun(@single, obj.slice, 'UniformOutput', false);
             end
-
 
             % Since the content in the axes changes, also recalculate the
             % values inside the ROIs.
@@ -972,11 +998,23 @@ classdef (Abstract) nvisBase < handle
                 % map images to range [0, cmapResolution]
                 cLimLow  = single(obj.center(obj.complexMode, idd) - obj.width(obj.complexMode, idd)/2);
                 imgMapped = (obj.slice{axNo, idd} - cLimLow)/single(obj.width(obj.complexMode, idd)) * size(obj.cmap{idd}, 1);
+
                 if obj.resize ~= 1
                     imgMapped = imresize(imgMapped, obj.resize);
                 end
+
+                % create RGB image data using selected colormap
                 imgRGB  = ind2rgb(round(imgMapped+0.5), obj.cmap{idd}) * obj.layerShown(idd);
-                imgRGB(repmat(isnan(obj.slice{axNo, idd}), [1 1 3])) = 0;
+
+                if obj.hasNan(idd)
+
+                    % Expand indices to cover all 3 channels at once
+                    idx3D = repmat(obj.nanLocs{idd}, 1, 3) + numel(obj.slice{axNo, idd}) * (0:2);
+
+                    stru = struct('type', '()', 'subs', {{idx3D}});
+                    imgRGB = subsasgn(imgRGB, stru, repmat(obj.nanColor, numel(obj.nanLocs{idd}), 1));
+                end
+
                 switch (obj.overlay)
                     % for assignment of overlay modes, see
                     % obj.overlayStrings
