@@ -265,7 +265,7 @@ classdef (Abstract) nvisBase < handle
         BtnHideKey = {'w' 'e'};
         BtnTgglKey = 'q';
         
-        overlayStrings = {'add', 'multiply'}
+        overlayStrings = {'add', 'on top', 'multiply'}
     end    
     
     
@@ -989,11 +989,12 @@ classdef (Abstract) nvisBase < handle
             switch (obj.overlay)
                 % for assignment of overlay modes, see
                 % obj.overlayStrings                
-                case 1 % add
+                case {1, 2} % add / on top
                     cImage  = zeros(imgSize);
-                case 2 % multiply
-                    cImage  = ones(imgSize);
+                case 3 % multiply
+                    cImage  = ones(imgSize);                
             end
+
             for idd = 1:obj.nImages
                 % map images to range [0, cmapResolution]
                 cLimLow  = single(obj.center(obj.complexMode, idd) - obj.width(obj.complexMode, idd)/2);
@@ -1020,8 +1021,14 @@ classdef (Abstract) nvisBase < handle
                     % obj.overlayStrings
                     case 1 % add
                         cImage  = cImage  + imgRGB;
-                    case 2 % multiply
-                        cImage  = cImage .* imgRGB;
+                    case 2 % on top
+                        if idd == 2
+                            cImage(repmat(round(imgMapped+0.5) > 0, 1, 1, 3)) = imgRGB(repmat(round(imgMapped+0.5) > 0, 1, 1, 3));
+                        else
+                            cImage  = cImage  + imgRGB;
+                        end
+                    case 3 % multiply
+                        cImage  = cImage .* imgRGB;                    
                 end
             end
             
