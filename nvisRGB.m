@@ -42,10 +42,12 @@ classdef nvisRGB < nvisBase
         controlWidthMinimized   = 30 ; % px
     end
     
-    methods
+    methods (Access = public)
         function obj = nvisRGB(in, varargin)
             % CONSTRUCTOR
             obj@nvisBase(in, varargin{:})
+            % set the type
+            obj.Type = 'nvisRGB';
             
             % only one Axis in nvisRGB
             obj.nAxes    = 1;
@@ -151,14 +153,17 @@ classdef nvisRGB < nvisBase
             
             obj.guiResize()
             set(obj.f, 'Visible', 'on');
-            
+
             % do not assign to 'ans' when called without assigned variable
             if nargout == 0
                 clear obj
             end
         end
-        
-        
+    end
+
+
+    methods (Access = protected)
+
         function delete(obj)
             try
                 stop(obj.t);
@@ -166,8 +171,8 @@ classdef nvisRGB < nvisBase
             catch
             end
         end
-        
-        
+
+
         function prepareGUI(obj)
             
             % adjust figure properties

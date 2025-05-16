@@ -204,7 +204,7 @@ classdef nvis < nvisBase
         sliderPadding           = 4;   % px
     end
     
-    methods
+    methods (Access = public)
         function obj = nvis(in, varargin)
             %% CONSTRUCTOR
             obj@nvisBase(in, varargin{:})
@@ -389,7 +389,10 @@ classdef nvis < nvisBase
                 clear obj
             end
         end
-        
+    end
+
+
+    methods (Access = protected)       
         
         function delete(obj)
         %% destructor
@@ -1389,13 +1392,22 @@ classdef nvis < nvisBase
                 % initially set the external dimension to the first slider
                 % dimension
                 obj.externalDim = obj.mapSliderToDim(1);
+
+                % if all colormaps are distinct, use specific colors, if
+                % colors are identical, use default colors.
+                if size(unique(obj.COLOR_m, 'rows'), 1) == obj.nImages
+                    colors = obj.COLOR_m;
+                else
+                    colors = [];
+                end
                 
                 % create and open plot figure
-                obj.hExtPlot = nplot(obj.img{:}, ...
+                obj.hExtPlot = nplot(obj.img{1:obj.nImages}, ...
                     'Unit',             obj.unit, ...
                     'DimLabel',         obj.dimLabel, ....
                     'DimVal',           obj.dimVal, ....
                     'initDim',          obj.externalDim, ...
+                    'Color',            colors, ...
                     'ExternalCall',     1);
                 obj.updateExternalDimension()
                 obj.updateExternalData()

@@ -15,6 +15,7 @@ classdef (Abstract) nvisBase < handle
     properties (Access = public)
         f
         Type
+        
     end
 		
     properties (Access = private)
@@ -270,7 +271,7 @@ classdef (Abstract) nvisBase < handle
     
     
     %% abstract methods    
-    methods (Abstract)
+    methods (Abstract, Access = protected)
         locVal(obj, axNo)
         refreshUI(obj)
         incDecActiveDim(obj, incDec)
@@ -283,7 +284,7 @@ classdef (Abstract) nvisBase < handle
     end
         
     
-    methods
+    methods (Access = protected)
         function obj = nvisBase(in, varargin)
             % CONSTRUCTOR
             obj.varargin = varargin;
@@ -1722,7 +1723,7 @@ classdef (Abstract) nvisBase < handle
         
         
         function saveVidBtn(obj, ~, ~)
-            % get the filepath from a UI and call saveVideo funciton to save
+            % get the filepath from a UI and call saveVideo function to save
             % the video or gif
             [filename, filepath] = uiputfile({'*.avi', 'AVI-file (*.avi)'; ...
                 '*.gif', 'gif-Animation (*.gif)'}, ...

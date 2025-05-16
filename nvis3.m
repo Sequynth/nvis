@@ -133,10 +133,12 @@ classdef nvis3 < nvisBase
     end
     
     
-    methods
+    methods (Access = public)
         function obj = nvis3(in, varargin)
             % CONSTRUCTOR
             obj@nvisBase(in, varargin{:})
+            % set the type
+            obj.Type = 'nvis3';
             
             % Three axes are shown in nvis3
             obj.nAxes = 3;
@@ -219,8 +221,10 @@ classdef nvis3 < nvisBase
                 clear obj
             end
         end
-        
-        
+    end
+
+    
+    methods (Access = protected)
         function prepareGUI(obj)
             set(obj.f, ...
                 'name',                 obj.figureTitle, ...
