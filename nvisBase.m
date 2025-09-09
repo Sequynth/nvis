@@ -1788,6 +1788,8 @@ classdef (Abstract) nvisBase < handle
                             'DelayTime',    1/obj.fps);
                     end
                 else
+                    imgOut(imgOut > 1) = 1;
+                    imgOut(imgOut < 0) = 0;
                     writeVideo(v, imgOut);
                 end
             end
