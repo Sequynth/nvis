@@ -1513,6 +1513,14 @@ classdef nvis < nvisBase
             obj.prepareSliceData;       
             % apply the current azimuthal rotation to the image and save
             imwrite(imrotate(obj.sliceMixer(1), -obj.azimuthAng, 'bicubic'), path);
+
+            [center, width] = obj.getCW();
+            for idd = 1:obj.nImages
+                if obj.layerShown(idd)
+                    writeCBar(obj.cmap{idd}, [center(obj.complexMode, idd) width(obj.complexMode, idd)], ...
+                        regexprep(path, '(\.png)', sprintf('_cb%d.png', idd)), 1)
+                end
+            end
         end
 
 
@@ -1532,7 +1540,6 @@ classdef nvis < nvisBase
             obj.guiResize()
             obj.refreshUI()
             
-
         end
 
 

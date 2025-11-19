@@ -1159,7 +1159,7 @@ classdef (Abstract) nvisBase < handle
                         range = [ obj.center(obj.complexMode, idi) - obj.width(obj.complexMode, idi)/2 ...
                                   obj.center(obj.complexMode, idi) + obj.width(obj.complexMode, idi)/2];
                         % x/ydata for the image must be smaller by half the
-                        % width of a colorbar 'pixel ata both ends
+                        % width of a colorbar 'pixel at both ends
                         delta = diff(range) / size(obj.cmap{idi}, 1)/2;
                         data = linspace(range(1)+delta, range(2)-delta, size(obj.cmap{idi}, 1));
 
@@ -1485,6 +1485,12 @@ classdef (Abstract) nvisBase < handle
             % cw is called in order to update the colobar ticks
             obj.cw();
             obj.refreshUI();
+        end
+
+
+        function [c, w] = getCW(obj)
+            c = obj.center;
+            w = obj.width;
         end
         
         
