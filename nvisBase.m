@@ -128,7 +128,7 @@ classdef (Abstract) nvisBase < handle
         % colormap for all images as a cell array, containing Nx3 colormaps
         cmap
         
-        % overlay mode (1: add, 2: multiply)
+        % overlay mode (1: add, 2: multiply, 3: overlay)
         overlay
         
         % label for each dimension
@@ -266,7 +266,7 @@ classdef (Abstract) nvisBase < handle
         BtnHideKey = {'w' 'e'};
         BtnTgglKey = 'q';
         
-        overlayStrings = {'add', 'multiply'}
+        overlayStrings = {'add', 'multiply', 'overlay'}
     end    
     
     
@@ -994,6 +994,8 @@ classdef (Abstract) nvisBase < handle
                     cImage  = zeros(imgSize);
                 case 2 % multiply
                     cImage  = ones(imgSize);
+                case 3 % overlay
+                    cImage  = zeros(imgSize);
             end
             for idd = 1:obj.nImages
                 % map images to range [0, cmapResolution]
@@ -1023,6 +1025,11 @@ classdef (Abstract) nvisBase < handle
                         cImage  = cImage  + imgRGB;
                     case 2 % multiply
                         cImage  = cImage .* imgRGB;
+                    case 3 % overlay
+                        if obj.layerShown(idd)
+                            mask = repmat(~isnan(obj.slice{axNo, idd}), 1, 1, 3);
+                            cImage(mask) = imgRGB(mask);
+                        end
                 end
             end
             

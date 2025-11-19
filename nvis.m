@@ -58,7 +58,9 @@ classdef nvis < nvisBase
     %                               future versions.
     %	'Overlay' 		int 		inital overlay mode for two input
     %                               matrices (1: add (default), 2:
-    %                               multiply)
+    %                               multiply, 3: overlay (2nd input is
+    %                               drawn on top of first and NaN values in
+    %                               2nd input have 100% transparency))
     %	'ComplexMode'   int 		For complex data, chooses the initially
     %                               displayed complex part (1: magnitude
     %                               (default), 2: phase, 3: real part, 4:
