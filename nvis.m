@@ -1115,7 +1115,7 @@ classdef nvis < nvisBase
             %% show/hide custom colorbar(s)
             images = allchild(obj.hAxCb);
             if ~obj.cbShown
-                obj.colorbarWidth = 150;
+                obj.colorbarWidth = 170;
                 set(obj.hAxCb,      'Visible', 'on')
                 if obj.nImages == 1
                     set(images,      'Visible', 'on')
