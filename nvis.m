@@ -254,6 +254,13 @@ classdef nvis < nvisBase
             obj.color_ma            = obj.p.Results.MarkerColor;            
             obj.fixedDim            = obj.p.Results.fixedDim;
 
+            % clean parsed values
+            % check 'Units' input
+            if ischar(obj.unit)
+                % make it a cell array
+                obj.unit = {obj.unit, ''};
+            end
+
             % remove all entries from permute, where obj.S is 1. Create a
             % temporary size variable with trailing 1s to mimick behaviour
             % of matlabs inbuilt permute function
@@ -335,6 +342,10 @@ classdef nvis < nvisBase
 
             % necessary for view orientation, already needed when saving image or video
             obj.azimuthAng   = obj.p.Results.InitRot;
+
+            % overwrite the default value for maxLetters in locVal section
+            obj.maxLetters = 8;
+            obj.setValNames()
                         
             % when an image or a video is saved, dont create the GUI and
             % terminate the class after finishing
@@ -355,11 +366,7 @@ classdef nvis < nvisBase
                     clear obj
                     return
                 end
-            end
-            
-            % overwrite the default value for maxLetters in locVal section
-            obj.maxLetters = 8;
-            obj.setValNames()
+            end            
 
             obj.setTitle()
             
@@ -1253,10 +1260,10 @@ classdef nvis < nvisBase
                     dim2, ...
                     obj.COLOR_m(1, :), ...
                     obj.valNames{1}, ...
-                    [num2sci(val1) obj.unit{1}], ...
+                    [num2sci(val1) ' ' obj.unit{1}], ...
                     obj.COLOR_m(2, :), ...
                     obj.valNames{2}, ...
-                    [num2sci(val2) obj.unit{2}]);
+                    [num2sci(val2) ' ' obj.unit{2}]);
             end
         end
         
@@ -1519,8 +1526,21 @@ classdef nvis < nvisBase
             [center, width] = obj.getCW();
             for idd = 1:obj.nImages
                 if obj.layerShown(idd)
-                    writeCBar(obj.cmap{idd}, [center(obj.complexMode, idd) width(obj.complexMode, idd)], ...
-                        regexprep(path, '(\.png)', sprintf('_cb%d.png', idd)), 1)
+
+                    clim = center(obj.complexMode, idd) + [-width(obj.complexMode, idd) width(obj.complexMode, idd)]/2;
+
+                    if ~isempty(obj.valNames{idd})
+                        bar_label = deblank(obj.valNames{idd});
+                        if ~isempty(obj.unit{idd})
+                            bar_label = [bar_label ' / ' obj.unit{idd}];
+                        end
+                    end
+
+                    writeCBar(obj.cmap{idd}, ...
+                        'clim',     clim, ...
+                        'savename', regexprep(path, '(\.png)', sprintf('_cb%d.png', idd)), ...
+                        'scaling',  1, ...
+                        'label',    bar_label);
                 end
             end
         end
