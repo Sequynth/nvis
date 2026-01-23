@@ -505,11 +505,11 @@ classdef (Abstract) nvisBase < handle
                                                 obj.Max(1)-obj.Min(1); ...
                                                 (obj.Max(2) - obj.Min(2))/2+obj.Min(2), ...
                                                 obj.Max(2)-obj.Min(2)],         @isnumeric);            
-            addParameter(obj.p, 'widthMin',     0,@isnumeric);
-            addParameter(obj.p, 'Unit',         {[], []},                       @(x) (iscell(x) && numel(x) <= 2) | ischar(x));
+            addParameter(obj.p, 'widthMin',     0,                              @isnumeric);
+            addParameter(obj.p, 'ImgLabel',     repmat({''}, 1, obj.nImages),   @(x) (iscell(x) && numel(x) <= 2) | ischar(x));
+            addParameter(obj.p, 'Unit',         repmat({''}, 1, obj.nImages),   @(x) (iscell(x) && numel(x) <= 2) | ischar(x));
             addParameter(obj.p, 'DimLabel',     strcat(repmat({}, 1, numel(obj.S))), @(x) iscell(x) && numel(x) >= obj.nDims);
-            addParameter(obj.p, 'DimVal',       cellfun(@(x) 1:x, num2cell(obj.S), 'UniformOutput', false), @iscell);
-            addParameter(obj.p, 'ImgLabel',     {},                             @(x) iscell(x) && numel(x) <= 2);
+            addParameter(obj.p, 'DimVal',       cellfun(@(x) 1:x, num2cell(obj.S), 'UniformOutput', false), @iscell);            
             addParameter(obj.p, 'SaveImage',    '',                             @ischar);
             addParameter(obj.p, 'SaveVideo',    '',                             @ischar);
             addParameter(obj.p, 'fps',          0,                              @isnumeric);
@@ -1835,9 +1835,11 @@ classdef (Abstract) nvisBase < handle
                     end                    
                 end
 
-                %if explicit names were provided, overwrite val names
-                if ~ismember('ImgLabel', obj.p.UsingDefaults)
-                    if ii <= numel(obj.p.Results.ImgLabel)
+                % if explicit names were provided, overwrite val names
+                if ~contains('ImgLabel', obj.p.UsingDefaults)
+                    if ischar(obj.p.Results.ImgLabel)                     
+                        obj.valNames{1} = obj.p.Results.ImgLabel;
+                    elseif ii <= numel(obj.p.Results.ImgLabel{ii})
                         obj.valNames{ii} = obj.p.Results.ImgLabel{ii};
                     else
                         obj.valNames{ii} = '';
