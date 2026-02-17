@@ -195,6 +195,10 @@ classdef nvis3 < nvisBase
 
             % necessary for view orientation
             obj.azimuthAng = obj.p.Results.InitRot;
+            for axNo = 1:obj.nAxes
+                obj.rotMat{axNo} = [cosd(obj.azimuthAng(axNo)), - sind(obj.azimuthAng(axNo)); ...
+                    sind(obj.azimuthAng(axNo)), + cosd(obj.azimuthAng(axNo))];
+            end
 
             % overwrite the default value fot maxLetters in locVal section
             obj.maxLetters = 8;
@@ -219,6 +223,27 @@ classdef nvis3 < nvisBase
             % do not assign to 'ans' when called without assigned variable
             if nargout == 0
                 clear obj
+            end
+        end
+
+        function activateAx(obj, axNo)
+            if obj.activeAx ~= axNo
+                obj.activeAx  = axNo;
+                obj.activeDim = axNo;
+                for iax = 1:obj.nAxes
+                    set(get(obj.hImage(iax), 'Parent'), 'XColor', [0 0 0]);
+                    set(get(obj.hImage(iax), 'Parent'), 'YColor', [0 0 0]);
+                end
+                % TODO: implement 4th slider first
+                % set(pSlider(4),'ShadowColor',color_B)
+                if axNo < 4
+                    axes(get(obj.hImage(axNo), 'Parent'))
+                    set(get(obj.hImage(axNo), 'Parent'), ...
+                        'XColor',   obj.axColors(obj.activeAx), ...
+                        'YColor',   obj.axColors(obj.activeAx));
+                else
+                    % set(pSlider(4),'ShadowColor', color_F)
+                end
             end
         end
     end
@@ -294,10 +319,12 @@ classdef nvis3 < nvisBase
                 ax(iim) = axes(...
                     'Parent',   obj.pImage(iim), ...
                     'Units',    'normalized', ...
-                    'Position', [0 0 1 1]);
-                obj.hImage(iim)  = imagesc(obj.sliceMixer(iim), 'Parent', ax(iim));  % plot image
+                    'Position', [0 0 1 1]);                
+
+                obj.hImage(iim)  = imagesc(obj.sliceMixer(iim), 'Parent', ax(iim));  % plot image                
                 hold on
                 eval(['axis ', obj.p.Results.AspectRatio]);
+                set(ax(iim), 'UserData', struct('axNo', iim))
                 
                 set(obj.hImage(iim), 'ButtonDownFcn', @obj.startDragFcn)
                 colormap(ax(iim), obj.cmap{1});
@@ -817,29 +844,7 @@ classdef nvis3 < nvisBase
             %                 calcROI();
             %             end
         end
-        
-        
-        function activateAx(obj, axNo)
-            if obj.activeAx ~= axNo
-                obj.activeAx  = axNo;
-                obj.activeDim = axNo;
-                for iax = 1:obj.nAxes
-                    set(get(obj.hImage(iax), 'Parent'), 'XColor', [0 0 0]);
-                    set(get(obj.hImage(iax), 'Parent'), 'YColor', [0 0 0]);
-                end
-                % TODO: implement 4th slider first
-                % set(pSlider(4),'ShadowColor',color_B)
-                if axNo < 4
-                    axes(get(obj.hImage(axNo), 'Parent'))
-                    set(get(obj.hImage(axNo), 'Parent'), ...
-                        'XColor',   obj.axColors(obj.activeAx), ...
-                        'YColor',   obj.axColors(obj.activeAx));
-                else
-                    % set(pSlider(4),'ShadowColor', color_F)
-                end
-            end
-        end
-        
+                
         
         function activateSlider(obj, dim)
             % change current axes and indicate to user by drawing coloured line

@@ -342,6 +342,8 @@ classdef nvis < nvisBase
 
             % necessary for view orientation, already needed when saving image or video
             obj.azimuthAng   = obj.p.Results.InitRot;
+            obj.rotMat{1} = [cosd(obj.azimuthAng), - sind(obj.azimuthAng); ...
+                             sind(obj.azimuthAng), + cosd(obj.azimuthAng)];
 
             % overwrite the default value for maxLetters in locVal section
             obj.maxLetters = 8;
@@ -1001,11 +1003,11 @@ classdef nvis < nvisBase
             ax = axes(...
                 'Parent',       obj.pImage, ...
                 'Units',        'normal', ...
-                'Position',     [0 0 1 1]);            
-            
-            
+                'Position',     [0 0 1 1]);
             obj.hImage = imagesc(obj.sliceMixer(1), ...
                 'Parent',       ax);  % plot image
+            set(ax, 'UserData', struct('axNo', 1))
+
             hold on
             obj.hMarker = plot(obj.point(1), obj.point(2), ...
                 'Parent',       ax, ...

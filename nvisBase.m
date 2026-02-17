@@ -33,7 +33,6 @@ classdef (Abstract) nvisBase < handle
         widthMin        % minimalWidth of the colormap, prevents division by 0
         centerStep      % how much 'center' changes when windowing
         widthStep       % how much 'width' changes when windowing
-        nrmFac          % normalization factor for windowing process
         nanColor        % color that used for data values 'NaN'
         
         
@@ -113,6 +112,8 @@ classdef (Abstract) nvisBase < handle
         
         % used to rotate the view on the axes when necessary
         azimuthAng
+        % stores the angular information in a rotation matrix
+        rotMat
         
         % coordinates of the current point under the cursor (third element
         % is the axis, pt is empty when curser not over any axis)
@@ -1047,75 +1048,80 @@ classdef (Abstract) nvisBase < handle
 
 
         function startDragFcn(obj, src, evtData)
-            % when middle mouse button is pressed, save current point and start
+             % when middle mouse button is pressed, save current point and start
             % tracking of mouse movements
+
             callingAx = src.Parent;
-            Pt = get(callingAx, 'CurrentPoint');            
-            
-            % activate the axis in which the windowing occurrs.
-            imgIdx = find(obj.hImage == src);
+            Pt = callingAx.CurrentPoint;
+            axNo = callingAx.UserData.axNo;
+
             if obj.nAxes > 1
-                obj.activateAx(imgIdx)
+                obj.activateAx(axNo);
             end
 
             if strcmp(obj.f.SelectionType, 'open')
                 obj.mouseBtnDouble(src, evtData);
             end
-            
-            % store start values for window and center
+
+            % Store start values
             sCenter = obj.center(obj.complexMode, :);
             sWidth  = obj.width(obj.complexMode, :);
-            % and the steps for both images
             cStep   = obj.centerStep(obj.complexMode, :);
             wStep   = obj.widthStep(obj.complexMode, :);
-            
-            % normalization factor
-            obj.nrmFac = [obj.S(find(obj.showDims(imgIdx, :), 1, 'first')) obj.S(find(obj.showDims(imgIdx, :), 1, 'last'))]*obj.resize;
-            switch get(gcbf, 'SelectionType')
+
+            % Normalization factor
+            dims = find(obj.showDims(axNo, :));
+            nrmFac = 1 ./ ([obj.S(dims(1)) obj.S(dims(end))] * obj.resize);
+
+            switch obj.f.SelectionType
+
                 case 'alt'
                     if ~isempty(obj.img{2}) && obj.layerShown(2)
                         cStep = cStep .* [obj.linkedWindowing, 1];
                         wStep = wStep .* [obj.linkedWindowing, 1];
-                        obj.f.WindowButtonMotionFcn = {@obj.draggingFcn, callingAx, Pt, sCenter, sWidth, cStep, wStep};
+
+                        obj.f.WindowButtonMotionFcn = ...
+                            {@obj.draggingFcn, callingAx, Pt, sCenter, sWidth, cStep, wStep, nrmFac};
                     end
+
                 case 'extend'
-                    if isempty(obj.img{2}) || (~isempty(obj.img{2}) && obj.layerShown(1))
+                    if isempty(obj.img{2}) || obj.layerShown(1)
                         cStep = cStep .* [1, obj.linkedWindowing];
                         wStep = wStep .* [1, obj.linkedWindowing];
-                        obj.f.WindowButtonMotionFcn = {@obj.draggingFcn, callingAx, Pt, sCenter, sWidth, cStep, wStep};
+
+                        obj.f.WindowButtonMotionFcn = ...
+                            {@obj.draggingFcn, callingAx, Pt, sCenter, sWidth, cStep, wStep, nrmFac};
                     end
+
                 case 'normal'
-                    obj.mouseBtnNormal(Pt)
+                    obj.mouseBtnNormal(Pt);
             end
         end
-        
-        
-        function draggingFcn(obj, ~, ~, callingAx, StartPt, sCenter, sWidth, cStep, wStep)
-            % track motion of mouse and change center and width variables
-            % accordingly
-            cPoint = get(callingAx, 'CurrentPoint');
-            axNo = find([obj.hImage.Parent] == callingAx);
-            
-            dx = (cPoint(1, 1)-StartPt(1, 1)) / obj.nrmFac(2); % width-direction (LR)
-            dy = (cPoint(1, 2)-StartPt(1, 2)) / obj.nrmFac(1); % center direction (UD)
-            
-            % dVec = [dx, dy]
-            
-            % from the rotated axis coordinate system, rotate back into the
-            % figure (screen) coordinate system
-            dVecRot = [cosd(obj.azimuthAng(axNo)) * dx - sind(obj.azimuthAng(axNo)) * dy, ...
-                sind(obj.azimuthAng(axNo)) * dx + cosd(obj.azimuthAng(axNo)) * dy];
+
+
+        function draggingFcn(obj, ~, ~, callingAx, StartPt, sCenter, sWidth, cStep, wStep, nrmFac)
+
+            cPoint = callingAx.CurrentPoint;
+            axNo   = callingAx.UserData.axNo;
+
+            % Vectorized + normalized motion
+            dxy = (cPoint(1,1:2) - StartPt(1,1:2)) .* nrmFac([2 1]);
+            dx = dxy(1);
+            dy = dxy(2);
+
+            % Rotate back using PRECOMPUTED matrix
+            dVecRot = obj.rotMat{axNo} * [dx; dy];
 
             obj.width(obj.complexMode, :)  = sWidth  + wStep .* dVecRot(1);
             obj.center(obj.complexMode, :) = sCenter - cStep .* dVecRot(2);
 
-            obj.cw()
+            obj.cw();
         end
-        
+
         
         function cw(obj)
             % adjust windowing values depending on values for center and width
-            obj.width(obj.width <= 0) = 0;%obj.widthMin(obj.width <= obj.widthMin);
+            obj.width = max(obj.width, eps);%obj.widthMin(obj.width <= obj.widthMin);
             
             for ida = 1:numel(obj.hImage)
                 set(obj.hImage(ida), 'CData', obj.sliceMixer(ida));
@@ -1670,6 +1676,8 @@ classdef (Abstract) nvisBase < handle
                 axNo = find(obj.hBtnRotL == src);
             end
             obj.azimuthAng(axNo) = mod(obj.azimuthAng(axNo) + angle, 360);
+            obj.rotMat{axNo} = [cosd(obj.azimuthAng(axNo)), - sind(obj.azimuthAng(axNo)); ...
+                                sind(obj.azimuthAng(axNo)), + cosd(obj.azimuthAng(axNo))];
             set(obj.hImage(axNo).Parent, 'View', [obj.azimuthAng(axNo) 90])
         end
                 
