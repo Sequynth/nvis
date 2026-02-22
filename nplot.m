@@ -32,6 +32,9 @@ classdef nplot < handle
     %                                           linear indices counting from 1
     %                                           to the dimension size. Leave
     %                                           cell empty for default values.
+    %   Color       double      []              defines the color for each
+    %                                           of the N input datasets in
+    %                                           a Nx3 matrix.
     
     % -------------------------------------------------------------------------
     %   TODO
@@ -95,6 +98,7 @@ classdef nplot < handle
         
         % apperance of plotted lines
         lineStyle
+        color
         
         % store currently shown x-data
         currXData
@@ -291,7 +295,8 @@ classdef nplot < handle
             obj.sel = num2cell(ceil(obj.S/2));
             
             addParameter(obj.p, 'InputNames',   {},                             @(x) ischar(x) || (iscell(x) && numel(x) == obj.nMats));
-            addParameter(obj.p, 'LineStyle',     repmat({'-'}, 1, obj.nMats),   @(x) ischar(x) || (iscell(x) && numel(x) == obj.nMats));
+            addParameter(obj.p, 'LineStyle',    repmat({'-'}, 1, obj.nMats),    @(x) ischar(x) || (iscell(x) && numel(x) == obj.nMats));
+            addParameter(obj.p, 'Color',        [],                             @isnumeric);
             addParameter(obj.p, 'InitSel',      obj.sel,                        @(x) isnumeric(x) && x <= 4);
             addParameter(obj.p, 'ComplexMode',  obj.complexMode,                @(x) isnumeric(x) && x <= 4);
             addParameter(obj.p, 'DimLabel',     strcat(repmat({}, 1, numel(obj.S))), @(x) iscell(x) && numel(x) >= obj.nDims);
@@ -308,6 +313,7 @@ classdef nplot < handle
             obj.unit                = obj.p.Results.Unit;
             obj.showDim             = obj.p.Results.InitDim;
             obj.bCalledFromExternal = obj.p.Results.ExternalCall;
+            obj.color               = obj.p.Results.Color;
                         
             obj.parseDimLabelsVals()
         end
@@ -559,6 +565,9 @@ classdef nplot < handle
             
             for iMat = 1:obj.nMats
                 obj.hPlot(iMat) = plot(xData, yData, obj.lineStyle{iMat});
+                if ~isempty(obj.color)
+                     set(obj.hPlot(iMat), 'Color', obj.color(iMat, :))
+                end
             end
             
             %obj.hVertLine = plot([1 1], [-1 1]);

@@ -58,7 +58,9 @@ classdef nvis < nvisBase
     %                               future versions.
     %	'Overlay' 		int 		inital overlay mode for two input
     %                               matrices (1: add (default), 2:
-    %                               multiply)
+    %                               multiply, 3: overlay (2nd input is
+    %                               drawn on top of first and NaN values in
+    %                               2nd input have 100% transparency))
     %	'ComplexMode'   int 		For complex data, chooses the initially
     %                               displayed complex part (1: magnitude
     %                               (default), 2: phase, 3: real part, 4:
@@ -204,7 +206,7 @@ classdef nvis < nvisBase
         sliderPadding           = 4;   % px
     end
     
-    methods
+    methods (Access = public)
         function obj = nvis(in, varargin)
             %% CONSTRUCTOR
             obj@nvisBase(in, varargin{:})
@@ -251,6 +253,13 @@ classdef nvis < nvisBase
             obj.unit                = obj.p.Results.Unit;
             obj.color_ma            = obj.p.Results.MarkerColor;            
             obj.fixedDim            = obj.p.Results.fixedDim;
+
+            % clean parsed values
+            % check 'Units' input
+            if ischar(obj.unit)
+                % make it a cell array
+                obj.unit = {obj.unit, ''};
+            end
 
             % remove all entries from permute, where obj.S is 1. Create a
             % temporary size variable with trailing 1s to mimick behaviour
@@ -333,6 +342,10 @@ classdef nvis < nvisBase
 
             % necessary for view orientation, already needed when saving image or video
             obj.azimuthAng   = obj.p.Results.InitRot;
+
+            % overwrite the default value for maxLetters in locVal section
+            obj.maxLetters = 8;
+            obj.setValNames()
                         
             % when an image or a video is saved, dont create the GUI and
             % terminate the class after finishing
@@ -353,11 +366,7 @@ classdef nvis < nvisBase
                     clear obj
                     return
                 end
-            end
-            
-            % overwrite the default value for maxLetters in locVal section
-            obj.maxLetters = 8;
-            obj.setValNames()
+            end            
 
             obj.setTitle()
             
@@ -389,7 +398,10 @@ classdef nvis < nvisBase
                 clear obj
             end
         end
-        
+    end
+
+
+    methods (Access = protected)       
         
         function delete(obj)
         %% destructor
@@ -1112,7 +1124,7 @@ classdef nvis < nvisBase
             %% show/hide custom colorbar(s)
             images = allchild(obj.hAxCb);
             if ~obj.cbShown
-                obj.colorbarWidth = 150;
+                obj.colorbarWidth = 170;
                 set(obj.hAxCb,      'Visible', 'on')
                 if obj.nImages == 1
                     set(images,      'Visible', 'on')
@@ -1248,10 +1260,10 @@ classdef nvis < nvisBase
                     dim2, ...
                     obj.COLOR_m(1, :), ...
                     obj.valNames{1}, ...
-                    [num2sci(val1) obj.unit{1}], ...
+                    [num2sci(val1) ' ' obj.unit{1}], ...
                     obj.COLOR_m(2, :), ...
                     obj.valNames{2}, ...
-                    [num2sci(val2) obj.unit{2}]);
+                    [num2sci(val2) ' ' obj.unit{2}]);
             end
         end
         
@@ -1389,13 +1401,22 @@ classdef nvis < nvisBase
                 % initially set the external dimension to the first slider
                 % dimension
                 obj.externalDim = obj.mapSliderToDim(1);
+
+                % if all colormaps are distinct, use specific colors, if
+                % colors are identical, use default colors.
+                if size(unique(obj.COLOR_m, 'rows'), 1) == obj.nImages
+                    colors = obj.COLOR_m;
+                else
+                    colors = [];
+                end
                 
                 % create and open plot figure
-                obj.hExtPlot = nplot(obj.img{:}, ...
+                obj.hExtPlot = nplot(obj.img{1:obj.nImages}, ...
                     'Unit',             obj.unit, ...
                     'DimLabel',         obj.dimLabel, ....
                     'DimVal',           obj.dimVal, ....
                     'initDim',          obj.externalDim, ...
+                    'Color',            colors, ...
                     'ExternalCall',     1);
                 obj.updateExternalDimension()
                 obj.updateExternalData()
@@ -1501,6 +1522,27 @@ classdef nvis < nvisBase
             obj.prepareSliceData;       
             % apply the current azimuthal rotation to the image and save
             imwrite(imrotate(obj.sliceMixer(1), -obj.azimuthAng, 'bicubic'), path);
+
+            [center, width] = obj.getCW();
+            for idd = 1:obj.nImages
+                if obj.layerShown(idd)
+
+                    clim = center(obj.complexMode, idd) + [-width(obj.complexMode, idd) width(obj.complexMode, idd)]/2;
+
+                    if ~isempty(obj.valNames{idd})
+                        bar_label = deblank(obj.valNames{idd});
+                        if ~isempty(obj.unit{idd})
+                            bar_label = [bar_label ' / ' obj.unit{idd}];
+                        end
+                    end
+
+                    writeCBar(obj.cmap{idd}, ...
+                        'clim',     clim, ...
+                        'savename', regexprep(path, '(\.png)', sprintf('_cb%d.png', idd)), ...
+                        'scaling',  1, ...
+                        'label',    bar_label);
+                end
+            end
         end
 
 
@@ -1520,7 +1562,6 @@ classdef nvis < nvisBase
             obj.guiResize()
             obj.refreshUI()
             
-
         end
 
 

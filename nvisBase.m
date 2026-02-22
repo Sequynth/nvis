@@ -15,6 +15,7 @@ classdef (Abstract) nvisBase < handle
     properties (Access = public)
         f
         Type
+        
     end
 		
     properties (Access = private)
@@ -127,7 +128,7 @@ classdef (Abstract) nvisBase < handle
         % colormap for all images as a cell array, containing Nx3 colormaps
         cmap
         
-        % overlay mode (1: add, 2: multiply)
+        % overlay mode (1: add, 2: multiply, 3: overlay)
         overlay
         
         % label for each dimension
@@ -265,12 +266,12 @@ classdef (Abstract) nvisBase < handle
         BtnHideKey = {'w' 'e'};
         BtnTgglKey = 'q';
         
-        overlayStrings = {'add', 'multiply'}
+        overlayStrings = {'add', 'multiply', 'overlay'}
     end    
     
     
     %% abstract methods    
-    methods (Abstract)
+    methods (Abstract, Access = protected)
         locVal(obj, axNo)
         refreshUI(obj)
         incDecActiveDim(obj, incDec)
@@ -283,7 +284,7 @@ classdef (Abstract) nvisBase < handle
     end
         
     
-    methods
+    methods (Access = protected)
         function obj = nvisBase(in, varargin)
             % CONSTRUCTOR
             obj.varargin = varargin;
@@ -504,11 +505,11 @@ classdef (Abstract) nvisBase < handle
                                                 obj.Max(1)-obj.Min(1); ...
                                                 (obj.Max(2) - obj.Min(2))/2+obj.Min(2), ...
                                                 obj.Max(2)-obj.Min(2)],         @isnumeric);            
-            addParameter(obj.p, 'widthMin',     0,@isnumeric);
-            addParameter(obj.p, 'Unit',         {[], []},                       @(x) (iscell(x) && numel(x) <= 2) | ischar(x));
+            addParameter(obj.p, 'widthMin',     0,                              @isnumeric);
+            addParameter(obj.p, 'ImgLabel',     repmat({''}, 1, obj.nImages),   @(x) (iscell(x) && numel(x) <= 2) | ischar(x));
+            addParameter(obj.p, 'Unit',         repmat({''}, 1, obj.nImages),   @(x) (iscell(x) && numel(x) <= 2) | ischar(x));
             addParameter(obj.p, 'DimLabel',     strcat(repmat({}, 1, numel(obj.S))), @(x) iscell(x) && numel(x) >= obj.nDims);
-            addParameter(obj.p, 'DimVal',       cellfun(@(x) 1:x, num2cell(obj.S), 'UniformOutput', false), @iscell);
-            addParameter(obj.p, 'ImgLabel',     {},                             @(x) iscell(x) && numel(x) <= 2);
+            addParameter(obj.p, 'DimVal',       cellfun(@(x) 1:x, num2cell(obj.S), 'UniformOutput', false), @iscell);            
             addParameter(obj.p, 'SaveImage',    '',                             @ischar);
             addParameter(obj.p, 'SaveVideo',    '',                             @ischar);
             addParameter(obj.p, 'fps',          0,                              @isnumeric);
@@ -993,6 +994,8 @@ classdef (Abstract) nvisBase < handle
                     cImage  = zeros(imgSize);
                 case 2 % multiply
                     cImage  = ones(imgSize);
+                case 3 % overlay
+                    cImage  = zeros(imgSize);
             end
             for idd = 1:obj.nImages
                 % map images to range [0, cmapResolution]
@@ -1022,6 +1025,11 @@ classdef (Abstract) nvisBase < handle
                         cImage  = cImage  + imgRGB;
                     case 2 % multiply
                         cImage  = cImage .* imgRGB;
+                    case 3 % overlay
+                        if obj.layerShown(idd)
+                            mask = repmat(~isnan(obj.slice{axNo, idd}), 1, 1, 3);
+                            cImage(mask) = imgRGB(mask);
+                        end
                 end
             end
             
@@ -1158,7 +1166,7 @@ classdef (Abstract) nvisBase < handle
                         range = [ obj.center(obj.complexMode, idi) - obj.width(obj.complexMode, idi)/2 ...
                                   obj.center(obj.complexMode, idi) + obj.width(obj.complexMode, idi)/2];
                         % x/ydata for the image must be smaller by half the
-                        % width of a colorbar 'pixel ata both ends
+                        % width of a colorbar 'pixel at both ends
                         delta = diff(range) / size(obj.cmap{idi}, 1)/2;
                         data = linspace(range(1)+delta, range(2)-delta, size(obj.cmap{idi}, 1));
 
@@ -1485,6 +1493,12 @@ classdef (Abstract) nvisBase < handle
             obj.cw();
             obj.refreshUI();
         end
+
+
+        function [c, w] = getCW(obj)
+            c = obj.center;
+            w = obj.width;
+        end
         
         
         function stopDragFcn(obj, ~, ~)
@@ -1722,7 +1736,7 @@ classdef (Abstract) nvisBase < handle
         
         
         function saveVidBtn(obj, ~, ~)
-            % get the filepath from a UI and call saveVideo funciton to save
+            % get the filepath from a UI and call saveVideo function to save
             % the video or gif
             [filename, filepath] = uiputfile({'*.avi', 'AVI-file (*.avi)'; ...
                 '*.gif', 'gif-Animation (*.gif)'}, ...
@@ -1787,6 +1801,8 @@ classdef (Abstract) nvisBase < handle
                             'DelayTime',    1/obj.fps);
                     end
                 else
+                    imgOut(imgOut > 1) = 1;
+                    imgOut(imgOut < 0) = 0;
                     writeVideo(v, imgOut);
                 end
             end
@@ -1819,9 +1835,11 @@ classdef (Abstract) nvisBase < handle
                     end                    
                 end
 
-                %if explicit names were provided, overwrite val names
-                if ~ismember('ImgLabel', obj.p.UsingDefaults)
-                    if ii <= numel(obj.p.Results.ImgLabel)
+                % if explicit names were provided, overwrite val names
+                if ~contains('ImgLabel', obj.p.UsingDefaults)
+                    if ischar(obj.p.Results.ImgLabel)                     
+                        obj.valNames{1} = obj.p.Results.ImgLabel;
+                    elseif ii <= numel(obj.p.Results.ImgLabel{ii})
                         obj.valNames{ii} = obj.p.Results.ImgLabel{ii};
                     else
                         obj.valNames{ii} = '';
