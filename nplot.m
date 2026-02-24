@@ -182,8 +182,10 @@ classdef nplot < handle
             obj.initializeGUI();
 
             % collect/generate names for input matrices
-            for idm = 1:obj.nMats
-                obj.inputNames{idm} = inputname(idm);
+            if contains('InputNames', obj.p.UsingDefaults)
+                for idm = 1:obj.nMats
+                    obj.inputNames{idm} = inputname(idm);
+                end
             end
             obj.setValNames();
             
@@ -301,7 +303,7 @@ classdef nplot < handle
             addParameter(obj.p, 'ComplexMode',  obj.complexMode,                @(x) isnumeric(x) && x <= 4);
             addParameter(obj.p, 'DimLabel',     strcat(repmat({}, 1, numel(obj.S))), @(x) iscell(x) && numel(x) >= obj.nDims);
             addParameter(obj.p, 'DimVal',       cellfun(@(x) 1:x, num2cell(obj.S), 'UniformOutput', false), @iscell);
-            addParameter(obj.p, 'Unit',         '',                             @(x) ischar(x) || iscell(x));
+            addParameter(obj.p, 'Unit',         repmat({''}, 1, obj.nMats),     @(x) ischar(x) || iscell(x));
             addParameter(obj.p, 'InitDim',      1,                              @isnumeric);
             addParameter(obj.p, 'ExternalCall', 0,                              @(x) (x == 0 || x == 1));
             
@@ -314,6 +316,13 @@ classdef nplot < handle
             obj.showDim             = obj.p.Results.InitDim;
             obj.bCalledFromExternal = obj.p.Results.ExternalCall;
             obj.color               = obj.p.Results.Color;
+
+            if ischar(obj.unit)
+                obj.unit = {obj.unit};
+            end
+            if ischar(obj.inputNames)
+                obj.inputNames = {obj.inputNames};
+            end
                         
             obj.parseDimLabelsVals()
         end
@@ -550,11 +559,12 @@ classdef nplot < handle
                 'Position',     [0.05 0.05 0.9 0.9]);
             %set(obj.hAxis, 'ButtonDownFcn', @startDragFcn)
             
-            if ~strcmp(obj.unit, '')
-                ylabel(obj.unit)
-                % leave some space on the left for the ylabel
-                set(obj.hAxis, 'Position', [0.075 0.05 0.9 0.9]);
+            yLabelText{1} = [obj.inputNames{1} ' / ' obj.unit{1}];
+            if obj.nMats == 2
+                yLabelText{2} = [obj.inputNames{2} ' / ' obj.unit{2}];
             end
+            ylabel(yLabelText)
+            set(obj.hAxis, 'Position', [0.075 0.05 0.9 0.9]);
             
             hold on
             
@@ -917,6 +927,9 @@ classdef nplot < handle
 
                 val = obj.complexPart(obj.mat{idm}(sel{:}));
                 str = [str sprintf('%s = %f', obj.valNames{idm}, val)];
+                if  ~strcmp(obj.unit{idm}, '')
+                    str = [str ' ' obj.unit{idm}];
+                end
             end
             set(obj.hLocAndVals, 'String', str);
         end
