@@ -22,15 +22,31 @@ nvis is a matrix viewer for matrices of any size. Its aimed towards MATLAB users
 
 nvis can be called with one
 
-`nvis(A)`
+```matlab
+% simple 2D matrix
+A = rand(100, 100);
+nvis(A)
 
-or two input matrices
+% higher dimensional data
+B = rand(100, 100, 5, 2);
+nvis(B)
+```
 
-`nvis(A, B)`
+or two input matrices at once
+
+```matlab
+A = rand(100, 100, 10);
+B = rand(100, 100, 10);
+nvis(A, B)
+```
 
 B must have the same size as A. Except: A and B can differ in size along one or more dimensions, as long as either A or B are singleton. E.g.
 
-`nvis(rand(100, 100, 10, 1), rand(100, 100, 1, 5))`
+```matlab
+A = rand(100, 100, 10, 1);
+B = rand(100, 100,  1, 5);
+nvis(A, B)
+```
 
 For dimensions where all input matrices are singleton, no slider is shown.
 
@@ -38,23 +54,33 @@ The limits of the colormap can be changed with `center` and `width` values. Thes
 
 Matrix dimensions can be labelled:
 
-`nvis(rand(100, 100, 10), 'dimLabel', {'dx', 'dy', 'time'})`
+```matlab
+nvis(rand(100, 100, 10), 'dimLabel', {'dx', 'dy', 'time'})
+```
 
 Values along each dimension can be labelled with any string. When providing an empty matrix `[]`, the values are enumerated, e.g. `1:size(..., 1)`.
 
-`nvis(rand(100, 100, 10), 'dimVal', {[],[], 0.1*(1:10)})`
+```matlab
+nvis(rand(100, 100, 10), 'dimVal', {[],[], 0.1*(1:10)})
+```
 
 For complex data, either the absolute value, phase, real- or imaginary part can be displayed. It is also possible to show the 2D Fourier transform of the currently selected slice.
 
 The shown image/animation can also be saved to file. Either from the GUI, or - without opening the GUI -- from the command line.
 
-`nvis(imageMat,'CW',[0.5,1],'Colormap','parula','SaveImage','image.png')`
-`nvis(imageMat,'CW',[0.5,1],'Colormap',parula(32),'fps',60,'SaveVideo','animation.gif')`
+```matlab
+nvis(imageMat,'CW',[0.5,1],'Colormap','parula','SaveImage','image.png')
+nvis(imageMat,'CW',[0.5,1],'Colormap',parula(32),'fps',60,'SaveVideo','animation.gif')
+```
 
 By default, the matrix is displayed as a square. To set the aspect ratio according to the matrix size, use
 
-`nvis(A, 'aspectRatio', 'image')`
+```matlab
+nvis(A, 'aspectRatio', 'image')
+```
 
 More instructions are documented under
 
-`help nvis`
+```matlab
+help nvis
+```
