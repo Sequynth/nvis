@@ -177,16 +177,24 @@ classdef nplot < handle
             % prepare the input parser
             obj.parseNVPs();
             
-            obj.prepareXaxes();
-            
-            obj.initializeGUI();
-
-            % collect/generate names for input matrices
+            % collect/generate names for input matrices (must happen before
+            % the GUI is built, since the y-label uses them)
             if contains('InputNames', obj.p.UsingDefaults)
+                obj.inputNames = cell(1, obj.nMats);
                 for idm = 1:obj.nMats
-                    obj.inputNames{idm} = inputname(idm);
+                    try
+                        obj.inputNames{idm} = inputname(idm);
+                    catch
+                        % input was an expression, not a variable
+                        obj.inputNames{idm} = '';
+                    end
                 end
             end
+
+            obj.prepareXaxes();
+
+            obj.initializeGUI();
+
             obj.setValNames();
             
             % set initial plot-dimension
@@ -283,7 +291,7 @@ classdef nplot < handle
 
             obj.S = max(s_st, [] , 1);
             
-            for iMat = 1:iMat
+            for iMat = 1:obj.nMats
                 obj.ston{iMat} = find(s{iMat} == 1);
             end
         end
@@ -318,7 +326,7 @@ classdef nplot < handle
             obj.color               = obj.p.Results.Color;
 
             if ischar(obj.unit)
-                obj.unit = {obj.unit};
+                obj.unit = repmat({obj.unit}, 1, obj.nMats);
             end
             if ischar(obj.inputNames)
                 obj.inputNames = {obj.inputNames};
@@ -559,11 +567,23 @@ classdef nplot < handle
                 'Position',     [0.05 0.05 0.9 0.9]);
             %set(obj.hAxis, 'ButtonDownFcn', @startDragFcn)
             
-            yLabelText{1} = [obj.inputNames{1} ' / ' obj.unit{1}];
-            if obj.nMats == 2
-                yLabelText{2} = [obj.inputNames{2} ' / ' obj.unit{2}];
+            yLabelText = cell(1, obj.nMats);
+            for iMat = 1:obj.nMats
+                name = obj.inputNames{iMat};
+                if iMat <= numel(obj.unit)
+                    unitStr = obj.unit{iMat};
+                else
+                    unitStr = '';
+                end
+                if isempty(name)
+                    yLabelText{iMat} = unitStr;
+                elseif isempty(unitStr)
+                    yLabelText{iMat} = name;
+                else
+                    yLabelText{iMat} = [name ' / ' unitStr];
+                end
             end
-            ylabel(yLabelText)
+            ylabel(yLabelText(~cellfun(@isempty, yLabelText)))
             set(obj.hAxis, 'Position', [0.075 0.05 0.9 0.9]);
             
             hold on
